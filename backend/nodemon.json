@@ -1,0 +1,27 @@
+{
+  "watch": [
+    "app.js",
+    "bin/",
+    "config/",
+    "db/",
+    "middleware/",
+    "models/",
+    "modules/",
+    "utils/",
+    "views/",
+    "withAuth.js"
+  ],
+  "ignore": [
+    "node_modules/",
+    "client/",
+    "drizzle/",
+    "public/",
+    ".git/",
+    "*.log",
+    "*.tmp",
+    ".env*",
+    "package-lock.json"
+  ],
+  "ext": "js,json,ejs",
+  "delay": "2000"
+}

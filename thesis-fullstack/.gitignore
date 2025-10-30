@@ -1,8 +1,0 @@
-AdminLTE-3.0.4
-
-.env
-
-node_modules
-
-client/node_modules
-/generated/prisma

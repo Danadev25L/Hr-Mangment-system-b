@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/MSI/Downloads/hrs/thesis-fullstack/modules/shared/routes/**)",
+      "Read(//c/Users/MSI/Downloads/hrs/**)",
+      "Bash(git commit:*)",
+      "Bash(git add:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

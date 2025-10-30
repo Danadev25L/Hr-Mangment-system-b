@@ -17,7 +17,7 @@ export const createNotification = async (req, res) => {
     }
 
     // Check if user has permission to create notifications
-    const userRole = req.authData?.role;
+    const userRole = req.user?.role;
     if (!['ROLE_ADMIN', 'ROLE_MANAGER'].includes(userRole)) {
       return res.status(403).json({
         message: "Access denied. Only administrators and managers can create notifications."
@@ -29,6 +29,7 @@ export const createNotification = async (req, res) => {
       title: req.body.title,
       message: req.body.message,
       type: req.body.type || 'info',
+      relatedId: req.body.relatedId || null,
       isRead: false
     };
 
@@ -51,7 +52,13 @@ export const createNotification = async (req, res) => {
 // Retrieve all Notifications for current user
 export const getMyNotifications = async (req, res) => {
   try {
-    const userId = req.authData.id;
+    const userId = req.user?.id;
+    
+    if (!userId) {
+      return res.status(401).json({
+        message: "Unauthorized - user not found"
+      });
+    }
     
     const result = await db.select()
       .from(notifications)
@@ -63,6 +70,7 @@ export const getMyNotifications = async (req, res) => {
       notifications: result
     });
   } catch (error) {
+    console.error('Error in getMyNotifications:', error);
     res.status(500).json({
       message: error.message || "Some error occurred while retrieving Notifications."
     });
@@ -73,8 +81,8 @@ export const getMyNotifications = async (req, res) => {
 export const getUserNotifications = async (req, res) => {
   try {
     const userId = parseInt(req.params.userId);
-    const currentUserRole = req.authData?.role;
-    const currentUserId = req.authData?.id;
+    const currentUserRole = req.user?.role;
+    const currentUserId = req.user?.id;
 
     // Check permissions
     if (!['ROLE_ADMIN', 'ROLE_MANAGER'].includes(currentUserRole)) {
@@ -122,7 +130,13 @@ export const getUserNotifications = async (req, res) => {
 export const markNotificationAsRead = async (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    const userId = req.authData.id;
+    const userId = req.user?.id;
+    
+    if (!userId) {
+      return res.status(401).json({
+        message: "Unauthorized - user not found"
+      });
+    }
     
     // Verify the notification belongs to the current user
     const [notification] = await db.select()
@@ -143,7 +157,10 @@ export const markNotificationAsRead = async (req, res) => {
     }
     
     const result = await db.update(notifications)
-      .set({ isRead: true })
+      .set({ 
+        isRead: true,
+        readAt: new Date().toISOString()
+      })
       .where(eq(notifications.id, id))
       .returning();
     
@@ -167,10 +184,19 @@ export const markNotificationAsRead = async (req, res) => {
 // Mark all notifications as read for current user
 export const markAllMyNotificationsAsRead = async (req, res) => {
   try {
-    const userId = req.authData.id;
+    const userId = req.user?.id;
+    
+    if (!userId) {
+      return res.status(401).json({
+        message: "Unauthorized - user not found"
+      });
+    }
     
     const result = await db.update(notifications)
-      .set({ isRead: true })
+      .set({ 
+        isRead: true,
+        readAt: new Date().toISOString()
+      })
       .where(eq(notifications.userId, userId))
       .returning();
     
@@ -189,8 +215,8 @@ export const markAllMyNotificationsAsRead = async (req, res) => {
 export const markAllUserNotificationsAsRead = async (req, res) => {
   try {
     const userId = parseInt(req.params.userId);
-    const currentUserRole = req.authData?.role;
-    const currentUserId = req.authData?.id;
+    const currentUserRole = req.user?.role;
+    const currentUserId = req.user?.id;
 
     // Check permissions
     if (!['ROLE_ADMIN', 'ROLE_MANAGER'].includes(currentUserRole)) {
@@ -219,7 +245,10 @@ export const markAllUserNotificationsAsRead = async (req, res) => {
     }
     
     const result = await db.update(notifications)
-      .set({ isRead: true })
+      .set({ 
+        isRead: true,
+        readAt: new Date().toISOString()
+      })
       .where(eq(notifications.userId, userId))
       .returning();
     
@@ -237,7 +266,13 @@ export const markAllUserNotificationsAsRead = async (req, res) => {
 // Get unread count for current user
 export const getMyUnreadCount = async (req, res) => {
   try {
-    const userId = req.authData.id;
+    const userId = req.user?.id;
+    
+    if (!userId) {
+      return res.status(401).json({
+        message: "Unauthorized - user not found"
+      });
+    }
     
     const result = await db.select()
       .from(notifications)
@@ -251,6 +286,7 @@ export const getMyUnreadCount = async (req, res) => {
       count: result.length 
     });
   } catch (error) {
+    console.error('Error in getMyUnreadCount:', error);
     res.status(500).json({
       message: error.message || "Some error occurred while getting unread count."
     });
@@ -261,8 +297,8 @@ export const getMyUnreadCount = async (req, res) => {
 export const getUserUnreadCount = async (req, res) => {
   try {
     const userId = parseInt(req.params.userId);
-    const currentUserRole = req.authData?.role;
-    const currentUserId = req.authData?.id;
+    const currentUserRole = req.user?.role;
+    const currentUserId = req.user?.id;
 
     // Check permissions
     if (!['ROLE_ADMIN', 'ROLE_MANAGER'].includes(currentUserRole)) {
@@ -312,8 +348,14 @@ export const getUserUnreadCount = async (req, res) => {
 export const deleteNotification = async (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    const userId = req.authData.id;
-    const userRole = req.authData?.role;
+    const userId = req.user?.id;
+    const userRole = req.user?.role;
+
+    if (!userId) {
+      return res.status(401).json({
+        message: "Unauthorized - user not found"
+      });
+    }
 
     // Get the notification first
     const [notification] = await db.select()

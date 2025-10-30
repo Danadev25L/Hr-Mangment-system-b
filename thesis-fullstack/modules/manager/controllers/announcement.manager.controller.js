@@ -8,7 +8,7 @@ import {
     notifications 
 } from '../../../db/schema.js';
 
-// Manager: Create department announcement
+// Manager: Create department announcement (only for their own department)
 export const createAnnouncement = async (req, res) => {
     try {
         if (!req.body) {
@@ -19,11 +19,12 @@ export const createAnnouncement = async (req, res) => {
 
         const userData = JSON.parse(req.headers.user || '{}');
         const userId = userData.id;
-        const userRole = userData.role;
 
-        if (!req.body.announcementTitle || !req.body.announcementDescription) {
+        const { title, description, date, isActive, recipientUserIds } = req.body;
+
+        if (!title || !description || !date) {
             return res.status(400).json({
-                message: "Title and description are required!"
+                message: "Title, description, and date are required!"
             });
         }
 
@@ -41,14 +42,14 @@ export const createAnnouncement = async (req, res) => {
 
         // Managers can only create announcements for their own department
         const targetDepartmentId = currentUser.departmentId;
-        let recipientUserIds = req.body.recipientUserIds || [];
+        let finalRecipientIds = [];
 
         // If specific users are selected, ensure they're in manager's department
-        if (recipientUserIds.length > 0) {
+        if (recipientUserIds && recipientUserIds.length > 0) {
             const usersInDept = await db.select({ id: users.id })
                 .from(users)
                 .where(and(
-                    eq(users.departmentId, currentUser.departmentId),
+                    eq(users.departmentId, targetDepartmentId),
                     inArray(users.id, recipientUserIds),
                     inArray(users.role, ['ROLE_EMPLOYEE', 'ROLE_MANAGER'])
                 ));
@@ -58,6 +59,7 @@ export const createAnnouncement = async (req, res) => {
                     message: "You can only notify users within your own department!"
                 });
             }
+            finalRecipientIds = usersInDept.map(u => u.id);
         } else {
             // If no specific users, get all employees and managers in the department
             const departmentUsers = await db.select({ id: users.id })
@@ -66,37 +68,42 @@ export const createAnnouncement = async (req, res) => {
                     eq(users.departmentId, targetDepartmentId),
                     inArray(users.role, ['ROLE_EMPLOYEE', 'ROLE_MANAGER'])
                 ));
-            
-            recipientUserIds = departmentUsers.map(user => user.id);
+            finalRecipientIds = departmentUsers.map(u => u.id);
         }
 
         // Create the announcement
         const [newAnnouncement] = await db.insert(departmentAnnouncements)
             .values({
-                title: req.body.announcementTitle,
-                description: req.body.announcementDescription,
-                date: new Date(req.body.announcementDate || new Date()),
+                title,
+                description,
+                date: new Date(date),
                 departmentId: targetDepartmentId,
-                createdBy: userId
+                createdBy: userId,
+                isActive: isActive !== undefined ? isActive : true
             })
             .returning();
 
         // Add recipients
-        if (recipientUserIds.length > 0) {
-            const recipientRecords = recipientUserIds.map(recipientId => ({
+        if (finalRecipientIds.length > 0) {
+            const recipientRecords = finalRecipientIds.map(recipientId => ({
                 announcementId: newAnnouncement.id,
-                userId: recipientId
+                userId: recipientId,
+                isRead: false
             }));
 
             await db.insert(announcementRecipients)
                 .values(recipientRecords);
 
             // Create notifications for recipients
-            const notificationRecords = recipientUserIds.map(recipientId => ({
+            const notificationRecords = finalRecipientIds.map(recipientId => ({
                 userId: recipientId,
                 title: 'New Department Announcement',
-                message: `New announcement: ${req.body.announcementTitle}`,
-                type: 'info'
+                message: `New announcement: ${title}`,
+                type: 'announcement',
+                relatedId: newAnnouncement.id,
+                isRead: false,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
             }));
 
             await db.insert(notifications)
@@ -106,10 +113,11 @@ export const createAnnouncement = async (req, res) => {
         res.json({
             message: "Announcement created successfully!",
             announcement: newAnnouncement,
-            recipientCount: recipientUserIds.length
+            recipientCount: finalRecipientIds.length
         });
 
     } catch (error) {
+        console.error('Error creating announcement:', error);
         res.status(500).json({
             message: error.message || "Error occurred while creating announcement."
         });
@@ -139,7 +147,9 @@ export const getDepartmentAnnouncements = async (req, res) => {
             title: departmentAnnouncements.title,
             description: departmentAnnouncements.description,
             date: departmentAnnouncements.date,
+            isActive: departmentAnnouncements.isActive,
             createdAt: departmentAnnouncements.createdAt,
+            updatedAt: departmentAnnouncements.updatedAt,
             departmentId: departmentAnnouncements.departmentId,
             createdBy: departmentAnnouncements.createdBy,
             creator: {
@@ -156,11 +166,74 @@ export const getDepartmentAnnouncements = async (req, res) => {
         .where(eq(departmentAnnouncements.departmentId, currentUser.departmentId))
         .orderBy(desc(departmentAnnouncements.createdAt));
 
-        res.json(announcements);
+        res.json({ announcements });
 
     } catch (error) {
+        console.error('Error fetching announcements:', error);
         res.status(500).json({
             message: error.message || "Error occurred while retrieving announcements."
+        });
+    }
+};
+
+// Manager: Get single announcement by ID (only from their department)
+export const getAnnouncementById = async (req, res) => {
+    try {
+        const announcementId = parseInt(req.params.id);
+        const userData = JSON.parse(req.headers.user || '{}');
+        const userId = userData.id;
+
+        // Get manager's department
+        const [currentUser] = await db.select()
+            .from(users)
+            .where(eq(users.id, userId))
+            .limit(1);
+
+        if (!currentUser || !currentUser.departmentId) {
+            return res.status(400).json({
+                message: "Manager must be assigned to a department!"
+            });
+        }
+
+        const [announcement] = await db.select({
+            id: departmentAnnouncements.id,
+            title: departmentAnnouncements.title,
+            description: departmentAnnouncements.description,
+            date: departmentAnnouncements.date,
+            isActive: departmentAnnouncements.isActive,
+            createdAt: departmentAnnouncements.createdAt,
+            updatedAt: departmentAnnouncements.updatedAt,
+            departmentId: departmentAnnouncements.departmentId,
+            createdBy: departmentAnnouncements.createdBy,
+            creator: {
+                fullName: users.fullName,
+                username: users.username
+            },
+            department: {
+                departmentName: departments.departmentName
+            }
+        })
+        .from(departmentAnnouncements)
+        .leftJoin(users, eq(departmentAnnouncements.createdBy, users.id))
+        .leftJoin(departments, eq(departmentAnnouncements.departmentId, departments.id))
+        .where(and(
+            eq(departmentAnnouncements.id, announcementId),
+            eq(departmentAnnouncements.departmentId, currentUser.departmentId)
+        ))
+        .limit(1);
+
+        if (!announcement) {
+            return res.status(404).json({
+                message: "Announcement not found or you don't have access to it!"
+            });
+        }
+
+        res.json({ announcement });
+
+    } catch (error) {
+        console.error('Error fetching announcement:', error);
+        res.status(500).json({
+            message: error.message || "Error occurred while retrieving announcement."
         });
     }
 };

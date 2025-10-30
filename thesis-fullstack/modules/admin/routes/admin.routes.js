@@ -7,6 +7,7 @@ import * as adminOrganizationController from '../controllers/organization.admin.
 import * as adminSalaryController from '../controllers/salary.admin.controller.js';
 import * as adminApplicationController from '../controllers/application.admin.controller.js';
 import * as adminAnnouncementController from '../controllers/announcement.admin.controller.js';
+import * as adminHolidayController from '../controllers/holidays.admin.controller.js';
 
 const router = express.Router();
 
@@ -90,6 +91,7 @@ router.get('/departmentAnnouncements/recent', adminUserController.getRecentDepar
 
 // Admin Announcement Management Routes
 router.get('/announcements', adminAnnouncementController.getAllAnnouncements);
+router.get('/announcements/:id', adminAnnouncementController.getAnnouncementById);
 router.post('/announcements', adminAnnouncementController.createAnnouncement);
 router.put('/announcements/:id', adminAnnouncementController.updateAnnouncement);
 router.delete('/announcements/:id', adminAnnouncementController.deleteAnnouncement);
@@ -103,5 +105,16 @@ router.put('/applications/:id', adminApplicationController.updateApplication);
 router.delete('/applications/:id', adminApplicationController.deleteApplication);
 router.put('/applications/:id/approve', adminApplicationController.approveApplication);
 router.put('/applications/:id/reject', adminApplicationController.rejectApplication);
+
+// Admin Holiday Management Routes
+router.post('/holidays', adminHolidayController.createHoliday);
+router.get('/holidays', adminHolidayController.getAllHolidays);
+router.get('/holidays/upcoming', adminHolidayController.getUpcomingHolidays);
+router.get('/holidays/statistics', adminHolidayController.getHolidayStatistics);
+router.get('/holidays/organization/:organizationId', adminHolidayController.getOrganizationHolidays);
+router.get('/holidays/:id', adminHolidayController.getHoliday);
+router.put('/holidays/:id', adminHolidayController.updateHoliday);
+router.delete('/holidays/:id', adminHolidayController.deleteHoliday);
+router.delete('/holidays/organization/:organizationId', adminHolidayController.deleteOrganizationHolidays);
 
 export default router;

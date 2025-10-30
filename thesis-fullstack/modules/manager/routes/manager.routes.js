@@ -4,6 +4,7 @@ import * as managerAnnouncementController from '../controllers/announcement.mana
 import * as managerJobController from '../controllers/job.manager.controller.js';
 import * as managerExpenseController from '../controllers/expense.manager.controller.js';
 import * as managerApplicationController from '../controllers/application.manager.controller.js';
+import * as managerHolidayController from '../controllers/holidays.manager.controller.js';
 
 const router = express.Router();
 
@@ -16,6 +17,7 @@ router.put('/overtime/:id/approve', managerEmployeeController.approveOvertimeReq
 // Manager Announcement Routes
 router.post('/announcements', managerAnnouncementController.createAnnouncement);
 router.get('/announcements', managerAnnouncementController.getDepartmentAnnouncements);
+router.get('/announcements/:id', managerAnnouncementController.getAnnouncementById);
 router.put('/announcements/:id', managerAnnouncementController.updateAnnouncement);
 router.delete('/announcements/:id', managerAnnouncementController.deleteAnnouncement);
 
@@ -44,5 +46,13 @@ router.get('/applications/:id', managerApplicationController.getDepartmentApplic
 router.put('/applications/:id/approve', managerApplicationController.approveApplication);
 router.put('/applications/:id/reject', managerApplicationController.rejectApplication);
 router.put('/applications/:id', managerApplicationController.updateDepartmentApplication);
+
+// Manager Holiday Management Routes (View-Only)
+router.get('/holidays', managerHolidayController.getOrganizationHolidays);
+router.get('/holidays/upcoming', managerHolidayController.getUpcomingHolidays);
+router.get('/holidays/month', managerHolidayController.getHolidaysByMonth);
+router.get('/holidays/statistics', managerHolidayController.getOrganizationHolidayStats);
+router.get('/holidays/:id', managerHolidayController.getHoliday);
+router.post('/holidays/suggest', managerHolidayController.suggestHoliday);
 
 export default router;

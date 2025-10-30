@@ -1,116 +1,45 @@
 import { eq } from 'drizzle-orm';
 import { db } from '../../../db/index.js';
-import { daysHoliday, organizations, users } from '../../../db/schema.js';
+import { daysHoliday } from '../../../db/schema.js';
 
 /**
  * Employee Holiday Controller
- * Handles holiday viewing for employees (view organization holidays only)
+ * Handles holiday viewing for employees
  */
 
-// Get organization holidays for employee
+// Get all holidays for employee
 export const getOrganizationHolidays = async (req, res) => {
   try {
-    const employeeId = req.user.id;
-    
-    // Get employee's organization
-    const employee = await db.select()
-      .from(users)
-      .where(eq(users.id, employeeId))
-      .limit(1);
-    
-    if (employee.length === 0) {
-      return res.status(404).json({
-        message: "Employee not found"
-      });
-    }
-
-    const employeeOrganizationId = employee[0].organizationId;
-    
-    if (!employeeOrganizationId) {
-      return res.status(403).json({
-        message: "No organization assigned to employee"
-      });
-    }
-
-    const result = await db.select({
-      id: daysHoliday.id,
-      date: daysHoliday.date,
-      name: daysHoliday.name,
-      description: daysHoliday.description,
-      isRecurring: daysHoliday.isRecurring,
-      organizationId: daysHoliday.organizationId,
-      organization: {
-        id: organizations.id,
-        name: organizations.name
-      }
-    })
-    .from(daysHoliday)
-    .leftJoin(organizations, eq(daysHoliday.organizationId, organizations.id))
-    .where(eq(daysHoliday.organizationId, employeeOrganizationId))
-    .orderBy(daysHoliday.date);
+    const result = await db.select()
+      .from(daysHoliday)
+      .orderBy(daysHoliday.date);
     
     res.json({
-      message: "Organization holidays retrieved successfully",
-      holidays: result,
-      organizationId: employeeOrganizationId
+      message: "Holidays retrieved successfully",
+      holidays: result
     });
   } catch (error) {
     res.status(500).json({
-      message: error.message || "Some error occurred while retrieving organization holidays."
+      message: error.message || "Some error occurred while retrieving holidays."
     });
   }
 };
 
-// Get upcoming organization holidays
+// Get upcoming holidays
 export const getUpcomingHolidays = async (req, res) => {
   try {
-    const employeeId = req.user.id;
     const currentDate = new Date();
     
-    // Get employee's organization
-    const employee = await db.select()
-      .from(users)
-      .where(eq(users.id, employeeId))
-      .limit(1);
-    
-    if (employee.length === 0) {
-      return res.status(404).json({
-        message: "Employee not found"
-      });
-    }
-
-    const employeeOrganizationId = employee[0].organizationId;
-    
-    if (!employeeOrganizationId) {
-      return res.status(403).json({
-        message: "No organization assigned to employee"
-      });
-    }
-
-    const result = await db.select({
-      id: daysHoliday.id,
-      date: daysHoliday.date,
-      name: daysHoliday.name,
-      description: daysHoliday.description,
-      isRecurring: daysHoliday.isRecurring,
-      organizationId: daysHoliday.organizationId,
-      organization: {
-        id: organizations.id,
-        name: organizations.name
-      }
-    })
+    const result = await db.select()
     .from(daysHoliday)
-    .leftJoin(organizations, eq(daysHoliday.organizationId, organizations.id))
-    .where(eq(daysHoliday.organizationId, employeeOrganizationId))
     .orderBy(daysHoliday.date);
     
     // Filter upcoming holidays
     const upcomingHolidays = result.filter(holiday => new Date(holiday.date) >= currentDate);
     
     res.json({
-      message: "Upcoming organization holidays retrieved successfully",
-      holidays: upcomingHolidays,
-      organizationId: employeeOrganizationId
+      message: "Upcoming holidays retrieved successfully",
+      holidays: upcomingHolidays
     });
   } catch (error) {
     res.status(500).json({
@@ -119,10 +48,9 @@ export const getUpcomingHolidays = async (req, res) => {
   }
 };
 
-// Get holidays by month for organization
+// Get holidays by month
 export const getHolidaysByMonth = async (req, res) => {
   try {
-    const employeeId = req.user.id;
     const { year, month } = req.query;
     
     if (!year || !month) {
@@ -131,36 +59,8 @@ export const getHolidaysByMonth = async (req, res) => {
       });
     }
     
-    // Get employee's organization
-    const employee = await db.select()
-      .from(users)
-      .where(eq(users.id, employeeId))
-      .limit(1);
-    
-    if (employee.length === 0) {
-      return res.status(404).json({
-        message: "Employee not found"
-      });
-    }
-
-    const employeeOrganizationId = employee[0].organizationId;
-    
-    if (!employeeOrganizationId) {
-      return res.status(403).json({
-        message: "No organization assigned to employee"
-      });
-    }
-
-    const result = await db.select({
-      id: daysHoliday.id,
-      date: daysHoliday.date,
-      name: daysHoliday.name,
-      description: daysHoliday.description,
-      isRecurring: daysHoliday.isRecurring,
-      organizationId: daysHoliday.organizationId
-    })
+    const result = await db.select()
     .from(daysHoliday)
-    .where(eq(daysHoliday.organizationId, employeeOrganizationId))
     .orderBy(daysHoliday.date);
     
     // Filter by month and year
@@ -174,8 +74,7 @@ export const getHolidaysByMonth = async (req, res) => {
       message: "Holidays for the month retrieved successfully",
       holidays: filteredHolidays,
       month: parseInt(month),
-      year: parseInt(year),
-      organizationId: employeeOrganizationId
+      year: parseInt(year)
     });
   } catch (error) {
     res.status(500).json({
@@ -184,46 +83,14 @@ export const getHolidaysByMonth = async (req, res) => {
   }
 };
 
-// Get single holiday (from organization only)
+// Get single holiday
 export const getHoliday = async (req, res) => {
   try {
     const holidayId = parseInt(req.params.id);
-    const employeeId = req.user.id;
     
-    // Get employee's organization
-    const employee = await db.select()
-      .from(users)
-      .where(eq(users.id, employeeId))
-      .limit(1);
-    
-    if (employee.length === 0) {
-      return res.status(404).json({
-        message: "Employee not found"
-      });
-    }
-
-    const employeeOrganizationId = employee[0].organizationId;
-    
-    const result = await db.select({
-      id: daysHoliday.id,
-      date: daysHoliday.date,
-      name: daysHoliday.name,
-      description: daysHoliday.description,
-      isRecurring: daysHoliday.isRecurring,
-      organizationId: daysHoliday.organizationId,
-      organization: {
-        id: organizations.id,
-        name: organizations.name
-      }
-    })
+    const result = await db.select()
     .from(daysHoliday)
-    .leftJoin(organizations, eq(daysHoliday.organizationId, organizations.id))
-    .where(
-      and(
-        eq(daysHoliday.id, holidayId),
-        eq(daysHoliday.organizationId, employeeOrganizationId)
-      )
-    )
+    .where(eq(daysHoliday.id, holidayId))
     .limit(1);
     
     if (result.length > 0) {
@@ -233,7 +100,7 @@ export const getHoliday = async (req, res) => {
       });
     } else {
       res.status(404).json({
-        message: `Holiday with id=${holidayId} not found in your organization.`
+        message: `Holiday with id=${holidayId} not found.`
       });
     }
   } catch (error) {
@@ -246,41 +113,12 @@ export const getHoliday = async (req, res) => {
 // Get today's holiday status
 export const getTodayHolidayStatus = async (req, res) => {
   try {
-    const employeeId = req.user.id;
     const today = new Date();
     today.setHours(0, 0, 0, 0); // Set to start of day
     
-    // Get employee's organization
-    const employee = await db.select()
-      .from(users)
-      .where(eq(users.id, employeeId))
-      .limit(1);
-    
-    if (employee.length === 0) {
-      return res.status(404).json({
-        message: "Employee not found"
-      });
-    }
-
-    const employeeOrganizationId = employee[0].organizationId;
-    
-    if (!employeeOrganizationId) {
-      return res.status(403).json({
-        message: "No organization assigned to employee"
-      });
-    }
-
-    // Check if today is a holiday
-    const todayHoliday = await db.select({
-      id: daysHoliday.id,
-      date: daysHoliday.date,
-      name: daysHoliday.name,
-      description: daysHoliday.description,
-      isRecurring: daysHoliday.isRecurring
-    })
-    .from(daysHoliday)
-    .where(eq(daysHoliday.organizationId, employeeOrganizationId))
-    .limit(1);
+    // Get all holidays
+    const todayHoliday = await db.select()
+    .from(daysHoliday);
     
     // Filter to find today's holiday (basic date comparison)
     const todayString = today.toISOString().split('T')[0];
@@ -296,8 +134,7 @@ export const getTodayHolidayStatus = async (req, res) => {
       message: "Today's holiday status retrieved successfully",
       isHoliday,
       holidayInfo: isHoliday ? holidayToday : null,
-      date: today,
-      organizationId: employeeOrganizationId
+      date: today
     });
   } catch (error) {
     res.status(500).json({
@@ -309,38 +146,10 @@ export const getTodayHolidayStatus = async (req, res) => {
 // Get next upcoming holiday
 export const getNextHoliday = async (req, res) => {
   try {
-    const employeeId = req.user.id;
     const currentDate = new Date();
     
-    // Get employee's organization
-    const employee = await db.select()
-      .from(users)
-      .where(eq(users.id, employeeId))
-      .limit(1);
-    
-    if (employee.length === 0) {
-      return res.status(404).json({
-        message: "Employee not found"
-      });
-    }
-
-    const employeeOrganizationId = employee[0].organizationId;
-    
-    if (!employeeOrganizationId) {
-      return res.status(403).json({
-        message: "No organization assigned to employee"
-      });
-    }
-
-    const result = await db.select({
-      id: daysHoliday.id,
-      date: daysHoliday.date,
-      name: daysHoliday.name,
-      description: daysHoliday.description,
-      isRecurring: daysHoliday.isRecurring
-    })
+    const result = await db.select()
     .from(daysHoliday)
-    .where(eq(daysHoliday.organizationId, employeeOrganizationId))
     .orderBy(daysHoliday.date);
     
     // Find next upcoming holiday
@@ -358,8 +167,7 @@ export const getNextHoliday = async (req, res) => {
     res.json({
       message: nextHoliday ? "Next holiday retrieved successfully" : "No upcoming holidays found",
       nextHoliday,
-      daysUntilHoliday,
-      organizationId: employeeOrganizationId
+      daysUntilHoliday
     });
   } catch (error) {
     res.status(500).json({

@@ -1,6 +1,7 @@
-import { eq, and } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
+
 import { db } from '../../../db/index.js';
-import { daysHoliday, organizations, users } from '../../../db/schema.js';
+import { daysHoliday } from '../../../db/schema.js';
 
 /**
  * Admin Holiday Management Controller
@@ -22,50 +23,47 @@ export const createHoliday = async (req, res) => {
       });
     }
 
-    if (!req.body.organizationId) {
+    console.log('Received request body:', req.body);
+
+    // Parse the date string to a proper Date object
+    const dateObj = new Date(req.body.date);
+    
+    // Validate that the date is valid
+    if (isNaN(dateObj.getTime())) {
       return res.status(400).json({
-        message: "Organization ID is required!"
+        message: "Invalid date format!"
       });
     }
 
-    // Validate organization exists
-    const organization = await db.select()
-      .from(organizations)
-      .where(eq(organizations.id, req.body.organizationId))
-      .limit(1);
-
-    if (organization.length === 0) {
-      return res.status(404).json({
-        message: "Organization not found"
-      });
-    }
-
-    // Check if holiday already exists for this date and organization
+    // Check if holiday already exists for this date
     const existingHoliday = await db.select()
       .from(daysHoliday)
-      .where(
-        and(
-          eq(daysHoliday.date, req.body.date),
-          eq(daysHoliday.organizationId, req.body.organizationId)
-        )
-      )
+      .where(eq(daysHoliday.date, dateObj))
       .limit(1);
 
     if (existingHoliday.length > 0) {
       return res.status(409).json({
-        message: "Holiday already exists for this date and organization"
+        message: "Holiday already exists for this date"
       });
     }
 
-    // Create holiday date
+    // Create holiday date - use ISO string for timestamp
     const newHoliday = {
-      date: new Date(req.body.date),
+      date: dateObj.toISOString(),
       name: req.body.name?.trim() || null,
       description: req.body.description?.trim() || null,
-      organizationId: req.body.organizationId,
-      isRecurring: req.body.isRecurring || false,
-      createdAt: new Date()
+      isRecurring: req.body.isRecurring || false
     };
+
+    console.log('Creating holiday with data:', newHoliday);
+    console.log('Date object details:', {
+      dateString: req.body.date,
+      dateObj: dateObj,
+      dateType: typeof dateObj,
+      isValidDate: !isNaN(dateObj.getTime()),
+      toISOString: dateObj.toISOString(),
+      constructor: dateObj.constructor.name
+    });
 
     // Save holiday date in the database
     const result = await db.insert(daysHoliday)
@@ -77,29 +75,18 @@ export const createHoliday = async (req, res) => {
       holiday: result[0]
     });
   } catch (error) {
+    console.error('Error creating holiday:', error);
     res.status(500).json({
       message: error.message || "Some error occurred while creating the holiday."
     });
   }
 };
 
-// Get all holidays for all organizations
+// Get all holidays
 export const getAllHolidays = async (req, res) => {
   try {
-    const result = await db.select({
-      id: daysHoliday.id,
-      date: daysHoliday.date,
-      name: daysHoliday.name,
-      description: daysHoliday.description,
-      isRecurring: daysHoliday.isRecurring,
-      organizationId: daysHoliday.organizationId,
-      organization: {
-        id: organizations.id,
-        name: organizations.name
-      }
-    })
+    const result = await db.select()
     .from(daysHoliday)
-    .leftJoin(organizations, eq(daysHoliday.organizationId, organizations.id))
     .orderBy(daysHoliday.date);
     
     res.json({
@@ -113,36 +100,20 @@ export const getAllHolidays = async (req, res) => {
   }
 };
 
-// Get holidays for a specific organization
+// Get holidays for a specific organization (deprecated - returns all holidays)
 export const getOrganizationHolidays = async (req, res) => {
   try {
-    const organizationId = parseInt(req.params.organizationId);
-    
-    const result = await db.select({
-      id: daysHoliday.id,
-      date: daysHoliday.date,
-      name: daysHoliday.name,
-      description: daysHoliday.description,
-      isRecurring: daysHoliday.isRecurring,
-      organizationId: daysHoliday.organizationId,
-      organization: {
-        id: organizations.id,
-        name: organizations.name
-      }
-    })
+    const result = await db.select()
     .from(daysHoliday)
-    .leftJoin(organizations, eq(daysHoliday.organizationId, organizations.id))
-    .where(eq(daysHoliday.organizationId, organizationId))
     .orderBy(daysHoliday.date);
     
     res.json({
-      message: "Organization holidays retrieved successfully",
-      holidays: result,
-      organizationId
+      message: "Holidays retrieved successfully",
+      holidays: result
     });
   } catch (error) {
     res.status(500).json({
-      message: error.message || "Some error occurred while retrieving organization holidays."
+      message: error.message || "Some error occurred while retrieving holidays."
     });
   }
 };
@@ -152,20 +123,8 @@ export const getHoliday = async (req, res) => {
   try {
     const holidayId = parseInt(req.params.id);
     
-    const result = await db.select({
-      id: daysHoliday.id,
-      date: daysHoliday.date,
-      name: daysHoliday.name,
-      description: daysHoliday.description,
-      isRecurring: daysHoliday.isRecurring,
-      organizationId: daysHoliday.organizationId,
-      organization: {
-        id: organizations.id,
-        name: organizations.name
-      }
-    })
+    const result = await db.select()
     .from(daysHoliday)
-    .leftJoin(organizations, eq(daysHoliday.organizationId, organizations.id))
     .where(eq(daysHoliday.id, holidayId))
     .limit(1);
     
@@ -208,22 +167,6 @@ export const updateHoliday = async (req, res) => {
     
     if (req.body.isRecurring !== undefined) {
       updateData.isRecurring = req.body.isRecurring;
-    }
-    
-    if (req.body.organizationId) {
-      // Validate organization exists
-      const organization = await db.select()
-        .from(organizations)
-        .where(eq(organizations.id, req.body.organizationId))
-        .limit(1);
-
-      if (organization.length === 0) {
-        return res.status(404).json({
-          message: "Organization not found"
-        });
-      }
-      
-      updateData.organizationId = req.body.organizationId;
     }
     
     if (Object.keys(updateData).length === 0) {
@@ -281,21 +224,18 @@ export const deleteHoliday = async (req, res) => {
   }
 };
 
-// Delete all holidays for an organization
+// Delete all holidays for an organization (deprecated - deletes all holidays)
 export const deleteOrganizationHolidays = async (req, res) => {
   try {
-    const organizationId = parseInt(req.params.organizationId);
-    
     const result = await db.delete(daysHoliday)
-      .where(eq(daysHoliday.organizationId, organizationId))
       .returning();
     
     res.json({ 
-      message: `${result.length} holidays were deleted successfully for organization ${organizationId}!` 
+      message: `${result.length} holidays were deleted successfully!` 
     });
   } catch (error) {
     res.status(500).json({
-      message: error.message || "Some error occurred while removing organization holidays."
+      message: error.message || "Some error occurred while removing holidays."
     });
   }
 };
@@ -319,28 +259,10 @@ export const deleteAllHolidays = async (req, res) => {
 export const getUpcomingHolidays = async (req, res) => {
   try {
     const currentDate = new Date();
-    const organizationId = req.query.organizationId ? parseInt(req.query.organizationId) : null;
     
-    let query = db.select({
-      id: daysHoliday.id,
-      date: daysHoliday.date,
-      name: daysHoliday.name,
-      description: daysHoliday.description,
-      isRecurring: daysHoliday.isRecurring,
-      organizationId: daysHoliday.organizationId,
-      organization: {
-        id: organizations.id,
-        name: organizations.name
-      }
-    })
+    const result = await db.select()
     .from(daysHoliday)
-    .leftJoin(organizations, eq(daysHoliday.organizationId, organizations.id));
-    
-    if (organizationId) {
-      query = query.where(eq(daysHoliday.organizationId, organizationId));
-    }
-    
-    const result = await query.orderBy(daysHoliday.date);
+    .orderBy(daysHoliday.date);
     
     // Filter upcoming holidays in JavaScript
     const upcomingHolidays = result.filter(holiday => new Date(holiday.date) >= currentDate);
@@ -359,46 +281,15 @@ export const getUpcomingHolidays = async (req, res) => {
 // Get holiday statistics
 export const getHolidayStatistics = async (req, res) => {
   try {
-    // Get all holidays with organization info
-    const allHolidays = await db.select({
-      id: daysHoliday.id,
-      date: daysHoliday.date,
-      isRecurring: daysHoliday.isRecurring,
-      organizationId: daysHoliday.organizationId,
-      organizationName: organizations.name
-    })
-    .from(daysHoliday)
-    .leftJoin(organizations, eq(daysHoliday.organizationId, organizations.id));
+    // Get all holidays
+    const allHolidays = await db.select()
+    .from(daysHoliday);
 
     const currentDate = new Date();
     const totalHolidays = allHolidays.length;
     const upcomingHolidays = allHolidays.filter(holiday => new Date(holiday.date) >= currentDate).length;
     const pastHolidays = totalHolidays - upcomingHolidays;
     const recurringHolidays = allHolidays.filter(holiday => holiday.isRecurring).length;
-
-    // Group by organization
-    const byOrganization = {};
-    allHolidays.forEach(holiday => {
-      const orgId = holiday.organizationId;
-      const orgName = holiday.organizationName || 'Unknown';
-      
-      if (!byOrganization[orgId]) {
-        byOrganization[orgId] = {
-          organizationName: orgName,
-          totalHolidays: 0,
-          upcomingHolidays: 0,
-          recurringHolidays: 0
-        };
-      }
-      
-      byOrganization[orgId].totalHolidays++;
-      if (new Date(holiday.date) >= currentDate) {
-        byOrganization[orgId].upcomingHolidays++;
-      }
-      if (holiday.isRecurring) {
-        byOrganization[orgId].recurringHolidays++;
-      }
-    });
 
     const statistics = {
       summary: {
@@ -407,7 +298,6 @@ export const getHolidayStatistics = async (req, res) => {
         pastHolidays,
         recurringHolidays
       },
-      byOrganization,
       generatedAt: new Date()
     };
 

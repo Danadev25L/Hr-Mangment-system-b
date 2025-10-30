@@ -2,6 +2,8 @@ import express from 'express';
 import * as employeeProfileController from '../controllers/profile.employee.controller.js';
 import * as employeePersonalInfoController from '../controllers/personalInfo.employee.controller.js';
 import * as employeeApplicationController from '../controllers/application.employee.controller.js';
+import * as employeeAnnouncementController from '../controllers/announcement.employee.controller.js';
+import * as employeeHolidayController from '../controllers/holidays.employee.controller.js';
 
 const router = express.Router();
 
@@ -26,5 +28,18 @@ router.get('/applications/stats', employeeApplicationController.getMyApplication
 router.get('/applications/:id', employeeApplicationController.getMyApplication);
 router.put('/applications/:id', employeeApplicationController.updateMyApplication);
 router.delete('/applications/:id', employeeApplicationController.deleteMyApplication);
+
+// Employee Announcement Routes
+router.get('/announcements', employeeAnnouncementController.getMyAnnouncements);
+router.get('/announcements/:id', employeeAnnouncementController.getAnnouncementById);
+router.patch('/announcements/:id/read', employeeAnnouncementController.markAnnouncementAsRead);
+
+// Employee Holiday Routes (View-Only)
+router.get('/holidays', employeeHolidayController.getOrganizationHolidays);
+router.get('/holidays/upcoming', employeeHolidayController.getUpcomingHolidays);
+router.get('/holidays/month', employeeHolidayController.getHolidaysByMonth);
+router.get('/holidays/today', employeeHolidayController.getTodayHolidayStatus);
+router.get('/holidays/next', employeeHolidayController.getNextHoliday);
+router.get('/holidays/:id', employeeHolidayController.getHoliday);
 
 export default router;

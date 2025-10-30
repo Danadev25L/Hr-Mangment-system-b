@@ -129,8 +129,19 @@ export const payments = pgTable('payments', {
   updatedAt: timestamp('updated_at').defaultNow().notNull()
 });
 
-// Days Holiday table schema
+// Public Holidays table schema (company-wide holidays)
 export const daysHoliday = pgTable('days_holiday', {
+  id: serial('id').primaryKey(),
+  date: timestamp('date', { mode: 'string' }).notNull(),
+  name: varchar('name', { length: 255 }),
+  description: text('description'),
+  isRecurring: boolean('is_recurring').default(false),
+  createdAt: timestamp('created_at', { mode: 'string' }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { mode: 'string' }).defaultNow()
+});
+
+// Employee Leave Requests table schema (renamed to avoid confusion)
+export const leaveRequests = pgTable('leave_requests', {
   id: serial('id').primaryKey(),
   userId: integer('user_id').references(() => users.id).notNull(),
   startDate: timestamp('start_date').notNull(),
@@ -224,10 +235,12 @@ export const notifications = pgTable('notifications', {
   userId: integer('user_id').references(() => users.id).notNull(),
   title: varchar('title', { length: 255 }).notNull(),
   message: text('message').notNull(),
-  type: varchar('type', { length: 50 }).default('info'), // info, success, warning, error
+  type: varchar('type', { length: 50 }).notNull(), // 'announcement', 'application', 'salary', 'leave', etc.
+  relatedId: integer('related_id'), // ID of related entity (announcement ID, application ID, etc.)
   isRead: boolean('is_read').default(false),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull()
+  readAt: timestamp('read_at', { mode: 'string' }),
+  createdAt: timestamp('created_at', { mode: 'string' }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { mode: 'string' }).defaultNow()
 });
 
 // Relations

@@ -1,4 +1,5 @@
 import { eq, desc, and, inArray } from 'drizzle-orm';
+
 import { db } from '../../../db/index.js';
 import { 
     departmentAnnouncements, 
@@ -44,7 +45,70 @@ export const getAllAnnouncements = async (req, res) => {
     }
 };
 
-// Admin: Create announcement (can create for any department)
+// Admin: Get single announcement by ID
+export const getAnnouncementById = async (req, res) => {
+    try {
+        const announcementId = parseInt(req.params.id);
+
+        const [announcement] = await db.select({
+            id: departmentAnnouncements.id,
+            title: departmentAnnouncements.title,
+            description: departmentAnnouncements.description,
+            date: departmentAnnouncements.date,
+            departmentId: departmentAnnouncements.departmentId,
+            createdBy: departmentAnnouncements.createdBy,
+            isActive: departmentAnnouncements.isActive,
+            createdAt: departmentAnnouncements.createdAt,
+            updatedAt: departmentAnnouncements.updatedAt,
+            creator: {
+                fullName: users.fullName,
+                username: users.username
+            },
+            department: {
+                departmentName: departments.departmentName
+            }
+        })
+        .from(departmentAnnouncements)
+        .leftJoin(users, eq(departmentAnnouncements.createdBy, users.id))
+        .leftJoin(departments, eq(departmentAnnouncements.departmentId, departments.id))
+        .where(eq(departmentAnnouncements.id, announcementId))
+        .limit(1);
+
+        if (!announcement) {
+            return res.status(404).json({
+                message: "Announcement not found!"
+            });
+        }
+
+        // Get recipients for this announcement
+        const recipients = await db.select({
+            userId: announcementRecipients.userId,
+            isRead: announcementRecipients.isRead,
+            readAt: announcementRecipients.readAt,
+            user: {
+                fullName: users.fullName,
+                username: users.username,
+                role: users.role
+            }
+        })
+        .from(announcementRecipients)
+        .leftJoin(users, eq(announcementRecipients.userId, users.id))
+        .where(eq(announcementRecipients.announcementId, announcementId));
+
+        res.json({ 
+            announcement,
+            recipients
+        });
+
+    } catch (error) {
+        console.error('Error fetching announcement:', error);
+        res.status(500).json({
+            message: error.message || "Error occurred while retrieving announcement."
+        });
+    }
+};
+
+// Admin: Create announcement (can create for any department or all departments)
 export const createAnnouncement = async (req, res) => {
     try {
         if (!req.body) {
@@ -56,7 +120,7 @@ export const createAnnouncement = async (req, res) => {
         const userData = JSON.parse(req.headers.user || '{}');
         const userId = userData.id;
 
-        const { title, description, date, departmentId, isActive } = req.body;
+        const { title, description, date, departmentId, isActive, recipientUserIds } = req.body;
 
         if (!title || !description || !date) {
             return res.status(400).json({
@@ -84,50 +148,78 @@ export const createAnnouncement = async (req, res) => {
                 title,
                 description,
                 date: new Date(date),
-                departmentId: departmentId || null,
+                departmentId: departmentId || null, // null means company-wide
                 createdBy: userId,
                 isActive: isActive !== undefined ? isActive : true
             })
             .returning();
 
         // Get recipient user IDs
-        let recipientUserIds = [];
+        let finalRecipientIds = [];
         
-        if (departmentId) {
-            // If department specified, notify all users in that department
-            const departmentUsers = await db.select({ id: users.id })
-                .from(users)
-                .where(and(
-                    eq(users.departmentId, departmentId),
-                    inArray(users.role, ['ROLE_EMPLOYEE', 'ROLE_MANAGER'])
-                ));
-            
-            recipientUserIds = departmentUsers.map(user => user.id);
+        if (recipientUserIds && recipientUserIds.length > 0) {
+            // Specific users selected
+            if (departmentId) {
+                // Verify all selected users belong to the specified department
+                const verifiedUsers = await db.select({ id: users.id })
+                    .from(users)
+                    .where(and(
+                        eq(users.departmentId, departmentId),
+                        inArray(users.id, recipientUserIds),
+                        inArray(users.role, ['ROLE_EMPLOYEE', 'ROLE_MANAGER'])
+                    ));
+                finalRecipientIds = verifiedUsers.map(u => u.id);
+            } else {
+                // Company-wide: verify users exist and are employees/managers
+                const verifiedUsers = await db.select({ id: users.id })
+                    .from(users)
+                    .where(and(
+                        inArray(users.id, recipientUserIds),
+                        inArray(users.role, ['ROLE_EMPLOYEE', 'ROLE_MANAGER'])
+                    ));
+                finalRecipientIds = verifiedUsers.map(u => u.id);
+            }
         } else {
-            // If no department (all departments), notify all users
-            const allUsers = await db.select({ id: users.id })
-                .from(users)
-                .where(inArray(users.role, ['ROLE_EMPLOYEE', 'ROLE_MANAGER']));
-            
-            recipientUserIds = allUsers.map(user => user.id);
+            // No specific users: notify all eligible users
+            if (departmentId) {
+                // All users in the specified department
+                const departmentUsers = await db.select({ id: users.id })
+                    .from(users)
+                    .where(and(
+                        eq(users.departmentId, departmentId),
+                        inArray(users.role, ['ROLE_EMPLOYEE', 'ROLE_MANAGER'])
+                    ));
+                finalRecipientIds = departmentUsers.map(u => u.id);
+            } else {
+                // All users company-wide
+                const allUsers = await db.select({ id: users.id })
+                    .from(users)
+                    .where(inArray(users.role, ['ROLE_EMPLOYEE', 'ROLE_MANAGER']));
+                finalRecipientIds = allUsers.map(u => u.id);
+            }
         }
 
         // Add recipients
-        if (recipientUserIds.length > 0) {
-            const recipientRecords = recipientUserIds.map(recipientId => ({
+        if (finalRecipientIds.length > 0) {
+            const recipientRecords = finalRecipientIds.map(recipientId => ({
                 announcementId: newAnnouncement.id,
-                userId: recipientId
+                userId: recipientId,
+                isRead: false
             }));
 
             await db.insert(announcementRecipients)
                 .values(recipientRecords);
 
             // Create notifications for recipients
-            const notificationRecords = recipientUserIds.map(recipientId => ({
+            const notificationRecords = finalRecipientIds.map(recipientId => ({
                 userId: recipientId,
                 title: 'New Announcement',
                 message: `New announcement: ${title}`,
-                type: 'info'
+                type: 'announcement',
+                relatedId: newAnnouncement.id,
+                isRead: false,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
             }));
 
             await db.insert(notifications)
@@ -137,7 +229,7 @@ export const createAnnouncement = async (req, res) => {
         res.json({
             message: "Announcement created successfully!",
             announcement: newAnnouncement,
-            recipientCount: recipientUserIds.length
+            recipientCount: finalRecipientIds.length
         });
 
     } catch (error) {

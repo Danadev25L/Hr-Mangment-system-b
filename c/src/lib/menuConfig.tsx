@@ -9,6 +9,7 @@ import {
   DollarOutlined,
   CalendarOutlined,
   AppstoreOutlined,
+  ClockCircleOutlined,
 } from '@ant-design/icons';
 
 // Menu configuration for each role based on backend routes
@@ -72,6 +73,12 @@ export const getMenuItems = (role: UserRole): MenuItem[] => {
           path: '/admin/announcements',
         },
         {
+          key: 'holidays',
+          label: 'Holidays',
+          icon: <CalendarOutlined />,
+          path: '/admin/holidays',
+        },
+        {
           key: 'payroll',
           label: 'Payroll & Payments',
           icon: <DollarOutlined />,
@@ -129,6 +136,12 @@ export const getMenuItems = (role: UserRole): MenuItem[] => {
           label: 'Announcements',
           icon: <BellOutlined />,
           path: '/manager/announcements',
+        },
+        {
+          key: 'holidays',
+          label: 'Holidays',
+          icon: <CalendarOutlined />,
+          path: '/manager/holidays',
         },
         {
           key: 'applications',
@@ -202,6 +215,18 @@ export const getMenuItems = (role: UserRole): MenuItem[] => {
           path: '/employee/profile',
         },
         {
+          key: 'announcements',
+          label: 'Announcements',
+          icon: <BellOutlined />,
+          path: '/employee/announcements',
+        },
+        {
+          key: 'holidays',
+          label: 'Holidays',
+          icon: <CalendarOutlined />,
+          path: '/employee/holidays',
+        },
+        {
           key: 'applications',
           label: 'Applications',
           icon: <FileTextOutlined />,
@@ -228,14 +253,8 @@ export const getMenuItems = (role: UserRole): MenuItem[] => {
         {
           key: 'overtime',
           label: 'Overtime',
-          icon: <CalendarOutlined />,
+          icon: <ClockCircleOutlined />,
           path: '/employee/overtime',
-        },
-        {
-          key: 'notifications',
-          label: 'Notifications',
-          icon: <BellOutlined />,
-          path: '/employee/notifications',
         },
       ];
 

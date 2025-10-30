@@ -1,17 +1,17 @@
 'use client';
 
 import React from 'react';
-import { Layout, Avatar, Dropdown, Space, Badge } from 'antd';
+import { Layout, Avatar, Dropdown, Space } from 'antd';
 import {
   UserOutlined,
   LogoutOutlined,
-  BellOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
 } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { useRouter } from 'next/navigation';
+import { NotificationBell } from '../NotificationBell';
 
 const { Header } = Layout;
 
@@ -73,10 +73,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
       </div>
 
       <Space size="large">
-        <Badge count={0} showZero={false}>
-          <BellOutlined style={{ fontSize: 20, cursor: 'pointer' }} />
-        </Badge>
-
+        <NotificationBell />
         <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
           <Space style={{ cursor: 'pointer' }}>
             <Avatar icon={<UserOutlined />} src={user?.avatar} />

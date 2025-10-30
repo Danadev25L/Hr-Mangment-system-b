@@ -5,16 +5,16 @@ import {
   Table, 
   Button, 
   Card, 
-  App, 
+  message, 
   Space, 
   Tag, 
   Popconfirm,
   Modal,
   Form,
   Input,
-  Select,
   Row,
-  Col
+  Col,
+  Select
 } from 'antd';
 import { 
   PlusOutlined, 
@@ -27,20 +27,13 @@ import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { api } from '@/src/lib/api';
 
-const { Option } = Select;
 const { TextArea } = Input;
-
-interface Department {
-  id: number;
-  departmentName: string;
-}
 
 interface User {
   id: number;
   fullName: string;
   username: string;
   role: string;
-  departmentId?: number;
 }
 
 interface Announcement {
@@ -53,73 +46,46 @@ interface Announcement {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  creator?: {
+    fullName: string;
+    username: string;
+  };
+  department?: {
+    departmentName: string;
+  };
 }
 
 interface AnnouncementFormValues {
   title: string;
   description: string;
   date: string;
-  departmentId?: number;
   isActive: boolean;
   recipientUserIds?: number[];
 }
 
-export default function AnnouncementsPage() {
-  const { message } = App.useApp();
+export default function ManagerAnnouncementsPage() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(false);
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [viewModalVisible, setViewModalVisible] = useState(false);
   const [selectedAnnouncement, setSelectedAnnouncement] = useState<Announcement | null>(null);
-  const [departments, setDepartments] = useState<Department[]>([]);
-  const [users, setUsers] = useState<User[]>([]);
-  const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
-  const [selectedDepartmentId, setSelectedDepartmentId] = useState<number | undefined>();
+  const [departmentUsers, setDepartmentUsers] = useState<User[]>([]);
   const [form] = Form.useForm();
 
-  const fetchDepartments = async () => {
+  const fetchDepartmentUsers = async () => {
     try {
-      const response = await api.get('/api/admin/departments');
-      setDepartments(Array.isArray(response.data) ? response.data : []);
+      const response = await api.get('/api/manager/employees');
+      setDepartmentUsers(response.data || []);
     } catch (error) {
-      console.error('Error fetching departments:', error);
+      console.error('Error fetching department users:', error);
     }
-  };
-
-  const fetchUsers = async () => {
-    try {
-      const response = await api.get('/api/admin/users');
-      const userList = Array.isArray(response.data) ? response.data : (response.data.users || []);
-      // Filter only employees and managers
-      const filtered = userList.filter((u: User) => 
-        u.role === 'ROLE_EMPLOYEE' || u.role === 'ROLE_MANAGER'
-      );
-      setUsers(filtered);
-      setFilteredUsers(filtered);
-    } catch (error) {
-      console.error('Error fetching users:', error);
-    }
-  };
-
-  const handleDepartmentChange = (departmentId: number | undefined) => {
-    setSelectedDepartmentId(departmentId);
-    if (departmentId) {
-      // Filter users by department
-      const filtered = users.filter(u => u.departmentId === departmentId);
-      setFilteredUsers(filtered);
-    } else {
-      // Show all users
-      setFilteredUsers(users);
-    }
-    // Clear recipient selection when department changes
-    form.setFieldsValue({ recipientUserIds: undefined });
   };
 
   const fetchAnnouncements = async () => {
     setLoading(true);
     try {
-      const response = await api.get('/api/admin/announcements');
+      const response = await api.get('/api/manager/announcements');
       setAnnouncements(response.data.announcements || []);
     } catch (error) {
       console.error('Error fetching announcements:', error);
@@ -131,7 +97,7 @@ export default function AnnouncementsPage() {
 
   const handleCreate = async (values: AnnouncementFormValues) => {
     try {
-      await api.post('/api/admin/announcements', values);
+      await api.post('/api/manager/announcements', values);
       message.success('Announcement created successfully');
       setCreateModalVisible(false);
       form.resetFields();
@@ -144,25 +110,17 @@ export default function AnnouncementsPage() {
 
   const handleDelete = async (id: number) => {
     try {
-      // Ensure id is a number
-      const numericId = Number(id);
-      if (isNaN(numericId)) {
-        message.error('Invalid announcement ID');
-        return;
-      }
-      
-      await api.delete(`/api/admin/announcements/${numericId}`);
+      await api.delete(`/api/manager/announcements/${id}`);
       message.success('Announcement deleted successfully');
       fetchAnnouncements();
     } catch (error) {
       console.error('Error deleting announcement:', error);
-      message.error('Failed to delete announcement');
+      message.error('An error occurred while deleting announcement');
     }
   };
 
   const handleEdit = (record: Announcement) => {
     setSelectedAnnouncement(record);
-    // Format date for input type="date"
     const formattedDate = dayjs(record.date).format('YYYY-MM-DD');
     form.setFieldsValue({
       ...record,
@@ -180,13 +138,7 @@ export default function AnnouncementsPage() {
     if (!selectedAnnouncement) return;
 
     try {
-      const numericId = Number(selectedAnnouncement.id);
-      if (isNaN(numericId)) {
-        message.error('Invalid announcement ID');
-        return;
-      }
-      
-      await api.put(`/api/admin/announcements/${numericId}`, values);
+      await api.put(`/api/manager/announcements/${selectedAnnouncement.id}`, values);
       message.success('Announcement updated successfully');
       setEditModalVisible(false);
       setSelectedAnnouncement(null);
@@ -194,25 +146,6 @@ export default function AnnouncementsPage() {
     } catch (error) {
       console.error('Error updating announcement:', error);
       message.error('An error occurred while updating announcement');
-    }
-  };
-
-  const toggleActiveStatus = async (id: number, currentStatus: boolean) => {
-    try {
-      const numericId = Number(id);
-      if (isNaN(numericId)) {
-        message.error('Invalid announcement ID');
-        return;
-      }
-      
-      await api.patch(`/api/admin/announcements/${numericId}/toggle`, { 
-        isActive: !currentStatus 
-      });
-      message.success(`Announcement ${!currentStatus ? 'activated' : 'deactivated'} successfully`);
-      fetchAnnouncements();
-    } catch (error) {
-      console.error('Error toggling announcement:', error);
-      message.error('An error occurred while toggling announcement status');
     }
   };
 
@@ -226,13 +159,9 @@ export default function AnnouncementsPage() {
     },
     {
       title: 'Department',
-      dataIndex: 'departmentId',
-      key: 'departmentId',
-      render: (departmentId?: number) => {
-        if (!departmentId) return <Tag>All Departments</Tag>;
-        const dept = departments.find(d => d.id === departmentId);
-        return dept ? dept.departmentName : 'Unknown';
-      },
+      dataIndex: 'department',
+      key: 'department',
+      render: (department) => department?.departmentName || 'N/A',
     },
     {
       title: 'Date',
@@ -257,6 +186,12 @@ export default function AnnouncementsPage() {
       onFilter: (value, record) => record.isActive === value,
     },
     {
+      title: 'Created By',
+      dataIndex: 'creator',
+      key: 'creator',
+      render: (creator) => creator?.fullName || 'Unknown',
+    },
+    {
       title: 'Created',
       dataIndex: 'createdAt',
       key: 'createdAt',
@@ -278,12 +213,6 @@ export default function AnnouncementsPage() {
             icon={<EditOutlined />}
             onClick={() => handleEdit(record)}
           />
-          <Button
-            type="text"
-            onClick={() => toggleActiveStatus(record.id, record.isActive)}
-          >
-            {record.isActive ? 'Deactivate' : 'Activate'}
-          </Button>
           <Popconfirm
             title="Are you sure you want to delete this announcement?"
             onConfirm={() => handleDelete(record.id)}
@@ -298,10 +227,8 @@ export default function AnnouncementsPage() {
   ];
 
   useEffect(() => {
-    fetchDepartments();
-    fetchUsers();
+    fetchDepartmentUsers();
     fetchAnnouncements();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
@@ -310,7 +237,7 @@ export default function AnnouncementsPage() {
         title={
           <Space>
             <BellOutlined />
-            Admin Announcements
+            Department Announcements
           </Space>
         }
         extra={
@@ -370,51 +297,28 @@ export default function AnnouncementsPage() {
             <TextArea rows={4} placeholder="Enter announcement description" />
           </Form.Item>
 
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                label="Date"
-                name="date"
-                rules={[{ required: true, message: 'Please select announcement date' }]}
-              >
-                <Input type="date" />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                label="Department"
-                name="departmentId"
-                tooltip="Select a specific department or leave as 'All Departments' for company-wide announcement"
-              >
-                <Select 
-                  placeholder="Select department" 
-                  allowClear
-                  onChange={handleDepartmentChange}
-                >
-                  <Option value={undefined}>🌐 All Departments (Company-wide)</Option>
-                  {departments.map(dept => (
-                    <Option key={dept.id} value={dept.id}>{dept.departmentName}</Option>
-                  ))}
-                </Select>
-              </Form.Item>
-            </Col>
-          </Row>
+          <Form.Item
+            label="Date"
+            name="date"
+            rules={[{ required: true, message: 'Please select announcement date' }]}
+          >
+            <Input type="date" />
+          </Form.Item>
 
           <Form.Item
-            label="Recipients (Optional - Leave empty to send to all)"
+            label="Recipients (Optional - Leave empty for all department members)"
             name="recipientUserIds"
-            tooltip="If department is selected, only users from that department are shown. Leave empty to send to all users in the selected department or company-wide."
           >
             <Select
               mode="multiple"
-              placeholder={selectedDepartmentId ? "All users in selected department" : "All users company-wide"}
+              placeholder="Select specific users or leave empty for all"
               allowClear
               showSearch
               filterOption={(input, option) =>
                 (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
               }
-              options={filteredUsers.map(user => ({
-                label: `${user.fullName} - ${user.role.replace('ROLE_', '')}`,
+              options={departmentUsers.map(user => ({
+                label: `${user.fullName} (${user.role})`,
                 value: user.id
               }))}
             />
@@ -474,31 +378,13 @@ export default function AnnouncementsPage() {
             <TextArea rows={4} placeholder="Enter announcement description" />
           </Form.Item>
 
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                label="Date"
-                name="date"
-                rules={[{ required: true, message: 'Please select announcement date' }]}
-              >
-                <Input type="date" />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                label="Department"
-                name="departmentId"
-                tooltip="Select a specific department or leave as 'All Departments' for company-wide announcement"
-              >
-                <Select placeholder="Select department" allowClear>
-                  <Option value={undefined}>🌐 All Departments (Company-wide)</Option>
-                  {departments.map(dept => (
-                    <Option key={dept.id} value={dept.id}>{dept.departmentName}</Option>
-                  ))}
-                </Select>
-              </Form.Item>
-            </Col>
-          </Row>
+          <Form.Item
+            label="Date"
+            name="date"
+            rules={[{ required: true, message: 'Please select announcement date' }]}
+          >
+            <Input type="date" />
+          </Form.Item>
 
           <Form.Item
             name="isActive"
@@ -559,9 +445,7 @@ export default function AnnouncementsPage() {
               <Col span={12}>
                 <strong>Department:</strong>
                 <div className="mt-2">
-                  {selectedAnnouncement.departmentId 
-                    ? departments.find(d => d.id === selectedAnnouncement.departmentId)?.departmentName || 'Unknown'
-                    : 'All Departments'}
+                  {selectedAnnouncement.department?.departmentName || 'N/A'}
                 </div>
               </Col>
               <Col span={12}>
@@ -570,6 +454,12 @@ export default function AnnouncementsPage() {
                   <Tag color={selectedAnnouncement.isActive ? 'green' : 'red'}>
                     {selectedAnnouncement.isActive ? 'ACTIVE' : 'INACTIVE'}
                   </Tag>
+                </div>
+              </Col>
+              <Col span={12}>
+                <strong>Created By:</strong>
+                <div className="mt-2">
+                  {selectedAnnouncement.creator?.fullName || 'Unknown'}
                 </div>
               </Col>
               <Col span={12}>

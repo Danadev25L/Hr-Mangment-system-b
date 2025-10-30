@@ -28,6 +28,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
               colorPrimary: '#1890ff',
               borderRadius: 6,
             },
+            cssVar: true,
+            hashed: false,
           }}
           // Add React 19 compatibility
           componentSize="middle"

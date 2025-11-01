@@ -1,4 +1,165 @@
-// Admin can create ANY application
+import { eq, desc, and, sql } from 'drizzle-orm';
+
+import { db } from '../../../db/index.js';
+import { 
+    users, 
+    applications,
+    notifications,
+    daysHoliday,
+    departments
+} from '../../../db/schema.js';
+
+/**
+ * Admin Application Controller
+ * Admin has full access to view, edit, approve/reject, and delete ALL applications across all departments
+ */
+
+// Get ALL applications with pagination and filters (admin can see everything)
+export const getAllApplications = async (req, res) => {
+  try {
+    // Get pagination and filter parameters
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const search = req.query.search || '';
+    const status = req.query.status || '';
+    const departmentId = req.query.department || '';
+    const applicationType = req.query.applicationType || '';
+    const priority = req.query.priority || '';
+    const startDate = req.query.startDate || '';
+    const endDate = req.query.endDate || '';
+    const offset = (page - 1) * limit;
+
+    // Build where conditions
+    let whereConditions = [];
+
+    // Search filter (title, reason, or user name)
+    if (search) {
+      whereConditions.push(
+        sql`(${applications.title} ILIKE ${'%' + search + '%'} OR ${applications.reason} ILIKE ${'%' + search + '%'} OR ${users.fullName} ILIKE ${'%' + search + '%'})`
+      );
+    }
+
+    // Status filter
+    if (status && status !== 'all') {
+      whereConditions.push(eq(applications.status, status));
+    }
+
+    // Department filter
+    if (departmentId && departmentId !== 'all') {
+      if (departmentId === '0' || departmentId === 'null') {
+        // Users with no department
+        whereConditions.push(sql`${users.departmentId} IS NULL`);
+      } else {
+        whereConditions.push(eq(users.departmentId, parseInt(departmentId)));
+      }
+    }
+
+    // Application type filter
+    if (applicationType && applicationType !== 'all') {
+      whereConditions.push(eq(applications.applicationType, applicationType));
+    }
+
+    // Priority filter
+    if (priority && priority !== 'all') {
+      whereConditions.push(eq(applications.priority, priority));
+    }
+
+    // Date range filter (for application created date)
+    if (startDate && endDate) {
+      whereConditions.push(
+        sql`${applications.createdAt} >= ${new Date(startDate)} AND ${applications.createdAt} <= ${new Date(endDate)}`
+      );
+    }
+
+    // Build the query
+    let query = db.select({
+      id: applications.id,
+      title: applications.title,
+      reason: applications.reason,
+      startDate: applications.startDate,
+      endDate: applications.endDate,
+      status: applications.status,
+      applicationType: applications.applicationType,
+      priority: applications.priority,
+      userId: applications.userId,
+      approvedBy: applications.approvedBy,
+      approvedAt: applications.approvedAt,
+      rejectedBy: applications.rejectedBy,
+      rejectedAt: applications.rejectedAt,
+      rejectionReason: applications.rejectionReason,
+      createdAt: applications.createdAt,
+      updatedAt: applications.updatedAt,
+      userName: users.fullName,
+      userEmail: users.email,
+      userRole: users.role,
+      employeeCode: users.employeeCode,
+      departmentId: users.departmentId,
+      departmentName: departments.departmentName,
+    })
+    .from(applications)
+    .leftJoin(users, eq(applications.userId, users.id))
+    .leftJoin(departments, eq(users.departmentId, departments.id))
+    .orderBy(desc(applications.createdAt))
+    .limit(limit)
+    .offset(offset);
+
+    // Apply where conditions if any
+    if (whereConditions.length > 0) {
+      query = query.where(and(...whereConditions));
+    }
+
+    const allApplications = await query;
+
+    // Get total count for pagination
+    let countQuery = db.select({ count: sql`count(*)` })
+      .from(applications)
+      .leftJoin(users, eq(applications.userId, users.id))
+      .leftJoin(departments, eq(users.departmentId, departments.id));
+
+    if (whereConditions.length > 0) {
+      countQuery = countQuery.where(and(...whereConditions));
+    }
+
+    const countResult = await countQuery;
+    const totalCount = parseInt(countResult[0]?.count || 0);
+    const totalPages = Math.ceil(totalCount / limit);
+
+    // Format applications
+    const formattedApplications = allApplications.map(app => ({
+      ...app,
+      userName: app.userRole === 'ROLE_ADMIN' ? 'Admin' : app.userName,
+      departmentName: app.departmentName || 'No Department',
+      type: app.applicationType, // For backwards compatibility
+      submissionDate: app.createdAt,
+      description: app.reason
+    }));
+
+    res.json({
+      success: true,
+      data: formattedApplications,
+      pagination: {
+        page,
+        limit,
+        total: totalCount,
+        totalPages
+      },
+      filters: {
+        search,
+        status,
+        department: departmentId,
+        applicationType,
+        priority,
+        startDate,
+        endDate
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message || "Some error occurred while retrieving all applications."
+    });
+  }
+};
 export const createApplication = async (req, res) => {
   try {
     const adminId = req.authData?.id || null;
@@ -46,58 +207,6 @@ export const createApplication = async (req, res) => {
   } catch (error) {
     res.status(500).json({
       message: error.message || 'Failed to create application.'
-    });
-  }
-};
-import { eq, desc } from 'drizzle-orm';
-
-import { db } from '../../../db/index.js';
-import { 
-    users, 
-    applications,
-    notifications,
-    daysHoliday,
-    departments
-} from '../../../db/schema.js';
-
-/**
- * Admin Application Controller
- * Admin has full access to view, edit, approve/reject, and delete ALL applications across all departments
- */
-
-// Get ALL applications (admin can see everything)
-export const getAllApplications = async (req, res) => {
-  try {
-    const result = await db.select({
-      id: applications.id,
-      title: applications.title,
-      reason: applications.reason,
-      startDate: applications.startDate,
-      endDate: applications.endDate,
-      status: applications.status,
-      applicationType: applications.applicationType,
-      priority: applications.priority,
-      userId: applications.userId,
-      approvedBy: applications.approvedBy,
-      approvedAt: applications.approvedAt,
-      rejectionReason: applications.rejectionReason,
-      createdAt: applications.createdAt,
-      type: applications.applicationType, // For backwards compatibility with frontend
-      userName: users.fullName,
-      employeeCode: users.employeeCode,
-      departmentName: departments.departmentName,
-      submissionDate: applications.createdAt,
-      description: applications.reason
-    })
-    .from(applications)
-    .leftJoin(users, eq(applications.userId, users.id))
-    .leftJoin(departments, eq(users.departmentId, departments.id))
-    .orderBy(desc(applications.createdAt));
-    
-    res.json(result);
-  } catch (error) {
-    res.status(500).json({
-      message: error.message || "Some error occurred while retrieving all applications."
     });
   }
 };
@@ -205,13 +314,13 @@ export const updateApplication = async (req, res) => {
     
     // If status is being changed to approved or rejected
     if (req.body.status && ['approved', 'rejected'].includes(req.body.status.toLowerCase())) {
-      updateData.approvedBy = adminId;
-      updateData.approvedAt = new Date();
-      
       const status = req.body.status.toLowerCase();
       
-      // If approved, create a holiday record
       if (status === 'approved') {
+        updateData.approvedBy = adminId;
+        updateData.approvedAt = new Date();
+        
+        // Create a holiday record for approved application
         const holidayStartDate = updateData.startDate || application.startDate;
         const holidayEndDate = updateData.endDate || application.endDate;
         const holidayReason = updateData.reason || application.reason;
@@ -225,11 +334,14 @@ export const updateApplication = async (req, res) => {
           approvedBy: adminId,
           approvedAt: new Date()
         });
-      }
-      
-      // Add rejection reason if provided
-      if (req.body.rejectionReason) {
-        updateData.rejectionReason = req.body.rejectionReason;
+      } else if (status === 'rejected') {
+        updateData.rejectedBy = adminId;
+        updateData.rejectedAt = new Date();
+        
+        // Add rejection reason if provided
+        if (req.body.rejectionReason) {
+          updateData.rejectionReason = req.body.rejectionReason;
+        }
       }
       
       // Create notification for the applicant
@@ -427,8 +539,8 @@ export const rejectApplication = async (req, res) => {
     
     const updateData = {
       status: 'rejected',
-      approvedBy: adminId,
-      approvedAt: new Date(),
+      rejectedBy: adminId,
+      rejectedAt: new Date(),
       rejectionReason: rejectionReason
     };
     

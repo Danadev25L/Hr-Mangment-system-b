@@ -1,15 +1,20 @@
 import express from 'express';
-import * as managerEmployeeController from '../controllers/employee.manager.controller.js';
+
 import * as managerAnnouncementController from '../controllers/announcement.manager.controller.js';
-import * as managerJobController from '../controllers/job.manager.controller.js';
-import * as managerExpenseController from '../controllers/expense.manager.controller.js';
 import * as managerApplicationController from '../controllers/application.manager.controller.js';
+import * as managerEmployeeController from '../controllers/employee.manager.controller.js';
+import * as managerExpenseController from '../controllers/expense.manager.controller.js';
 import * as managerHolidayController from '../controllers/holidays.manager.controller.js';
+import * as managerJobController from '../controllers/job.manager.controller.js';
 
 const router = express.Router();
 
 // Manager Employee Management Routes
+router.post('/employees', managerEmployeeController.createDepartmentEmployee);
 router.get('/employees', managerEmployeeController.getMyDepartmentEmployees);
+router.get('/employees/for-applications', managerEmployeeController.getDepartmentUsersForApplications);
+router.get('/employees/:id', managerEmployeeController.getDepartmentEmployeeById);
+router.put('/employees/:id', managerEmployeeController.updateDepartmentEmployee);
 router.get('/payroll/:month/:year', managerEmployeeController.getDepartmentPayroll);
 router.post('/employees/overtime', managerEmployeeController.addEmployeeOvertime);
 router.put('/overtime/:id/approve', managerEmployeeController.approveOvertimeRequest);
@@ -30,15 +35,18 @@ router.put('/jobs/:id', managerJobController.updateDepartmentJob);
 router.delete('/jobs/:id', managerJobController.deleteDepartmentJob);
 
 // Manager Expense Management Routes
+// Note: Managers can create, view, update, and delete expenses for their department
+// But ONLY ADMIN can approve/reject/pay expenses (no status update route for managers)
 router.post('/expenses', managerExpenseController.createDepartmentExpense);
+router.get('/expenses/:id', managerExpenseController.getExpenseById);
 router.get('/expenses', managerExpenseController.getDepartmentExpenses);
 router.get('/expenses/year/:year', managerExpenseController.getDepartmentExpensesByYear);
 router.get('/expenses/employee/:userId', managerExpenseController.getDepartmentEmployeeExpenses);
-router.put('/expenses/:id/status', managerExpenseController.updateExpenseStatus);
 router.put('/expenses/:id', managerExpenseController.updateDepartmentExpense);
 router.delete('/expenses/:id', managerExpenseController.deleteDepartmentExpense);
 
 // Manager Application Management Routes
+router.post('/applications', managerApplicationController.createDepartmentApplication);
 router.get('/applications', managerApplicationController.getDepartmentApplications);
 router.get('/applications/recent', managerApplicationController.getRecentDepartmentApplications);
 router.get('/applications/employee/:userId', managerApplicationController.getDepartmentEmployeeApplications);
@@ -46,6 +54,7 @@ router.get('/applications/:id', managerApplicationController.getDepartmentApplic
 router.put('/applications/:id/approve', managerApplicationController.approveApplication);
 router.put('/applications/:id/reject', managerApplicationController.rejectApplication);
 router.put('/applications/:id', managerApplicationController.updateDepartmentApplication);
+router.delete('/applications/:id', managerApplicationController.deleteDepartmentApplication);
 
 // Manager Holiday Management Routes (View-Only)
 router.get('/holidays', managerHolidayController.getOrganizationHolidays);

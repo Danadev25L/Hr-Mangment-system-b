@@ -100,23 +100,6 @@ export const getAllHolidays = async (req, res) => {
   }
 };
 
-// Get holidays for a specific organization (deprecated - returns all holidays)
-export const getOrganizationHolidays = async (req, res) => {
-  try {
-    const result = await db.select()
-    .from(daysHoliday)
-    .orderBy(daysHoliday.date);
-    
-    res.json({
-      message: "Holidays retrieved successfully",
-      holidays: result
-    });
-  } catch (error) {
-    res.status(500).json({
-      message: error.message || "Some error occurred while retrieving holidays."
-    });
-  }
-};
 
 // Get single holiday
 export const getHoliday = async (req, res) => {
@@ -224,21 +207,6 @@ export const deleteHoliday = async (req, res) => {
   }
 };
 
-// Delete all holidays for an organization (deprecated - deletes all holidays)
-export const deleteOrganizationHolidays = async (req, res) => {
-  try {
-    const result = await db.delete(daysHoliday)
-      .returning();
-    
-    res.json({ 
-      message: `${result.length} holidays were deleted successfully!` 
-    });
-  } catch (error) {
-    res.status(500).json({
-      message: error.message || "Some error occurred while removing holidays."
-    });
-  }
-};
 
 // Delete all holidays
 export const deleteAllHolidays = async (req, res) => {

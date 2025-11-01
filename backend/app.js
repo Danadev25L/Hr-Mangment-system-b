@@ -1,5 +1,6 @@
 import createError from 'http-errors';
 
+// Backend server restart trigger
 import express from 'express';
 
 import path from 'path';
@@ -33,6 +34,7 @@ import {
 import authRoutes from './modules/auth.routes.js';
 import moduleRoutes from './modules/index.js';
 import { errorHandler, notFoundHandler } from './utils/errorHandler.js';
+import dashboardRoutes from './modules/shared/routes/dashboard.routes.js';
 
 // Load environment variables
 dotenv.config();
@@ -76,6 +78,10 @@ app.use('/auth', authRoutes);
 
 // Token verification endpoint
 app.get('/checkToken', checkToken);
+
+// Dashboard routes (accessible to authenticated users)
+// These routes don't use /api prefix but require authentication
+app.use('/dashboard', verifyToken, dashboardRoutes);
 
 // Protected API routes with proper role-based structure
 // JWT authentication is applied to all API routes

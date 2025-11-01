@@ -7,7 +7,7 @@ import jwt from 'jsonwebtoken';
 import { eq } from 'drizzle-orm';
 
 import { db } from '../db/index.js';
-import { users, } from '../db/schema.js';
+import { users } from '../db/schema.js';
 
 const router = express.Router();
 
@@ -75,8 +75,7 @@ router.post('/login', async (req, res) => {
                 username: user.username,
                 role: user.role,
                 departmentId: user.departmentId,
-                organizationId: user.organizationId
-            },
+                            },
             process.env.JWT_SECRET,
             { expiresIn: '24h' }
         );
@@ -93,8 +92,7 @@ router.post('/login', async (req, res) => {
                 fullname: user.fullName, // For compatibility
                 role: user.role,
                 departmentId: user.departmentId,
-                organizationId: user.organizationId,
-                active: user.active
+                                active: user.active
             }
         });
 
@@ -105,6 +103,118 @@ router.post('/login', async (req, res) => {
             message: 'Internal server error'
         });
     }
+});
+
+// Register endpoint
+router.post('/register', async (req, res) => {
+    try {
+        const { username, password, fullName, email } = req.body;
+
+        if (!username || !password || !fullName) {
+            return res.status(400).json({
+                success: false,
+                message: 'Username, password, and full name are required'
+            });
+        }
+
+        // Check if user already exists
+        const existingUser = await db
+            .select()
+            .from(users)
+            .where(eq(users.username, username))
+            .limit(1);
+
+        if (existingUser.length > 0) {
+            return res.status(409).json({
+                success: false,
+                message: 'Username already exists'
+            });
+        }
+
+        // Hash password
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        // Generate employee code
+        const lastUser = await db
+            .select()
+            .from(users)
+            .orderBy(users.id)
+            .limit(1);
+
+        let employeeCode = 'EMP-0001';
+        if (lastUser.length > 0 && lastUser[0].employeeCode) {
+            const lastNumber = parseInt(lastUser[0].employeeCode.split('-')[1]) || 0;
+            employeeCode = `EMP-${String(lastNumber + 1).padStart(4, '0')}`;
+        }
+
+        // Create new user
+        const [newUser] = await db
+            .insert(users)
+            .values({
+                username,
+                password: hashedPassword,
+                fullName,
+                employeeCode,
+                role: 'ROLE_EMPLOYEE',
+                active: true,
+                createdAt: new Date(),
+                updatedAt: new Date()
+            })
+            .returning();
+
+        // Generate JWT token
+        if (!process.env.JWT_SECRET) {
+            console.error('CRITICAL: JWT_SECRET not configured!');
+            return res.status(500).json({
+                success: false,
+                message: 'Server configuration error'
+            });
+        }
+
+        const token = jwt.sign(
+            {
+                id: newUser.id,
+                username: newUser.username,
+                role: newUser.role,
+                departmentId: newUser.departmentId,
+                            },
+            process.env.JWT_SECRET,
+            { expiresIn: '24h' }
+        );
+
+        res.json({
+            success: true,
+            message: 'Registration successful',
+            token,
+            user: {
+                id: newUser.id,
+                username: newUser.username,
+                fullName: newUser.fullName,
+                fullname: newUser.fullName,
+                role: newUser.role,
+                departmentId: newUser.departmentId,
+                organizationId: newUser.organizationId,
+                active: newUser.active
+            }
+        });
+
+    } catch (error) {
+        console.error('Registration error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Internal server error'
+        });
+    }
+});
+
+// Logout endpoint
+router.post('/logout', (req, res) => {
+    // For JWT tokens, logout is mainly a client-side operation
+    // The token will expire on its own and can't be revoked from the server
+    res.json({
+        success: true,
+        message: 'Logout successful'
+    });
 });
 
 export default router;

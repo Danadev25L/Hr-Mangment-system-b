@@ -1,17 +1,6 @@
 import { pgTable, serial, varchar, text, timestamp, integer, boolean, unique } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
-// Organization table schema
-export const organizations = pgTable('organization', {
-  id: serial('id').primaryKey(),
-  organizationName: varchar('organization_name', { length: 255 }).notNull(),
-  emailAddress: varchar('email_address', { length: 255 }),
-  city: varchar('city', { length: 255 }),
-  country: varchar('country', { length: 255 }),
-  isActive: boolean('is_active').default(true),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull()
-});
 
 // Department table schema
 export const departments = pgTable('department', {
@@ -57,10 +46,38 @@ export const users = pgTable('users', {
   role: varchar('role', { length: 50 }).notNull().default('ROLE_EMPLOYEE'),
   active: boolean('active').default(true),
   departmentId: integer('department_id').references(() => departments.id),
-  organizationId: integer('organization_id').references(() => organizations.id),
   jobId: integer('job_id').references(() => jobs.id),
   baseSalary: integer('base_salary').default(0), // Monthly base salary
   department: varchar('department', { length: 255 }), // Department name for easy access
+
+  // Employment Details
+  startDate: timestamp('start_date').notNull(), // Employment start date
+  endDate: timestamp('end_date'), // Employment end date (for contractors/terminated employees)
+  employmentType: varchar('employment_type', { length: 100 }).default('Full-time'), // Employment type
+  workLocation: varchar('work_location', { length: 255 }).default('Office'), // Work location
+  probationEnd: timestamp('probation_end'), // Probation end date
+
+  
+  // Professional Details
+  skills: text('skills'), // Professional skills
+  experience: text('experience'), // Work experience
+
+  // Contact Information
+  email: varchar('email', { length: 255 }).notNull().unique(),
+  phone: varchar('phone', { length: 50 }),
+  address: text('address'),
+  city: varchar('city', { length: 255 }),
+  country: varchar('country', { length: 255 }),
+
+  // Personal Information
+  dateOfBirth: timestamp('date_of_birth'),
+  gender: varchar('gender', { length: 50 }),
+  maritalStatus: varchar('marital_status', { length: 50 }),
+  emergencyContact: varchar('emergency_contact', { length: 255 }),
+  emergencyPhone: varchar('emergency_phone', { length: 50 }),
+
+  // System Fields
+  lastLogin: timestamp('last_login'),
   updatedBy: integer('updated_by').references(() => users.id), // Track who last updated this record
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull()
@@ -78,7 +95,6 @@ export const jobs = pgTable('jobs', {
   location: varchar('location', { length: 255 }).default('Remote'),
   employmentType: varchar('employment_type', { length: 100 }).default('Full-time'),
   isActive: boolean('is_active').default(true),
-  organizationId: integer('organization_id').references(() => organizations.id),
   departmentId: integer('department_id').references(() => departments.id),
   salary: integer('salary'),
   createdBy: integer('created_by').references(() => users.id),
@@ -109,10 +125,17 @@ export const expenses = pgTable('expenses', {
   id: serial('id').primaryKey(),
   userId: integer('user_id').references(() => users.id).notNull(),
   departmentId: integer('department_id').references(() => departments.id), // NULL allowed for company-wide expenses
+  itemName: varchar('item_name', { length: 255 }),
   amount: integer('amount').notNull(),
   reason: text('reason').notNull(),
   status: varchar('status', { length: 50 }).default('pending'),
   date: timestamp('date').notNull(),
+  approvedBy: integer('approved_by').references(() => users.id),
+  approvedAt: timestamp('approved_at'),
+  rejectedBy: integer('rejected_by').references(() => users.id),
+  rejectedAt: timestamp('rejected_at'),
+  paidBy: integer('paid_by').references(() => users.id),
+  paidAt: timestamp('paid_at'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull()
 });
@@ -199,6 +222,8 @@ export const applications = pgTable('applications', {
   status: varchar('status', { length: 50 }).default('pending'), // pending, approved, rejected
   approvedBy: integer('approved_by').references(() => users.id),
   approvedAt: timestamp('approved_at'),
+  rejectedBy: integer('rejected_by').references(() => users.id),
+  rejectedAt: timestamp('rejected_at'),
   rejectionReason: text('rejection_reason'),
   adminAction: boolean('admin_action').default(false), // Track if action was taken by admin
   createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -254,13 +279,13 @@ export const usersRelations = relations(users, ({ one, many }) => ({
     fields: [users.departmentId],
     references: [departments.id]
   }),
-  organization: one(organizations, {
-    fields: [users.organizationId],
-    references: [organizations.id]
-  }),
   currentJob: one(jobs, {
     fields: [users.jobId],
     references: [jobs.id]
+  }),
+  updater: one(users, {
+    fields: [users.updatedBy],
+    references: [users.id]
   }),
   jobs: many(jobs),
   personalInformation: one(personalInformation, {
@@ -289,10 +314,6 @@ export const jobsRelations = relations(jobs, ({ one, many }) => ({
   department: one(departments, {
     fields: [jobs.departmentId],
     references: [departments.id]
-  }),
-  organization: one(organizations, {
-    fields: [jobs.organizationId],
-    references: [organizations.id]
   }),
   creator: one(users, {
     fields: [jobs.createdBy],

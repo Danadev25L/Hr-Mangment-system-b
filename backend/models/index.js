@@ -1,3 +1,4 @@
+
 // This file serves as the main entry point for database models
 // It exports the Drizzle database instance and schema for use throughout the application
 // Provides backward compatibility with previous ORM-style imports

@@ -1,10 +1,11 @@
-import { eq, and, gte, lte } from 'drizzle-orm';
+import { eq, and, gte, lte, desc, sql } from 'drizzle-orm';
 import { db } from '../../../db/index.js';
 import { 
     users, 
     applications,
     notifications,
-    daysHoliday
+    daysHoliday,
+    departments
 } from '../../../db/schema.js';
 
 /**
@@ -12,7 +13,7 @@ import {
  * Handles application review and management for department managers
  */
 
-// Get applications from manager's department
+// Get applications from manager's department with pagination and filters
 export const getDepartmentApplications = async (req, res) => {
   try {
     const managerId = req.authData.id;
@@ -28,8 +29,59 @@ export const getDepartmentApplications = async (req, res) => {
       });
     }
 
-    // Get applications from manager's department
-    const result = await db.select({
+    if (!manager.departmentId) {
+      return res.status(400).json({
+        message: "Manager must be assigned to a department!"
+      });
+    }
+
+    // Get pagination and filter parameters
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const search = req.query.search || '';
+    const status = req.query.status || '';
+    const applicationType = req.query.applicationType || '';
+    const priority = req.query.priority || '';
+    const startDate = req.query.startDate || '';
+    const endDate = req.query.endDate || '';
+    const offset = (page - 1) * limit;
+
+    // Build where conditions
+    let whereConditions = [
+      eq(users.departmentId, manager.departmentId), // Only this department's applications
+    ];
+
+    // Search filter (title, reason, or user name)
+    if (search) {
+      whereConditions.push(
+        sql`(${applications.title} ILIKE ${'%' + search + '%'} OR ${applications.reason} ILIKE ${'%' + search + '%'} OR ${users.fullName} ILIKE ${'%' + search + '%'})`
+      );
+    }
+
+    // Status filter
+    if (status && status !== 'all') {
+      whereConditions.push(eq(applications.status, status));
+    }
+
+    // Application type filter
+    if (applicationType && applicationType !== 'all') {
+      whereConditions.push(eq(applications.applicationType, applicationType));
+    }
+
+    // Priority filter
+    if (priority && priority !== 'all') {
+      whereConditions.push(eq(applications.priority, priority));
+    }
+
+    // Date range filter
+    if (startDate && endDate) {
+      whereConditions.push(
+        sql`${applications.createdAt} >= ${new Date(startDate)} AND ${applications.createdAt} <= ${new Date(endDate)}`
+      );
+    }
+
+    // Get applications with pagination
+    const query = await db.select({
       id: applications.id,
       title: applications.title,
       reason: applications.reason,
@@ -41,26 +93,64 @@ export const getDepartmentApplications = async (req, res) => {
       userId: applications.userId,
       approvedBy: applications.approvedBy,
       approvedAt: applications.approvedAt,
+      rejectedBy: applications.rejectedBy,
+      rejectedAt: applications.rejectedAt,
       rejectionReason: applications.rejectionReason,
       createdAt: applications.createdAt,
-      user: {
-        id: users.id,
-        fullName: users.fullName,
-        username: users.username,
-        departmentId: users.departmentId,
-        role: users.role
-      }
+      updatedAt: applications.updatedAt,
+      userName: users.fullName,
+      userEmail: users.email,
+      userRole: users.role,
+      employeeCode: users.employeeCode,
+      departmentId: users.departmentId,
+      departmentName: departments.departmentName,
     })
     .from(applications)
-    .leftJoin(users, eq(applications.userId, users.id))
-    .where(eq(users.departmentId, manager.departmentId));
-    
+    .innerJoin(users, eq(applications.userId, users.id))
+    .leftJoin(departments, eq(users.departmentId, departments.id))
+    .where(and(...whereConditions))
+    .orderBy(desc(applications.createdAt))
+    .limit(limit)
+    .offset(offset);
+
+    // Get total count for pagination
+    const countResult = await db.select({ count: sql`count(*)` })
+      .from(applications)
+      .innerJoin(users, eq(applications.userId, users.id))
+      .where(and(...whereConditions));
+
+    const totalCount = parseInt(countResult[0]?.count || 0);
+    const totalPages = Math.ceil(totalCount / limit);
+
+    // Format applications
+    const formattedApplications = query.map(app => ({
+      ...app,
+      userName: app.userRole === 'ROLE_ADMIN' ? 'Admin' : app.userName,
+      departmentName: app.departmentName || 'No Department'
+    }));
+
     res.json({
-      message: "Department applications retrieved successfully",
-      applications: result
+      success: true,
+      data: formattedApplications,
+      pagination: {
+        page,
+        limit,
+        total: totalCount,
+        totalPages
+      },
+      filters: {
+        search,
+        status,
+        applicationType,
+        priority,
+        startDate,
+        endDate
+      }
     });
   } catch (error) {
+    console.error('Error in getDepartmentApplications:', error);
     res.status(500).json({
+      success: false,
       message: error.message || "Some error occurred while retrieving department applications."
     });
   }
@@ -288,19 +378,9 @@ export const approveApplication = async (req, res) => {
     const updateData = {
       status: 'approved',
       approvedBy: managerId,
-      approvedAt: new Date()
+      approvedAt: new Date(),
+      updatedAt: new Date()
     };
-    
-    // Create a holiday record for approved application
-    await db.insert(daysHoliday).values({
-      userId: application.userId,
-      reason: application.reason,
-      startDate: application.startDate,
-      endDate: application.endDate,
-      status: 'approved',
-      approvedBy: managerId,
-      approvedAt: new Date()
-    });
     
     // Update the application
     const result = await db.update(applications)
@@ -312,7 +392,7 @@ export const approveApplication = async (req, res) => {
     await db.insert(notifications).values({
       userId: application.userId,
       title: '✅ Leave Application Approved',
-      message: `Great news! Your ${application.applicationType} application "${application.title || 'Leave Request'}" from ${application.startDate?.toDateString()} to ${application.endDate?.toDateString()} has been approved by your department manager ${manager.fullName}. You can now take your planned leave.`,
+      message: `Great news! Your ${application.applicationType || 'leave'} application "${application.title || 'Leave Request'}" from ${application.startDate?.toDateString()} to ${application.endDate?.toDateString()} has been approved by your department manager ${manager.fullName}. You can now take your planned leave.`,
       type: 'success'
     });
     
@@ -370,9 +450,10 @@ export const rejectApplication = async (req, res) => {
     
     const updateData = {
       status: 'rejected',
-      approvedBy: managerId,
-      approvedAt: new Date(),
-      rejectionReason: rejectionReason
+      rejectedBy: managerId,
+      rejectedAt: new Date(),
+      rejectionReason: rejectionReason,
+      updatedAt: new Date()
     };
     
     // Update the application
@@ -541,6 +622,173 @@ export const updateDepartmentApplication = async (req, res) => {
   } catch (error) {
     res.status(500).json({
       message: `Error updating Application with id=${req.params.id}`
+    });
+  }
+};
+
+// Create application for employee in manager's department
+export const createDepartmentApplication = async (req, res) => {
+  try {
+    console.log('createDepartmentApplication - req.authData:', req.authData);
+    console.log('createDepartmentApplication - req.user:', req.user);
+    console.log('createDepartmentApplication - req.headers.user:', req.headers.user);
+    
+    if (!req.authData || !req.authData.id) {
+      console.error('createDepartmentApplication - No authData found!');
+      return res.status(401).json({
+        message: 'Authentication data not found'
+      });
+    }
+    
+    const managerId = req.authData.id;
+    
+    // Get manager's department
+    const [manager] = await db.select()
+      .from(users)
+      .where(eq(users.id, managerId));
+    
+    if (!manager || !manager.departmentId) {
+      return res.status(403).json({
+        message: 'Manager must be assigned to a department'
+      });
+    }
+    
+    // Verify the target user is in the manager's department
+    const targetUserId = req.body.userId;
+    if (!targetUserId) {
+      return res.status(400).json({
+        message: 'userId is required'
+      });
+    }
+    
+    const [targetUser] = await db.select()
+      .from(users)
+      .where(eq(users.id, targetUserId));
+    
+    if (!targetUser) {
+      return res.status(404).json({
+        message: 'Target user not found'
+      });
+    }
+    
+    if (targetUser.departmentId !== manager.departmentId) {
+      return res.status(403).json({
+        message: 'You can only create applications for employees in your department'
+      });
+    }
+    
+    // Create the application - only include fields that exist in the schema
+    const applicationData = {
+      userId: targetUserId,
+      title: req.body.title,
+      reason: req.body.reason,
+      startDate: new Date(req.body.startDate),
+      endDate: new Date(req.body.endDate),
+      applicationType: req.body.applicationType,
+      priority: req.body.priority || 'medium',
+      status: req.body.status || 'pending',
+      jobId: req.body.jobId || null,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    
+    console.log('Creating application with data:', applicationData);
+    
+    const result = await db.insert(applications)
+      .values(applicationData)
+      .returning();
+    
+    if (result.length > 0) {
+      // Send notification to the target user
+      const notificationMessage = targetUserId === managerId
+        ? `You created a new ${req.body.applicationType || 'leave'} application "${req.body.title}" from ${req.body.startDate} to ${req.body.endDate}.`
+        : `Your manager ${manager.fullName} has created a ${req.body.applicationType || 'leave'} application "${req.body.title}" on your behalf from ${req.body.startDate} to ${req.body.endDate}.`;
+      
+      await db.insert(notifications).values({
+        userId: targetUserId,
+        title: '📝 New Application Created',
+        message: notificationMessage,
+        type: 'info',
+        relatedId: result[0].id
+      });
+      
+      res.status(201).json({
+        message: 'Application created successfully',
+        application: result[0]
+      });
+    } else {
+      res.status(400).json({
+        message: 'Failed to create application'
+      });
+    }
+  } catch (error) {
+    console.error('Error creating department application:', error);
+    res.status(500).json({
+      message: 'Error creating application'
+    });
+  }
+};
+
+// Delete application from manager's department
+export const deleteDepartmentApplication = async (req, res) => {
+  try {
+    console.log('deleteDepartmentApplication - req.authData:', req.authData);
+    console.log('deleteDepartmentApplication - req.user:', req.user);
+    
+    if (!req.authData || !req.authData.id) {
+      console.error('deleteDepartmentApplication - No authData found!');
+      return res.status(401).json({
+        message: 'Authentication data not found'
+      });
+    }
+    
+    const managerId = req.authData.id;
+    const applicationId = parseInt(req.params.id);
+    
+    // Get manager's department
+    const [manager] = await db.select()
+      .from(users)
+      .where(eq(users.id, managerId));
+    
+    if (!manager || !manager.departmentId) {
+      return res.status(403).json({
+        message: 'Manager must be assigned to a department'
+      });
+    }
+    
+    // Get the application with user info
+    const [application] = await db.select({
+      application: applications,
+      user: users
+    })
+      .from(applications)
+      .leftJoin(users, eq(applications.userId, users.id))
+      .where(eq(applications.id, applicationId));
+    
+    if (!application) {
+      return res.status(404).json({
+        message: `Application with id=${applicationId} not found`
+      });
+    }
+    
+    // Verify the application belongs to a user in manager's department
+    if (application.user.departmentId !== manager.departmentId) {
+      return res.status(403).json({
+        message: 'You can only delete applications from your department'
+      });
+    }
+    
+    // Delete the application
+    await db.delete(applications)
+      .where(eq(applications.id, applicationId));
+    
+    res.json({
+      message: 'Application deleted successfully'
+    });
+  } catch (error) {
+    console.error('Error deleting department application:', error);
+    res.status(500).json({
+      message: `Error deleting Application with id=${req.params.id}`
     });
   }
 };

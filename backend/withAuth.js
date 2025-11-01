@@ -55,8 +55,7 @@ export const checkToken = async (req, res) => {
                         role: currentUser.role,
                         departmentId: currentUser.departmentId,
                         departmentName: null, // We'll populate this if needed
-                        organizationId: currentUser.organizationId,
-                        active: currentUser.active
+                                                active: currentUser.active
                     };
                     
                     console.log('checkToken returning fresh user data:', userData); // Debug log
@@ -130,8 +129,7 @@ export const withRoleAdmin = async (req, res, next) => {
                 fullName: user.fullName,
                 role: user.role,
                 departmentId: user.departmentId,
-                organizationId: user.organizationId
-            });
+                            });
             next();
         } else {
             res.status(401).send({ message: "Access denied: Role can't access this api" });
@@ -159,8 +157,7 @@ export const withRoleAdminOrManager = async (req, res, next) => {
                 fullName: user.fullName,
                 role: user.role,
                 departmentId: user.departmentId,
-                organizationId: user.organizationId
-            });
+                            });
             next();
         } else {
             res.status(401).send({message: "Access denied: Role can't access this api"});
@@ -188,8 +185,7 @@ export const withRoleManager = async (req, res, next) => {
                 fullName: user.fullName,
                 role: user.role,
                 departmentId: user.departmentId,
-                organizationId: user.organizationId
-            });
+                            });
             next();
         } else {
             res.status(401).send({message: "Access denied: Role can't access this api"});
@@ -217,8 +213,7 @@ export const withRoleEmployee = async (req, res, next) => {
                 fullName: user.fullName,
                 role: user.role,
                 departmentId: user.departmentId,
-                organizationId: user.organizationId
-            });
+                            });
             next();
         } else {
             res.status(401).send({message: "Access denied: Role can't access this api"});
@@ -245,8 +240,7 @@ export const withAnyRole = async (req, res, next) => {
             fullName: user.fullName,
             role: user.role,
             departmentId: user.departmentId,
-            organizationId: user.organizationId
-        });
+                    });
         next();
     } else {
         res.status(401).send({message: "Forbidden"});
@@ -282,8 +276,7 @@ export const withRole = (allowedRoles) => {
                     fullName: user.fullName,
                     role: user.role,
                     departmentId: user.departmentId,
-                    organizationId: user.organizationId
-                });
+                                    });
                 next();
             } else {
                 res.status(401).send({message: "Access denied: Role can't access this api"});

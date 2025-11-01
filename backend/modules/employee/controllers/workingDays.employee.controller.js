@@ -24,13 +24,7 @@ export const getOrganizationWorkingDays = async (req, res) => {
       });
     }
 
-    const employeeOrganizationId = employee[0].organizationId;
-    
-    if (!employeeOrganizationId) {
-      return res.status(403).json({
-        message: "No organization assigned to employee"
-      });
-    }
+    // Organization filtering removed - employees can access their own working days
 
     const result = await db.select({
       id: daysWorking.id,
@@ -49,8 +43,7 @@ export const getOrganizationWorkingDays = async (req, res) => {
     })
     .from(daysWorking)
     .leftJoin(organizations, eq(daysWorking.organizationId, organizations.id))
-    .where(eq(daysWorking.organizationId, employeeOrganizationId))
-    .orderBy(daysWorking.day);
+        .orderBy(daysWorking.day);
     
     res.json({
       message: "Organization working days retrieved successfully",
@@ -81,13 +74,7 @@ export const getActiveWorkingDays = async (req, res) => {
       });
     }
 
-    const employeeOrganizationId = employee[0].organizationId;
-    
-    if (!employeeOrganizationId) {
-      return res.status(403).json({
-        message: "No organization assigned to employee"
-      });
-    }
+    // Organization filtering removed - employees can access their own working days
 
     const result = await db.select({
       id: daysWorking.id,
@@ -101,8 +88,7 @@ export const getActiveWorkingDays = async (req, res) => {
       organizationId: daysWorking.organizationId
     })
     .from(daysWorking)
-    .where(eq(daysWorking.organizationId, employeeOrganizationId))
-    .orderBy(daysWorking.day);
+        .orderBy(daysWorking.day);
     
     // Filter only active working days
     const activeWorkingDays = result.filter(day => day.isActive);
@@ -159,8 +145,7 @@ export const getWorkingDay = async (req, res) => {
     .where(
       and(
         eq(daysWorking.id, workingDayId),
-        eq(daysWorking.organizationId, employeeOrganizationId)
-      )
+              )
     )
     .limit(1);
     
@@ -199,13 +184,7 @@ export const getWorkingDayByDay = async (req, res) => {
       });
     }
 
-    const employeeOrganizationId = employee[0].organizationId;
-    
-    if (!employeeOrganizationId) {
-      return res.status(403).json({
-        message: "No organization assigned to employee"
-      });
-    }
+    // Organization filtering removed - employees can access their own working days
 
     const result = await db.select({
       id: daysWorking.id,
@@ -222,8 +201,7 @@ export const getWorkingDayByDay = async (req, res) => {
     .where(
       and(
         eq(daysWorking.day, dayName),
-        eq(daysWorking.organizationId, employeeOrganizationId)
-      )
+              )
     )
     .limit(1);
     
@@ -264,13 +242,7 @@ export const getTodayWorkingHours = async (req, res) => {
       });
     }
 
-    const employeeOrganizationId = employee[0].organizationId;
-    
-    if (!employeeOrganizationId) {
-      return res.status(403).json({
-        message: "No organization assigned to employee"
-      });
-    }
+    // Organization filtering removed - employees can access their own working days
 
     // Get today's working hours
     const result = await db.select({
@@ -287,8 +259,7 @@ export const getTodayWorkingHours = async (req, res) => {
     .where(
       and(
         eq(daysWorking.day, todayName),
-        eq(daysWorking.organizationId, employeeOrganizationId)
-      )
+              )
     )
     .limit(1);
     
@@ -338,13 +309,7 @@ export const getMyWeeklySchedule = async (req, res) => {
       });
     }
 
-    const employeeOrganizationId = employee[0].organizationId;
-    
-    if (!employeeOrganizationId) {
-      return res.status(403).json({
-        message: "No organization assigned to employee"
-      });
-    }
+    // Organization filtering removed - employees can access their own working days
 
     // Get all working days for the organization
     const result = await db.select({
@@ -358,8 +323,7 @@ export const getMyWeeklySchedule = async (req, res) => {
       totalWorkingHours: daysWorking.totalWorkingHours
     })
     .from(daysWorking)
-    .where(eq(daysWorking.organizationId, employeeOrganizationId))
-    .orderBy(daysWorking.day);
+        .orderBy(daysWorking.day);
 
     // Organize by day of week in proper order
     const daysOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -453,8 +417,7 @@ export const checkTodayWorkStatus = async (req, res) => {
       .where(
         and(
           eq(daysWorking.day, todayName),
-          eq(daysWorking.organizationId, employeeOrganizationId)
-        )
+                  )
       )
       .limit(1);
     

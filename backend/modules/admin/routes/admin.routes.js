@@ -3,7 +3,6 @@ import * as adminUserController from '../controllers/user.admin.controller.js';
 import * as adminPayrollController from '../controllers/payroll.admin.controller.js';
 import * as adminPaymentController from '../controllers/payment.admin.controller.js';
 import * as adminDepartmentController from '../controllers/department.admin.controller.js';
-import * as adminOrganizationController from '../controllers/organization.admin.controller.js';
 import * as adminSalaryController from '../controllers/salary.admin.controller.js';
 import * as adminApplicationController from '../controllers/application.admin.controller.js';
 import * as adminAnnouncementController from '../controllers/announcement.admin.controller.js';
@@ -16,6 +15,7 @@ router.post('/users', adminUserController.createUser);
 router.get('/users', adminUserController.getAllUsers);
 router.get('/users/total', adminUserController.getUserStatistics); // For dashboard total users
 router.get('/users/statistics', adminUserController.getUserStatistics);
+router.get('/users/stats/new-this-month', adminUserController.getNewEmployeesThisMonth);
 router.get('/users/department/:id', adminUserController.getUsersByDepartment);
 router.get('/users/:id', adminUserController.getUserById);
 router.put('/users/:id', adminUserController.updateUser);
@@ -47,14 +47,6 @@ router.get('/departments/:id', adminDepartmentController.getDepartmentById);
 router.put('/departments/:id', adminDepartmentController.updateDepartment);
 router.delete('/departments/:id', adminDepartmentController.deleteDepartment);
 
-// Admin Organization Management Routes
-router.post('/organizations', adminOrganizationController.createOrganization);
-router.get('/organizations', adminOrganizationController.getAllOrganizations);
-router.get('/organizations/:id', adminOrganizationController.getOrganization);
-router.put('/organizations/:id', adminOrganizationController.updateOrganization);
-router.delete('/organizations/:id', adminOrganizationController.deleteOrganization);
-router.delete('/organizations', adminOrganizationController.deleteAllOrganizations);
-router.get('/organizations/:id/stats', adminOrganizationController.getOrganizationStats);
 
 // Admin Salary Management Routes
 router.post('/salary/generate', adminSalaryController.generateMonthlySalary);
@@ -77,6 +69,7 @@ router.put('/jobs/:jobId', adminUserController.updateEmployeeJob);
 
 // Admin Analytics and Dashboard Routes
 router.get('/expenses/year/:year', adminUserController.getExpenseAnalyticsByYear);
+router.get('/expenses/:id', adminUserController.getExpenseById);
 router.get('/expenses', adminUserController.getAllExpenses);
 router.post('/expenses', adminUserController.createExpense);
 router.put('/expenses/:id', adminUserController.updateExpense);
@@ -111,10 +104,8 @@ router.post('/holidays', adminHolidayController.createHoliday);
 router.get('/holidays', adminHolidayController.getAllHolidays);
 router.get('/holidays/upcoming', adminHolidayController.getUpcomingHolidays);
 router.get('/holidays/statistics', adminHolidayController.getHolidayStatistics);
-router.get('/holidays/organization/:organizationId', adminHolidayController.getOrganizationHolidays);
 router.get('/holidays/:id', adminHolidayController.getHoliday);
 router.put('/holidays/:id', adminHolidayController.updateHoliday);
 router.delete('/holidays/:id', adminHolidayController.deleteHoliday);
-router.delete('/holidays/organization/:organizationId', adminHolidayController.deleteOrganizationHolidays);
 
 export default router;

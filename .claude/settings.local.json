@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find:*)",
+      "Bash(cat:*)",
+      "Bash(npm run start)",
+      "Bash(tasklist:*)",
+      "Bash(findstr node)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(npm run dev:*)",
+      "Bash(npm install:*)",
+      "Bash(npm run build:*)",
+      "Bash(taskkill:*)",
+      "Bash(cmd:*)",
+      "Bash(npm start)",
+      "Bash(powershell \"Stop-Process -Id 22296 -Force\")",
+      "Bash(curl:*)",
+      "Bash(powershell:*)",
+      "Bash(node:*)",
+      "Bash(npm run db:push:*)",
+      "Bash(npx drizzle-kit push:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

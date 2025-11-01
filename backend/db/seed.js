@@ -2,6 +2,8 @@ import bcrypt from 'bcrypt';
 
 import { eq } from 'drizzle-orm';
 
+import { generateEmployeeCode } from '../utils/employeeCodeGenerator.js';
+
 import { db } from './index.js';
 import { 
   organizations, 
@@ -72,32 +74,28 @@ async function seed() {
         startDate: new Date('2024-01-01'),
         description: 'Manage human resources department',
         isActive: true,
-        organizationId: org.id,
-        salary: 45000
+                salary: 45000
       },
       {
         jobTitle: 'Engineering Manager',
         startDate: new Date('2024-01-15'),
         description: 'Lead and manage the engineering team',
         isActive: true,
-        organizationId: org.id,
-        salary: 65000
+                salary: 65000
       },
       {
         jobTitle: 'Software Engineer',
         startDate: new Date('2024-02-01'),
         description: 'Develop and maintain software applications',
         isActive: true,
-        organizationId: org.id,
-        salary: 55000
+                salary: 55000
       },
       {
         jobTitle: 'Accountant',
         startDate: new Date('2024-03-01'),
         description: 'Handle financial records and reporting',
         isActive: true,
-        organizationId: org.id,
-        salary: 40000
+                salary: 40000
       }
     ]).returning();
 
@@ -112,46 +110,52 @@ async function seed() {
     const employeePassword1 = await bcrypt.hash('Employee@2024!John', 10);
     const employeePassword2 = await bcrypt.hash('Employee@2024!Jane', 10);
     
+    // Generate employee codes for each user
+    const adminCode = await generateEmployeeCode('ROLE_ADMIN');
+    const managerCode = await generateEmployeeCode('ROLE_MANAGER');
+    const employeeCode1 = await generateEmployeeCode('ROLE_EMPLOYEE');
+    const employeeCode2 = await generateEmployeeCode('ROLE_EMPLOYEE');
+
     const [admin, manager, user1, user2] = await db.insert(users).values([
       {
         username: 'admin',
         password: adminPassword,
         fullName: 'Admin User',
+        employeeCode: adminCode,
         role: 'ROLE_ADMIN',
         active: true,
         departmentId: dept1.id,
-        organizationId: org.id,
-        jobId: job1.id
+                jobId: job1.id
       },
       {
         username: 'manager',
         password: managerPassword,
         fullName: 'Mike Johnson',
+        employeeCode: managerCode,
         role: 'ROLE_MANAGER',
         active: true,
         departmentId: dept2.id,
-        organizationId: org.id,
-        jobId: job2.id
+                jobId: job2.id
       },
       {
         username: 'john.doe',
         password: employeePassword1,
         fullName: 'John Doe',
+        employeeCode: employeeCode1,
         role: 'ROLE_EMPLOYEE',
         active: true,
         departmentId: dept2.id,
-        organizationId: org.id,
-        jobId: job3.id
+                jobId: job3.id
       },
       {
         username: 'jane.smith',
         password: employeePassword2,
         fullName: 'Jane Smith',
+        employeeCode: employeeCode2,
         role: 'ROLE_EMPLOYEE',
         active: true,
         departmentId: dept3.id,
-        organizationId: org.id,
-        jobId: job4.id
+                jobId: job4.id
       }
     ]).returning();
 

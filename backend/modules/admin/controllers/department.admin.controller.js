@@ -30,28 +30,24 @@ export const createDepartment = async (req, res) => {
 export const getAllDepartments = async (req, res) => {
     try {
         // Admin should see all departments (active and inactive)
-        const allDepartments = await db.query.departments.findMany({
-            with: {
-                users: {
-                    columns: {
-                        id: true,
-                        username: true,
-                        fullname: true,
-                        role: true,
-                        active: true,
-                        jobTitle: true
-                    }
-                }
-            },
-            orderBy: desc(departments.createdAt)
-        });
+        const allDepartments = await db.select()
+            .from(departments)
+            .orderBy(desc(departments.createdAt));
 
-        // Add employee count to each department
-        const departmentsWithCount = allDepartments.map(dept => ({
-            ...dept,
-            employeeCount: dept.users ? dept.users.length : 0
-        }));
-        
+        // Get user counts for each department
+        const departmentsWithCount = await Promise.all(
+            allDepartments.map(async (dept) => {
+                const userCount = await db.select({ count: count() })
+                    .from(users)
+                    .where(eq(users.departmentId, dept.id));
+
+                return {
+                    ...dept,
+                    employeeCount: userCount[0]?.count || 0
+                };
+            })
+        );
+
         res.json(departmentsWithCount);
     } catch (error) {
         console.error('Error fetching departments:', error);
@@ -66,30 +62,10 @@ export const getDepartmentById = async (req, res) => {
     try {
         const id = parseInt(req.params.id);
 
-        const department = await db.query.departments.findFirst({
-            where: eq(departments.id, id),
-            with: {
-                users: {
-                    columns: {
-                        id: true,
-                        username: true,
-                        fullName: true,
-                        role: true,
-                        active: true,
-                        jobTitle: true
-                    }
-                },
-                announcements: {
-                    columns: {
-                        id: true,
-                        title: true,
-                        description: true,
-                        createdAt: true
-                    },
-                    orderBy: desc(departmentAnnouncements.createdAt)
-                }
-            }
-        });
+        const [department] = await db.select()
+            .from(departments)
+            .where(eq(departments.id, id))
+            .limit(1);
 
         if (!department) {
             return res.status(404).json({
@@ -97,7 +73,36 @@ export const getDepartmentById = async (req, res) => {
             });
         }
 
-        res.json(department);
+        // Get users in this department
+        const departmentUsers = await db.select({
+            id: users.id,
+            username: users.username,
+            fullName: users.fullName,
+            role: users.role,
+            active: users.active,
+            jobTitle: users.jobTitle
+        })
+            .from(users)
+            .where(eq(users.departmentId, id));
+
+        // Get announcements for this department
+        const departmentAnnouncementsData = await db.select({
+            id: departmentAnnouncements.id,
+            title: departmentAnnouncements.title,
+            description: departmentAnnouncements.description,
+            createdAt: departmentAnnouncements.createdAt
+        })
+            .from(departmentAnnouncements)
+            .where(eq(departmentAnnouncements.departmentId, id))
+            .orderBy(desc(departmentAnnouncements.createdAt));
+
+        const departmentWithDetails = {
+            ...department,
+            users: departmentUsers,
+            announcements: departmentAnnouncementsData
+        };
+
+        res.json(departmentWithDetails);
     } catch (error) {
         res.status(500).json({
             message: error.message || `Error retrieving department with id=${req.params.id}`
@@ -247,23 +252,22 @@ export const deleteDepartment = async (req, res) => {
 export const getDepartmentStatistics = async (req, res) => {
     try {
         console.log('📊 Getting department statistics...');
-        
-        // Use simpler query approach to avoid count issues
-        const allDepartments = await db.query.departments.findMany();
+
+        // Get all departments
+        const allDepartments = await db.select()
+            .from(departments);
+
         const activeDepartments = allDepartments.filter(dept => dept.isActive);
-        
-        const allUsers = await db.query.users.findMany({
-            columns: {
-                id: true,
-                active: true
-            }
-        });
-        const activeUsers = allUsers.filter(user => user.active);
+
+        // Get all users
+        const allUsers = await db.select()
+            .from(users)
+            .where(eq(users.active, true));
 
         const stats = {
             totalDepartments: allDepartments.length,
             activeDepartments: activeDepartments.length,
-            totalEmployees: activeUsers.length
+            totalEmployees: allUsers.length
         };
 
         console.log('📈 Department stats calculated:', stats);

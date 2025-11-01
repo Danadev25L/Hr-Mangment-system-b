@@ -1,8 +1,16 @@
 import express from 'express';
 import * as sharedNotificationController from '../controllers/notification.shared.controller.js';
 import * as sharedPersonalEventController from '../controllers/personalEvent.shared.controller.js';
+import * as sharedProfileController from '../controllers/profile.shared.controller.js';
+import * as sharedDepartmentController from '../controllers/department.shared.controller.js';
 
 const router = express.Router();
+
+// Profile Routes (available to all authenticated users)
+router.get('/profile', sharedProfileController.getCurrentUserProfile);
+
+// Departments Routes (available to all authenticated users for reference)
+router.get('/departments', sharedDepartmentController.getAllDepartments);
 
 // Shared Notification Routes (available to all authenticated users)
 router.post('/notifications', sharedNotificationController.createNotification); // Admin/Manager only

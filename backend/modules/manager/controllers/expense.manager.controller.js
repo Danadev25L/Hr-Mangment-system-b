@@ -86,7 +86,8 @@ export const createDepartmentExpense = async (req, res) => {
   }
 };
 
-// Retrieve all Expenses created by this manager
+// Retrieve all Expenses from the manager's department (including their own and employees')
+// Retrieve all Expenses from the manager's department with pagination and filters
 export const getDepartmentExpenses = async (req, res) => {
   try {
     const managerId = req.authData.id;
@@ -102,31 +103,85 @@ export const getDepartmentExpenses = async (req, res) => {
       });
     }
 
-    // Get expenses created by THIS manager only (for their department)
+    if (!manager.departmentId) {
+      return res.status(400).json({
+        message: "Manager must be assigned to a department!"
+      });
+    }
+
+    // Get pagination and filter parameters
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const search = req.query.search || '';
+    const status = req.query.status || '';
+    const startDate = req.query.startDate || '';
+    const endDate = req.query.endDate || '';
+    const offset = (page - 1) * limit;
+
+    // Build where conditions
+    let whereConditions = [
+      eq(expenses.departmentId, manager.departmentId), // Only this department's expenses
+      eq(users.departmentId, manager.departmentId) // Verify user is still in the department
+    ];
+
+    // Search filter (reason or user name)
+    if (search) {
+      whereConditions.push(
+        sql`(${expenses.reason} ILIKE ${'%' + search + '%'} OR ${users.fullName} ILIKE ${'%' + search + '%'})`
+      );
+    }
+
+    // Status filter
+    if (status && status !== 'all') {
+      whereConditions.push(eq(expenses.status, status));
+    }
+
+    // Date range filter
+    if (startDate && endDate) {
+      whereConditions.push(
+        sql`${expenses.date} >= ${new Date(startDate)} AND ${expenses.date} <= ${new Date(endDate)}`
+      );
+    }
+
+    // Get expenses with pagination
     const query = await db.select({
       id: expenses.id,
       userId: expenses.userId,
       userName: users.fullName,
       userRole: users.role,
       username: users.username,
+      itemName: expenses.itemName,
       departmentId: expenses.departmentId,
       userDepartment: departments.departmentName,
       reason: expenses.reason,
       amount: expenses.amount,
       status: expenses.status,
       date: expenses.date,
-      createdAt: expenses.createdAt
+      createdAt: expenses.createdAt,
+      updatedAt: expenses.updatedAt,
+      approvedBy: expenses.approvedBy,
+      approvedAt: expenses.approvedAt,
+      rejectedBy: expenses.rejectedBy,
+      rejectedAt: expenses.rejectedAt,
+      paidBy: expenses.paidBy,
+      paidAt: expenses.paidAt
     })
     .from(expenses)
     .innerJoin(users, eq(expenses.userId, users.id))
     .leftJoin(departments, eq(expenses.departmentId, departments.id))
-    .where(
-      and(
-        eq(expenses.userId, managerId), // Only expenses created by this manager
-        eq(expenses.departmentId, manager.departmentId) // Only their department expenses
-      )
-    )
-    .orderBy(sql`${expenses.createdAt} DESC`);
+    .where(and(...whereConditions))
+    .orderBy(sql`${expenses.createdAt} DESC`)
+    .limit(limit)
+    .offset(offset);
+
+    // Get total count for pagination
+    const countResult = await db.select({ count: sql`count(*)` })
+      .from(expenses)
+      .innerJoin(users, eq(expenses.userId, users.id))
+      .where(and(...whereConditions));
+    
+    const totalCount = parseInt(countResult[0]?.count || 0);
+    const totalPages = Math.ceil(totalCount / limit);
 
     // Format the data for frontend compatibility
     const formattedExpenses = query.map(expense => ({
@@ -145,12 +200,157 @@ export const getDepartmentExpenses = async (req, res) => {
     }));
     
     res.json({
+      success: true,
       message: "Department expenses retrieved successfully",
-      expenses: formattedExpenses
+      data: formattedExpenses,
+      pagination: {
+        page,
+        limit,
+        total: totalCount,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1
+      },
+      filters: {
+        search: search || null,
+        status: status || null,
+        startDate: startDate || null,
+        endDate: endDate || null,
+        departmentId: manager.departmentId
+      }
     });
   } catch (error) {
+    console.error('Error in getDepartmentExpenses:', error);
     res.status(500).json({
+      success: false,
       message: error.message || "Some error occurred while retrieving department expenses."
+    });
+  }
+};
+
+// Manager: Get expense by ID with full details
+export const getExpenseById = async (req, res) => {
+  try {
+    const managerId = req.authData.id;
+    const expenseId = parseInt(req.params.id);
+
+    // Get manager's information
+    const manager = await db.query.users.findFirst({
+      where: eq(users.id, managerId)
+    });
+
+    if (!manager || !manager.departmentId) {
+      return res.status(400).json({
+        message: "Manager must be assigned to a department!"
+      });
+    }
+
+    // Query expense with all user details
+    const result = await db
+      .select({
+        id: expenses.id,
+        userId: expenses.userId,
+        itemName: expenses.itemName,
+        amount: expenses.amount,
+        reason: expenses.reason,
+        status: expenses.status,
+        date: expenses.date,
+        createdAt: expenses.createdAt,
+        updatedAt: expenses.updatedAt,
+        departmentId: expenses.departmentId,
+        departmentName: departments.departmentName,
+        approvedBy: expenses.approvedBy,
+        approvedAt: expenses.approvedAt,
+        rejectedBy: expenses.rejectedBy,
+        rejectedAt: expenses.rejectedAt,
+        paidBy: expenses.paidBy,
+        paidAt: expenses.paidAt,
+        userName: users.fullName,
+        userEmail: users.email,
+        userRole: users.role,
+      })
+      .from(expenses)
+      .leftJoin(users, eq(expenses.userId, users.id))
+      .leftJoin(departments, eq(expenses.departmentId, departments.id))
+      .where(
+        and(
+          eq(expenses.id, expenseId),
+          eq(expenses.departmentId, manager.departmentId) // Ensure manager can only view their department's expenses
+        )
+      )
+      .limit(1);
+
+    if (result.length === 0) {
+      return res.status(404).json({
+        message: "Expense not found or not in your department"
+      });
+    }
+
+    const expense = result[0];
+
+    // Fetch approver details if exists
+    if (expense.approvedBy) {
+      const approver = await db.select({
+        fullName: users.fullName,
+        email: users.email
+      })
+      .from(users)
+      .where(eq(users.id, expense.approvedBy))
+      .limit(1);
+      
+      if (approver.length > 0) {
+        expense.approvedByName = approver[0].fullName;
+        expense.approvedByEmail = approver[0].email;
+      }
+    }
+
+    // Fetch rejecter details if exists
+    if (expense.rejectedBy) {
+      const rejecter = await db.select({
+        fullName: users.fullName,
+        email: users.email
+      })
+      .from(users)
+      .where(eq(users.id, expense.rejectedBy))
+      .limit(1);
+      
+      if (rejecter.length > 0) {
+        expense.rejectedByName = rejecter[0].fullName;
+        expense.rejectedByEmail = rejecter[0].email;
+      }
+    }
+
+    // Fetch payer details if exists
+    if (expense.paidBy) {
+      const payer = await db.select({
+        fullName: users.fullName,
+        email: users.email
+      })
+      .from(users)
+      .where(eq(users.id, expense.paidBy))
+      .limit(1);
+      
+      if (payer.length > 0) {
+        expense.paidByName = payer[0].fullName;
+        expense.paidByEmail = payer[0].email;
+      }
+    }
+
+    // Format response
+    const formattedExpense = {
+      ...expense,
+      userName: expense.userRole === 'ROLE_ADMIN' ? 'Admin' : expense.userName,
+      departmentName: expense.departmentName || 'Company-wide'
+    };
+
+    res.json({
+      success: true,
+      data: formattedExpense
+    });
+  } catch (error) {
+    console.error('Error fetching expense:', error);
+    res.status(500).json({
+      message: error.message || "Error fetching expense"
     });
   }
 };

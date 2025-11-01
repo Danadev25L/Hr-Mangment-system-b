@@ -1,16 +1,16 @@
-import { eq, count as drizzleCount, and, desc, sql } from 'drizzle-orm';
+import { eq, count as drizzleCount, and, desc, sql, or } from 'drizzle-orm';
 import bcrypt from 'bcrypt';
 import { db } from '../../../db/index.js';
-import { 
-    users, 
-    personalInformation, 
-    departments, 
-    jobs, 
-    payments, 
-    expenses, 
-    daysHoliday, 
-    daysWorking, 
-    personalEvents, 
+import {
+    users,
+    personalInformation,
+    departments,
+    jobs,
+    payments,
+    expenses,
+    daysHoliday,
+    daysWorking,
+    personalEvents,
     messages,
     applications,
     salaryRecords,
@@ -19,13 +19,19 @@ import {
     payrollAdjustments,
     payrollBonuses,
     notifications,
-    departmentAnnouncements
+    departmentAnnouncements,
+    announcementRecipients,
+    jobApplications,
+    leaveRequests
 } from '../../../db/schema.js';
 import { validatePasswordStrength, checkCommonPasswords } from '../../../utils/passwordValidator.js';
+import { generateEmployeeCode } from '../../../utils/employeeCodeGenerator.js';
 
 // Admin: Create new user
 export const createUser = async (req, res) => {
     try {
+        console.log('📝 Create user request body:', JSON.stringify(req.body, null, 2));
+
         // SECURITY: Verify the requester is actually an admin by checking database
         const adminData = JSON.parse(req.headers.user || '{}');
         const adminId = adminData.id;
@@ -79,6 +85,7 @@ export const createUser = async (req, res) => {
 
         // Validate required fields
         if (!req.body.username) {
+            console.log('❌ Validation failed: Username is missing');
             return res.status(400).json({
                 success: false,
                 message: "Username is required"
@@ -86,16 +93,26 @@ export const createUser = async (req, res) => {
         }
 
         if (!req.body.password) {
+            console.log('❌ Validation failed: Password is missing');
             return res.status(400).json({
                 success: false,
                 message: "Password is required"
             });
         }
 
-        if (!req.body.fullname) {
+        if (!req.body.fullName) {
+            console.log('❌ Validation failed: Full name is missing');
             return res.status(400).json({
                 success: false,
                 message: "Full name is required"
+            });
+        }
+
+        if (!req.body.email) {
+            console.log('❌ Validation failed: Email is missing');
+            return res.status(400).json({
+                success: false,
+                message: "Email is required"
             });
         }
 
@@ -103,9 +120,12 @@ export const createUser = async (req, res) => {
         if (req.body.password) {
             // Validate password strength before hashing
             try {
+                console.log('🔐 Validating password strength...');
                 validatePasswordStrength(req.body.password);
                 checkCommonPasswords(req.body.password);
+                console.log('✅ Password validation passed');
             } catch (validationError) {
+                console.log('❌ Password validation failed:', validationError.message);
                 return res.status(400).json({
                     success: false,
                     message: validationError.message
@@ -127,7 +147,21 @@ export const createUser = async (req, res) => {
             });
         }
 
+        // Check if email already exists
+        const existingEmail = await db.select()
+            .from(users)
+            .where(eq(users.email, req.body.email))
+            .limit(1);
+
+        if (existingEmail.length > 0) {
+            return res.status(403).json({
+                success: false,
+                message: "Email already exists"
+            });
+        }
+
         const roleToUse = req.body.role && req.body.role.length > 0 ? req.body.role : 'ROLE_EMPLOYEE';
+        const prefix = roleToUse === 'ROLE_ADMIN' ? 'ADM' : roleToUse === 'ROLE_MANAGER' ? 'MGR' : 'EMP';
         
         // Security: Only admins can create other admins (extra check)
         if (roleToUse === 'ROLE_ADMIN') {
@@ -136,6 +170,7 @@ export const createUser = async (req, res) => {
 
         // Validation: Check if department already has a manager (if creating a manager)
         if (roleToUse === 'ROLE_MANAGER' && req.body.departmentId) {
+            console.log(`🔍 Checking for existing manager in department ${req.body.departmentId}...`);
             const existingManager = await db.select()
                 .from(users)
                 .where(
@@ -148,61 +183,60 @@ export const createUser = async (req, res) => {
                 .limit(1);
 
             if (existingManager.length > 0) {
+                console.log(`❌ Department already has manager: ${existingManager[0].fullName}`);
                 return res.status(400).json({
                     success: false,
                     message: `This department already has a manager: ${existingManager[0].fullName}. A department can only have one active manager.`
                 });
+            } else {
+                console.log('✅ No existing manager found in department');
             }
         }
 
-        // Generate unique employee code
-        const lastUser = await db.select()
-            .from(users)
-            .where(eq(users.role, roleToUse))
-            .orderBy(desc(users.id))
-            .limit(1);
+        // Auto-generate unique employee code (always generated, not optional)
+        const employeeCode = await generateEmployeeCode(roleToUse);
 
-        let employeeCode;
-        const prefix = roleToUse === 'ROLE_ADMIN' ? 'ADM' : roleToUse === 'ROLE_MANAGER' ? 'MGR' : 'EMP';
-        
-        if (lastUser.length > 0 && lastUser[0].employeeCode) {
-            // Extract number from last code and increment
-            const lastNumber = parseInt(lastUser[0].employeeCode.split('-')[1]) || 0;
-            employeeCode = `${prefix}-${String(lastNumber + 1).padStart(4, '0')}`;
-        } else {
-            // First user of this role
-            employeeCode = `${prefix}-0001`;
-        }
-
-        // Ensure uniqueness
-        const existingCode = await db.select()
-            .from(users)
-            .where(eq(users.employeeCode, employeeCode))
-            .limit(1);
-
-        if (existingCode.length > 0) {
-            // Generate a unique code based on total user count
-            const totalUsers = await db.select({ count: drizzleCount() }).from(users);
-            employeeCode = `${prefix}-${String((totalUsers[0]?.count || 0) + 1).padStart(4, '0')}`;
-        }
+        console.log('💾 Attempting to insert user into database...');
 
         const [user] = await db.insert(users)
             .values({
                 username: req.body.username,
                 password: hash,
-                fullName: req.body.fullname,
+                fullName: req.body.fullName,
                 employeeCode: employeeCode,
                 jobTitle: req.body.jobTitle || null,
                 role: roleToUse,
                 active: true,
                 // Admin users should NOT have a department
                 departmentId: roleToUse === 'ROLE_ADMIN' ? null : (req.body.departmentId ? parseInt(req.body.departmentId) : null),
-                organizationId: req.body.organizationId ? parseInt(req.body.organizationId) : null,
                 jobId: req.body.jobId ? parseInt(req.body.jobId) : null,
                 baseSalary: req.body.baseSalary ? parseInt(req.body.baseSalary) : 0,
+
+                // New comprehensive employee fields
+                employmentType: req.body.employmentType || 'Full-time',
+                workLocation: req.body.workLocation || 'Office',
+                startDate: req.body.startDate ? new Date(req.body.startDate) : new Date(),
+                endDate: req.body.endDate ? new Date(req.body.endDate) : null,
+
+                // Contact Information
+                email: req.body.email,
+                phone: req.body.phone || null,
+                address: req.body.address || null,
+                city: req.body.city || null,
+                country: req.body.country || null,
+
+                // Personal Information
+                dateOfBirth: req.body.dateOfBirth ? new Date(req.body.dateOfBirth) : null,
+                gender: req.body.gender || null,
+                maritalStatus: req.body.maritalStatus || null,
+                emergencyContact: req.body.emergencyContact || null,
+                emergencyPhone: req.body.emergencyPhone || null,
+
                 updatedBy: adminId // Track who created this user
             })
             .returning();
+
+        console.log('✅ User successfully inserted into database');
 
         // Log successful creation
         console.log(`✅ Admin ${adminUser.username} successfully created user: ${user.username} (${employeeCode}) with role: ${user.role}`);
@@ -220,6 +254,7 @@ export const createUser = async (req, res) => {
             }
         });
     } catch (error) {
+        console.log('Create user error:', error);
         console.error('❌ Error creating user:', error);
         res.status(500).json({
             success: false,
@@ -233,6 +268,17 @@ export const getAllUsers = async (req, res) => {
     try {
         const userRole = req.authData?.role;
         const userId = req.authData?.id;
+
+        // Get pagination parameters
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const search = req.query.search || '';
+        const roleFilter = req.query.role;
+        const statusFilter = req.query.status;
+        const departmentFilter = req.query.department ? parseInt(req.query.department) : null;
+        const startDateFilter = req.query.startDate;
+        const endDateFilter = req.query.endDate;
+        const offset = (page - 1) * limit;
         
         let allUsers;
         
@@ -243,31 +289,159 @@ export const getAllUsers = async (req, res) => {
                 .from(users)
                 .where(eq(users.id, userId))
                 .limit(1);
-            
+
             if (!manager || !manager.departmentId) {
                 return res.status(400).json({
                     message: "Manager must be assigned to a department"
                 });
             }
-            
-            // Get only employees in manager's department
-            allUsers = await db.query.users.findMany({
-                where: eq(users.departmentId, manager.departmentId),
-                with: {
-                    personalInformation: true,
-                    department: true,
-                    organization: true
-                }
-            });
+
+            // Build search conditions
+            let whereConditions = [eq(users.departmentId, manager.departmentId)];
+
+            if (search) {
+                whereConditions.push(
+                    sql`(users.fullName ILIKE ${'%' + search + '%'} OR users.username ILIKE ${'%' + search + '%'} OR users.employeeCode ILIKE ${'%' + search + '%'} OR users.jobTitle ILIKE ${'%' + search + '%'})`
+                );
+            }
+
+            // Add filter conditions
+            if (roleFilter) {
+                whereConditions.push(eq(users.role, roleFilter));
+            }
+            if (statusFilter !== undefined) {
+                const isActive = statusFilter === 'active' || statusFilter === 'true';
+                whereConditions.push(eq(users.active, isActive));
+            }
+            if (startDateFilter) {
+                whereConditions.push(sql`users."startDate" >= ${startDateFilter}`);
+            }
+            if (endDateFilter) {
+                whereConditions.push(sql`users."startDate" <= ${endDateFilter}`);
+            }
+
+            // Get only employees in manager's department with search and pagination
+            allUsers = await db.select({
+                // User fields
+                id: users.id,
+                username: users.username,
+                fullName: users.fullName,
+                employeeCode: users.employeeCode,
+                jobTitle: users.jobTitle,
+                role: users.role,
+                active: users.active,
+                departmentId: users.departmentId,
+                jobId: users.jobId,
+                baseSalary: users.baseSalary,
+                createdAt: users.createdAt,
+                updatedAt: users.updatedAt,
+                updatedBy: users.updatedBy,
+
+                // New comprehensive employee fields
+                employmentType: users.employmentType,
+                workLocation: users.workLocation,
+                startDate: users.startDate,
+                endDate: users.endDate,
+                probationEnd: users.probationEnd,
+                email: users.email,
+                phone: users.phone,
+                address: users.address,
+                city: users.city,
+                country: users.country,
+                dateOfBirth: users.dateOfBirth,
+                gender: users.gender,
+                maritalStatus: users.maritalStatus,
+                emergencyContact: users.emergencyContact,
+                emergencyPhone: users.emergencyPhone,
+                skills: users.skills,
+                experience: users.experience,
+                lastLogin: users.lastLogin,
+
+                // Related fields
+                personalInformation: personalInformation,
+                department: departments
+            })
+            .from(users)
+            .leftJoin(personalInformation, eq(users.id, personalInformation.userId))
+            .leftJoin(departments, eq(users.departmentId, departments.id))
+            .where(and(...whereConditions))
+            .limit(limit)
+            .offset(offset);
         } else {
-            // Admin can see all users
-            allUsers = await db.query.users.findMany({
-                with: {
-                    personalInformation: true,
-                    department: true,
-                    organization: true
-                }
-            });
+            // Build search conditions for admin
+            let whereConditions = [];
+
+            if (search) {
+                whereConditions.push(
+                    sql`(users.fullName ILIKE ${'%' + search + '%'} OR users.username ILIKE ${'%' + search + '%'} OR users.employeeCode ILIKE ${'%' + search + '%'} OR users.jobTitle ILIKE ${'%' + search + '%'})`
+                );
+            }
+
+            // Add filter conditions
+            if (roleFilter) {
+                whereConditions.push(eq(users.role, roleFilter));
+            }
+            if (statusFilter !== undefined) {
+                const isActive = statusFilter === 'active' || statusFilter === 'true';
+                whereConditions.push(eq(users.active, isActive));
+            }
+            if (departmentFilter) {
+                whereConditions.push(eq(users.departmentId, departmentFilter));
+            }
+            if (startDateFilter) {
+                whereConditions.push(sql`users."startDate" >= ${startDateFilter}`);
+            }
+            if (endDateFilter) {
+                whereConditions.push(sql`users."startDate" <= ${endDateFilter}`);
+            }
+
+            // Admin can see all users with search and pagination
+            allUsers = await db.select({
+                // User fields
+                id: users.id,
+                username: users.username,
+                fullName: users.fullName,
+                employeeCode: users.employeeCode,
+                jobTitle: users.jobTitle,
+                role: users.role,
+                active: users.active,
+                departmentId: users.departmentId,
+                jobId: users.jobId,
+                baseSalary: users.baseSalary,
+                createdAt: users.createdAt,
+                updatedAt: users.updatedAt,
+                updatedBy: users.updatedBy,
+
+                // New comprehensive employee fields
+                employmentType: users.employmentType,
+                workLocation: users.workLocation,
+                startDate: users.startDate,
+                endDate: users.endDate,
+                probationEnd: users.probationEnd,
+                email: users.email,
+                phone: users.phone,
+                address: users.address,
+                city: users.city,
+                country: users.country,
+                dateOfBirth: users.dateOfBirth,
+                gender: users.gender,
+                maritalStatus: users.maritalStatus,
+                emergencyContact: users.emergencyContact,
+                emergencyPhone: users.emergencyPhone,
+                skills: users.skills,
+                experience: users.experience,
+                lastLogin: users.lastLogin,
+
+                // Related fields
+                personalInformation: personalInformation,
+                department: departments
+            })
+            .from(users)
+            .leftJoin(personalInformation, eq(users.id, personalInformation.userId))
+            .leftJoin(departments, eq(users.departmentId, departments.id))
+            .where(whereConditions.length > 0 ? and(...whereConditions) : sql`1=1`)
+            .limit(limit)
+            .offset(offset);
         }
         
         const usersWithCompleteData = allUsers.map(user => ({
@@ -284,11 +458,102 @@ export const getAllUsers = async (req, res) => {
                 maritalStatus: ''
             }
         }));
-        
-        res.json(usersWithCompleteData);
+
+        // Get total count for pagination
+        let totalCountQuery;
+        if (userRole === 'ROLE_MANAGER') {
+            const [manager] = await db.select()
+                .from(users)
+                .where(eq(users.id, userId))
+                .limit(1);
+
+            let countWhereConditions = [eq(users.departmentId, manager.departmentId)];
+            if (search) {
+                countWhereConditions.push(
+                    sql`(users.fullName ILIKE ${'%' + search + '%'} OR users.username ILIKE ${'%' + search + '%'} OR users.employeeCode ILIKE ${'%' + search + '%'} OR users.jobTitle ILIKE ${'%' + search + '%'})`
+                );
+            }
+            if (roleFilter) {
+                countWhereConditions.push(eq(users.role, roleFilter));
+            }
+            if (statusFilter !== undefined) {
+                const isActive = statusFilter === 'active' || statusFilter === 'true';
+                countWhereConditions.push(eq(users.active, isActive));
+            }
+            if (startDateFilter) {
+                countWhereConditions.push(sql`users."startDate" >= ${startDateFilter}`);
+            }
+            if (endDateFilter) {
+                countWhereConditions.push(sql`users."startDate" <= ${endDateFilter}`);
+            }
+            totalCountQuery = db.select({ count: drizzleCount() })
+                .from(users)
+                .where(and(...countWhereConditions));
+        } else {
+            let countWhereConditions = [];
+            if (search) {
+                countWhereConditions.push(
+                    sql`(users.fullName ILIKE ${'%' + search + '%'} OR users.username ILIKE ${'%' + search + '%'} OR users.employeeCode ILIKE ${'%' + search + '%'} OR users.jobTitle ILIKE ${'%' + search + '%'})`
+                );
+            }
+            if (roleFilter) {
+                countWhereConditions.push(eq(users.role, roleFilter));
+            }
+            if (statusFilter !== undefined) {
+                const isActive = statusFilter === 'active' || statusFilter === 'true';
+                countWhereConditions.push(eq(users.active, isActive));
+            }
+            if (departmentFilter) {
+                countWhereConditions.push(eq(users.departmentId, departmentFilter));
+            }
+            if (startDateFilter) {
+                countWhereConditions.push(sql`users."startDate" >= ${startDateFilter}`);
+            }
+            if (endDateFilter) {
+                countWhereConditions.push(sql`users."startDate" <= ${endDateFilter}`);
+            }
+            totalCountQuery = db.select({ count: drizzleCount() })
+                .from(users)
+                .where(countWhereConditions.length > 0 ? and(...countWhereConditions) : sql`1=1`);
+        }
+
+        const totalCountResult = await totalCountQuery;
+        const totalCount = totalCountResult[0]?.count || 0;
+        const totalPages = Math.ceil(totalCount / limit);
+
+        // Prepare response with metadata
+        res.json({
+            success: true,
+            data: usersWithCompleteData,
+            pagination: {
+                page,
+                limit,
+                total: totalCount,
+                totalPages,
+                hasNext: page < totalPages,
+                hasPrev: page > 1,
+                offset
+            },
+            filters: {
+                search: search || null,
+                role: roleFilter || null,
+                status: statusFilter || null,
+                department: departmentFilter || null,
+                startDate: startDateFilter || null,
+                endDate: endDateFilter || null
+            },
+            meta: {
+                timestamp: new Date().toISOString(),
+                requestedBy: userRole,
+                resultCount: usersWithCompleteData.length
+            }
+        });
     } catch (error) {
+        console.error("Error in getAllUsers:", error);
         res.status(500).json({
-            message: error.message || "Error occurred while retrieving users."
+            success: false,
+            message: error.message || "Error occurred while retrieving users.",
+            error: process.env.NODE_ENV === 'development' ? error.stack : undefined
         });
     }
 };
@@ -325,6 +590,23 @@ export const getUserById = async (req, res) => {
                 .limit(1);
         }
 
+        // Get updater information if updatedBy is set
+        let updaterName = null;
+        if (user.updatedBy) {
+            const [updater] = await db.select({
+                id: users.id,
+                fullName: users.fullName,
+                username: users.username
+            })
+                .from(users)
+                .where(eq(users.id, user.updatedBy))
+                .limit(1);
+            
+            if (updater) {
+                updaterName = `${updater.fullName} (@${updater.username})`;
+            }
+        }
+
         // Get jobs
         const userJobs = await db.select()
             .from(jobs)
@@ -333,6 +615,7 @@ export const getUserById = async (req, res) => {
         // Ensure consistent response format
         const userWithCompleteData = {
             ...user,
+            updatedByName: updaterName,
             personalInformation: personalInfo || {
                 firstName: '',
                 lastName: '',
@@ -379,6 +662,30 @@ export const getUserStatistics = async (req, res) => {
     } catch (error) {
         res.status(500).json({
             message: error.message || "Error occurred while retrieving user statistics."
+        });
+    }
+};
+
+// Admin: Get new employees this month
+export const getNewEmployeesThisMonth = async (req, res) => {
+    try {
+        const now = new Date();
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+        const result = await db.select({ count: drizzleCount() })
+            .from(users)
+            .where(and(
+                sql`${users.createdAt} >= ${startOfMonth}`,
+                sql`${users.createdAt} <= ${endOfMonth}`
+            ));
+        
+        const count = result[0]?.count || 0;
+        
+        res.json({ count });
+    } catch (error) {
+        res.status(500).json({
+            message: error.message || "Error occurred while retrieving new employees count."
         });
     }
 };
@@ -514,10 +821,29 @@ export const updateUser = async (req, res) => {
             updateData.active = req.body.active;
         }
         if (req.body.departmentId && requesterRole === 'ROLE_ADMIN') updateData.departmentId = parseInt(req.body.departmentId);
-        if (req.body.organizationId) updateData.organizationId = parseInt(req.body.organizationId);
         if (req.body.jobId) updateData.jobId = parseInt(req.body.jobId);
         if (req.body.baseSalary !== undefined) updateData.baseSalary = parseInt(req.body.baseSalary);
-        
+
+        // New comprehensive employee fields
+        if (req.body.employmentType !== undefined) updateData.employmentType = req.body.employmentType;
+        if (req.body.workLocation !== undefined) updateData.workLocation = req.body.workLocation;
+        if (req.body.startDate !== undefined) updateData.startDate = req.body.startDate ? new Date(req.body.startDate) : null;
+        if (req.body.endDate !== undefined) updateData.endDate = req.body.endDate ? new Date(req.body.endDate) : null;
+
+        // Contact Information
+        if (req.body.email !== undefined) updateData.email = req.body.email;
+        if (req.body.phone !== undefined) updateData.phone = req.body.phone;
+        if (req.body.address !== undefined) updateData.address = req.body.address;
+        if (req.body.city !== undefined) updateData.city = req.body.city;
+        if (req.body.country !== undefined) updateData.country = req.body.country;
+
+        // Personal Information
+        if (req.body.dateOfBirth !== undefined) updateData.dateOfBirth = req.body.dateOfBirth ? new Date(req.body.dateOfBirth) : null;
+        if (req.body.gender !== undefined) updateData.gender = req.body.gender;
+        if (req.body.maritalStatus !== undefined) updateData.maritalStatus = req.body.maritalStatus;
+        if (req.body.emergencyContact !== undefined) updateData.emergencyContact = req.body.emergencyContact;
+        if (req.body.emergencyPhone !== undefined) updateData.emergencyPhone = req.body.emergencyPhone;
+
         if (req.body.password) {
             // Validate password strength before hashing
             try {
@@ -563,53 +889,102 @@ export const deleteUser = async (req, res) => {
     try {
         const id = parseInt(req.params.id);
         
-        await db.update(users)
-            .set({ jobId: null })
-            .where(eq(users.id, id));
-        
-        await db.delete(personalInformation).where(eq(personalInformation.userId, id));
-        await db.delete(payments).where(eq(payments.userId, id));
-        await db.delete(expenses).where(eq(expenses.userId, id));
-        await db.delete(daysHoliday).where(eq(daysHoliday.userId, id));
-        await db.delete(daysWorking).where(eq(daysWorking.userId, id));
-        await db.delete(personalEvents).where(eq(personalEvents.userId, id));
-        await db.delete(applications).where(eq(applications.userId, id));
-        await db.delete(messages).where(eq(messages.fromUserId, id));
-        await db.delete(messages).where(eq(messages.toUserId, id));
-        await db.delete(salaryRecords).where(eq(salaryRecords.userId, id));
-        await db.delete(overtimeRecords).where(eq(overtimeRecords.userId, id));
-        await db.delete(payrollRecords).where(eq(payrollRecords.employeeId, id));
-        await db.delete(payrollAdjustments).where(eq(payrollAdjustments.employeeId, id));
-        await db.delete(payrollBonuses).where(eq(payrollBonuses.employeeId, id));
-        await db.delete(notifications).where(eq(notifications.userId, id));
-        
-        const userJobs = await db.select().from(jobs).where(eq(jobs.userId, id));
-        
-        for (const job of userJobs) {
-            await db.update(users)
-                .set({ jobId: null })
-                .where(eq(users.jobId, job.id));
+        console.log(`🗑️ Starting deletion process for user with id: ${id}`);
+
+        // Check if user exists first
+        const [userToDelete] = await db.select()
+            .from(users)
+            .where(eq(users.id, id))
+            .limit(1);
+
+        if (!userToDelete) {
+            return res.status(404).json({
+                success: false,
+                message: `Cannot delete User with id=${id}. User was not found!`
+            });
         }
+
+        console.log(`✓ User found: ${userToDelete.username} (${userToDelete.role})`);
+
+        // Set nullable foreign keys to null
+        console.log('Step 1: Updating nullable foreign key references...');
+        await db.update(users).set({ updatedBy: null }).where(eq(users.updatedBy, id));
+        await db.update(jobs).set({ createdBy: null }).where(eq(jobs.createdBy, id));
+        await db.update(applications).set({ approvedBy: null }).where(eq(applications.approvedBy, id));
+        await db.update(jobApplications).set({ reviewedBy: null }).where(eq(jobApplications.reviewedBy, id));
+        await db.update(salaryRecords).set({ approvedBy: null }).where(eq(salaryRecords.approvedBy, id));
+        await db.update(overtimeRecords).set({ approvedBy: null }).where(eq(overtimeRecords.approvedBy, id));
+        await db.update(payrollRecords).set({ approvedBy: null }).where(eq(payrollRecords.approvedBy, id));
+        await db.update(payrollRecords).set({ paidBy: null }).where(eq(payrollRecords.paidBy, id));
+        await db.update(departmentAnnouncements).set({ createdBy: null }).where(eq(departmentAnnouncements.createdBy, id));
+
+        // Delete dependent records with foreign keys to users
+        console.log('Step 2: Deleting dependent records...');
         
+        // Helper function to safely delete from tables that might not exist
+        const safeDelete = async (deleteFn, tableName) => {
+            try {
+                await deleteFn();
+            } catch (error) {
+                if (error.cause?.code === '42P01') {
+                    console.log(`⚠️  Table ${tableName} does not exist, skipping...`);
+                } else {
+                    throw error; // Re-throw if it's not a "table doesn't exist" error
+                }
+            }
+        };
+        
+        await safeDelete(() => db.delete(personalInformation).where(eq(personalInformation.userId, id)), 'personalInformation');
+        await safeDelete(() => db.delete(payments).where(eq(payments.userId, id)), 'payments');
+        await safeDelete(() => db.delete(expenses).where(eq(expenses.userId, id)), 'expenses');
+        await safeDelete(() => db.delete(daysWorking).where(eq(daysWorking.userId, id)), 'daysWorking');
+        await safeDelete(() => db.delete(personalEvents).where(eq(personalEvents.userId, id)), 'personalEvents');
+        await safeDelete(() => db.delete(applications).where(eq(applications.userId, id)), 'applications');
+        await safeDelete(() => db.delete(messages).where(or(eq(messages.fromUserId, id), eq(messages.toUserId, id))), 'messages');
+        await safeDelete(() => db.delete(salaryRecords).where(eq(salaryRecords.userId, id)), 'salaryRecords');
+        await safeDelete(() => db.delete(overtimeRecords).where(eq(overtimeRecords.userId, id)), 'overtimeRecords');
+        await safeDelete(() => db.delete(payrollRecords).where(eq(payrollRecords.employeeId, id)), 'payrollRecords');
+        await safeDelete(() => db.delete(payrollAdjustments).where(or(eq(payrollAdjustments.employeeId, id), eq(payrollAdjustments.createdBy, id))), 'payrollAdjustments');
+        await safeDelete(() => db.delete(payrollBonuses).where(or(eq(payrollBonuses.employeeId, id), eq(payrollBonuses.createdBy, id))), 'payrollBonuses');
+        await safeDelete(() => db.delete(notifications).where(eq(notifications.userId, id)), 'notifications');
+        await safeDelete(() => db.delete(announcementRecipients).where(eq(announcementRecipients.userId, id)), 'announcementRecipients');
+        await safeDelete(() => db.delete(leaveRequests).where(eq(leaveRequests.userId, id)), 'leaveRequests');
+        // Note: jobApplications doesn't have userId, only reviewedBy which we already set to null above
+        
+        // Delete jobs created by user (if jobs table has userId field)
+        console.log('Step 3: Deleting user-created jobs...');
         await db.delete(jobs).where(eq(jobs.userId, id));
         
+        // Finally delete the user
+        console.log('Step 4: Deleting user record...');
         const [deletedUser] = await db.delete(users)
             .where(eq(users.id, id))
             .returning();
         
-        if (!deletedUser) {
-            return res.status(404).json({
-                message: `Cannot delete User with id=${id}. User was not found!`
-            });
-        }
+        console.log(`✓ User ${deletedUser.username} deleted successfully!`);
         
         res.json({
-            message: "User deleted successfully!"
+            success: true,
+            message: "User deleted successfully!",
+            data: {
+                id: deletedUser.id,
+                username: deletedUser.username
+            }
         });
     } catch (error) {
+        console.error('❌ Error deleting user:', error);
+        console.error('Error details:', {
+            message: error.message,
+            code: error.code,
+            detail: error.detail,
+            constraint: error.constraint
+        });
+        
         res.status(500).json({
+            success: false,
             message: `Could not delete User with id=${req.params.id}`,
-            error: error.message
+            error: error.message,
+            detail: error.detail || 'Check server logs for more details'
         });
     }
 };
@@ -619,14 +994,29 @@ export const getUsersByDepartment = async (req, res) => {
     try {
         const departmentId = parseInt(req.params.id);
 
-        const allUsers = await db.query.users.findMany({
-            where: eq(users.departmentId, departmentId),
-            with: {
-                personalInformation: true,
-                department: true,
-                organization: true
-            }
-        });
+        const allUsers = await db.select({
+            // User fields
+            id: users.id,
+            username: users.username,
+            fullName: users.fullName,
+            employeeCode: users.employeeCode,
+            jobTitle: users.jobTitle,
+            role: users.role,
+            active: users.active,
+            departmentId: users.departmentId,
+                        jobId: users.jobId,
+            baseSalary: users.baseSalary,
+            createdAt: users.createdAt,
+            updatedAt: users.updatedAt,
+            updatedBy: users.updatedBy,
+            // Related fields
+            personalInformation: personalInformation,
+            department: departments
+        })
+        .from(users)
+        .leftJoin(personalInformation, eq(users.id, personalInformation.userId))
+        .leftJoin(departments, eq(users.departmentId, departments.id))
+        .where(eq(users.departmentId, departmentId));
         
         const usersWithCompleteData = allUsers.map(user => ({
             ...user,
@@ -941,7 +1331,6 @@ export const createEmployeeJob = async (req, res) => {
                 employmentType: req.body.employmentType?.trim() || 'Full-time',
                 salary: req.body.salary ? parseInt(req.body.salary) : null,
                 departmentId: targetUser.departmentId,
-                organizationId: targetUser.organizationId,
                 createdBy: adminId,
                 isActive: true
             })
@@ -1102,36 +1491,131 @@ export const getExpenseAnalyticsByYear = async (req, res) => {
 };
 
 // Admin: Get all expenses (from all departments)
+// Admin: Get all expenses with pagination and filters
 export const getAllExpenses = async (req, res) => {
     try {
-        const allExpenses = await db.select({
+        // Get pagination and filter parameters
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const search = req.query.search || '';
+        const status = req.query.status || '';
+        const departmentId = req.query.department || '';
+        const startDate = req.query.startDate || '';
+        const endDate = req.query.endDate || '';
+        const offset = (page - 1) * limit;
+
+        // Build where conditions
+        let whereConditions = [];
+
+        // Search filter (reason or user name)
+        if (search) {
+            whereConditions.push(
+                sql`(${expenses.reason} ILIKE ${'%' + search + '%'} OR ${users.fullName} ILIKE ${'%' + search + '%'})`
+            );
+        }
+
+        // Status filter
+        if (status && status !== 'all') {
+            whereConditions.push(eq(expenses.status, status));
+        }
+
+        // Department filter
+        if (departmentId && departmentId !== 'all') {
+            if (departmentId === '0' || departmentId === 'null') {
+                // Company-wide expenses (no department)
+                whereConditions.push(sql`${expenses.departmentId} IS NULL`);
+            } else {
+                whereConditions.push(eq(expenses.departmentId, parseInt(departmentId)));
+            }
+        }
+
+        // Date range filter
+        if (startDate && endDate) {
+            whereConditions.push(
+                sql`${expenses.date} >= ${new Date(startDate)} AND ${expenses.date} <= ${new Date(endDate)}`
+            );
+        }
+
+        // Build the query
+        let query = db.select({
             id: expenses.id,
             userId: expenses.userId,
+            itemName: expenses.itemName,
             amount: expenses.amount,
             reason: expenses.reason,
             status: expenses.status,
             date: expenses.date,
             createdAt: expenses.createdAt,
+            updatedAt: expenses.updatedAt,
             userName: users.fullName,
             userRole: users.role,
-            departmentId: users.departmentId,
-            departmentName: departments.departmentName
+            departmentId: expenses.departmentId,
+            departmentName: departments.departmentName,
+            approvedBy: expenses.approvedBy,
+            approvedAt: expenses.approvedAt,
+            rejectedBy: expenses.rejectedBy,
+            rejectedAt: expenses.rejectedAt,
+            paidBy: expenses.paidBy,
+            paidAt: expenses.paidAt,
         })
         .from(expenses)
         .leftJoin(users, eq(expenses.userId, users.id))
-        .leftJoin(departments, eq(users.departmentId, departments.id))
-        .orderBy(desc(expenses.createdAt));
+        .leftJoin(departments, eq(expenses.departmentId, departments.id))
+        .orderBy(desc(expenses.createdAt))
+        .limit(limit)
+        .offset(offset);
+
+        // Apply where conditions if any
+        if (whereConditions.length > 0) {
+            query = query.where(and(...whereConditions));
+        }
+
+        const allExpenses = await query;
+
+        // Get total count for pagination
+        let countQuery = db.select({ count: sql`count(*)` })
+            .from(expenses)
+            .leftJoin(users, eq(expenses.userId, users.id))
+            .leftJoin(departments, eq(expenses.departmentId, departments.id));
+
+        if (whereConditions.length > 0) {
+            countQuery = countQuery.where(and(...whereConditions));
+        }
+
+        const countResult = await countQuery;
+        const totalCount = parseInt(countResult[0]?.count || 0);
+        const totalPages = Math.ceil(totalCount / limit);
 
         // Replace admin names with "Admin"
         const formattedExpenses = allExpenses.map(expense => ({
             ...expense,
-            userName: expense.userRole === 'ROLE_ADMIN' ? 'Admin' : expense.userName
+            userName: expense.userRole === 'ROLE_ADMIN' ? 'Admin' : expense.userName,
+            departmentName: expense.departmentName || 'Company-wide'
         }));
 
-        res.json(formattedExpenses);
+        res.json({
+            success: true,
+            data: formattedExpenses,
+            pagination: {
+                page,
+                limit,
+                total: totalCount,
+                totalPages,
+                hasNext: page < totalPages,
+                hasPrev: page > 1
+            },
+            filters: {
+                search: search || null,
+                status: status || null,
+                department: departmentId || null,
+                startDate: startDate || null,
+                endDate: endDate || null
+            }
+        });
     } catch (error) {
         console.error('Error fetching expenses:', error);
         res.status(500).json({
+            success: false,
             message: error.message || "Error fetching expenses"
         });
     }
@@ -1239,11 +1723,122 @@ export const updateExpense = async (req, res) => {
     }
 };
 
+// Admin: Get expense by ID with full details
+export const getExpenseById = async (req, res) => {
+    try {
+        const expenseId = parseInt(req.params.id);
+
+        // Query expense with all user details
+        const result = await db
+            .select({
+                id: expenses.id,
+                userId: expenses.userId,
+                itemName: expenses.itemName,
+                amount: expenses.amount,
+                reason: expenses.reason,
+                status: expenses.status,
+                date: expenses.date,
+                createdAt: expenses.createdAt,
+                updatedAt: expenses.updatedAt,
+                departmentId: expenses.departmentId,
+                departmentName: departments.departmentName,
+                approvedBy: expenses.approvedBy,
+                approvedAt: expenses.approvedAt,
+                rejectedBy: expenses.rejectedBy,
+                rejectedAt: expenses.rejectedAt,
+                paidBy: expenses.paidBy,
+                paidAt: expenses.paidAt,
+                userName: users.fullName,
+                userEmail: users.email,
+                userRole: users.role,
+            })
+            .from(expenses)
+            .leftJoin(users, eq(expenses.userId, users.id))
+            .leftJoin(departments, eq(expenses.departmentId, departments.id))
+            .where(eq(expenses.id, expenseId))
+            .limit(1);
+
+        if (result.length === 0) {
+            return res.status(404).json({
+                message: "Expense not found"
+            });
+        }
+
+        const expense = result[0];
+
+        // Fetch approver details if exists
+        if (expense.approvedBy) {
+            const approver = await db.select({
+                fullName: users.fullName,
+                email: users.email
+            })
+            .from(users)
+            .where(eq(users.id, expense.approvedBy))
+            .limit(1);
+            
+            if (approver.length > 0) {
+                expense.approvedByName = approver[0].fullName;
+                expense.approvedByEmail = approver[0].email;
+            }
+        }
+
+        // Fetch rejecter details if exists
+        if (expense.rejectedBy) {
+            const rejecter = await db.select({
+                fullName: users.fullName,
+                email: users.email
+            })
+            .from(users)
+            .where(eq(users.id, expense.rejectedBy))
+            .limit(1);
+            
+            if (rejecter.length > 0) {
+                expense.rejectedByName = rejecter[0].fullName;
+                expense.rejectedByEmail = rejecter[0].email;
+            }
+        }
+
+        // Fetch payer details if exists
+        if (expense.paidBy) {
+            const payer = await db.select({
+                fullName: users.fullName,
+                email: users.email
+            })
+            .from(users)
+            .where(eq(users.id, expense.paidBy))
+            .limit(1);
+            
+            if (payer.length > 0) {
+                expense.paidByName = payer[0].fullName;
+                expense.paidByEmail = payer[0].email;
+            }
+        }
+
+        // Format response
+        const formattedExpense = {
+            ...expense,
+            userName: expense.userRole === 'ROLE_ADMIN' ? 'Admin' : expense.userName,
+            departmentName: expense.departmentName || 'Company-wide'
+        };
+
+        res.json({
+            success: true,
+            data: formattedExpense
+        });
+    } catch (error) {
+        console.error('Error fetching expense:', error);
+        res.status(500).json({
+            message: error.message || "Error fetching expense"
+        });
+    }
+};
+
 // Admin: Update expense status
 export const updateExpenseStatus = async (req, res) => {
     try {
         const expenseId = parseInt(req.params.id);
         const { status } = req.body;
+        const adminId = req.userId; // Get admin ID from auth middleware
 
         if (!status) {
             return res.status(400).json({
@@ -1251,8 +1846,26 @@ export const updateExpenseStatus = async (req, res) => {
             });
         }
 
+        // Prepare update data based on status
+        const updateData = { 
+            status: status,
+            updatedAt: new Date()
+        };
+
+        // Track who approved/rejected/paid and when
+        if (status === 'approved') {
+            updateData.approvedBy = adminId;
+            updateData.approvedAt = new Date();
+        } else if (status === 'rejected') {
+            updateData.rejectedBy = adminId;
+            updateData.rejectedAt = new Date();
+        } else if (status === 'paid') {
+            updateData.paidBy = adminId;
+            updateData.paidAt = new Date();
+        }
+
         const result = await db.update(expenses)
-            .set({ status: status })
+            .set(updateData)
             .where(eq(expenses.id, expenseId))
             .returning();
 

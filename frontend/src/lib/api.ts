@@ -532,23 +532,69 @@ class ApiClient {
 
   // Holidays endpoints
   async getHolidays() {
-    const response = await this.client.get<ApiResponse>('/holidays')
-    return response.data.data
+    const userRole = this.getRole()
+    
+    let endpoint = '/api/employee/holidays' // Default to employee
+    if (userRole === 'ROLE_ADMIN') {
+      endpoint = '/api/admin/holidays'
+    } else if (userRole === 'ROLE_MANAGER') {
+      endpoint = '/api/manager/holidays'
+    }
+    
+    const response = await this.client.get(endpoint)
+    return response.data
+  }
+
+  async getHoliday(id: number) {
+    const userRole = this.getRole()
+    
+    let endpoint = `/api/employee/holidays/${id}` // Default to employee
+    if (userRole === 'ROLE_ADMIN') {
+      endpoint = `/api/admin/holidays/${id}`
+    } else if (userRole === 'ROLE_MANAGER') {
+      endpoint = `/api/manager/holidays/${id}`
+    }
+    
+    const response = await this.client.get(endpoint)
+    return response.data
   }
 
   async createHoliday(data: any) {
-    const response = await this.client.post<ApiResponse>('/admin/holidays', data)
-    return response.data.data
+    // Only admin can create holidays
+    const response = await this.client.post('/api/admin/holidays', data)
+    return response.data
   }
 
-  async updateHoliday(id: string, data: any) {
-    const response = await this.client.put<ApiResponse>(`/admin/holidays/${id}`, data)
-    return response.data.data
+  async updateHoliday(id: number, data: any) {
+    // Only admin can update holidays
+    const response = await this.client.put(`/api/admin/holidays/${id}`, data)
+    return response.data
   }
 
-  async deleteHoliday(id: string) {
-    const response = await this.client.delete<ApiResponse>(`/admin/holidays/${id}`)
-    return response.data.data
+  async deleteHoliday(id: number) {
+    // Only admin can delete holidays
+    const response = await this.client.delete(`/api/admin/holidays/${id}`)
+    return response.data
+  }
+
+  async getUpcomingHolidays() {
+    const userRole = this.getRole()
+    
+    let endpoint = '/api/employee/holidays/upcoming'
+    if (userRole === 'ROLE_ADMIN') {
+      endpoint = '/api/admin/holidays/upcoming'
+    } else if (userRole === 'ROLE_MANAGER') {
+      endpoint = '/api/manager/holidays/upcoming'
+    }
+    
+    const response = await this.client.get(endpoint)
+    return response.data
+  }
+
+  async getHolidayStatistics() {
+    // Only admin can view statistics
+    const response = await this.client.get('/api/admin/holidays/statistics')
+    return response.data
   }
 
   // Dashboard endpoints
@@ -612,6 +658,143 @@ class ApiClient {
 
   async addEmployeeOvertime(data: any) {
     const response = await this.client.post('/api/manager/employees/overtime', data)
+    return response.data
+  }
+
+  // ==================== ATTENDANCE ENDPOINTS ====================
+  
+  // Employee Attendance
+  async checkIn(data: { location?: string; ipAddress?: string; deviceInfo?: string; notes?: string }) {
+    const response = await this.client.post('/api/employee/attendance/check-in', data)
+    return response.data
+  }
+
+  async checkOut(data?: { notes?: string }) {
+    const response = await this.client.post('/api/employee/attendance/check-out', data || {})
+    return response.data
+  }
+
+  async getMyAttendance(params?: { startDate?: string; endDate?: string; month?: number; year?: number }) {
+    const response = await this.client.get('/api/employee/attendance', { params })
+    return response.data
+  }
+
+  async getTodayAttendance() {
+    const response = await this.client.get('/api/employee/attendance/today')
+    return response.data
+  }
+
+  async getMyAttendanceSummary(params?: { month?: number; year?: number }) {
+    const response = await this.client.get('/api/employee/attendance/summary', { params })
+    return response.data
+  }
+
+  async requestAttendanceCorrection(data: {
+    date: string;
+    requestType: string;
+    requestedCheckIn?: string;
+    requestedCheckOut?: string;
+    reason: string;
+  }) {
+    const response = await this.client.post('/api/employee/attendance/corrections', data)
+    return response.data
+  }
+
+  async getMyCorrectionRequests() {
+    const response = await this.client.get('/api/employee/attendance/corrections')
+    return response.data
+  }
+
+  // Manager Attendance
+  async getTeamAttendance(params?: { 
+    startDate?: string; 
+    endDate?: string; 
+    month?: number; 
+    year?: number;
+    userId?: number;
+  }) {
+    const response = await this.client.get('/api/manager/attendance/team', { params })
+    return response.data
+  }
+
+  async getTodayTeamAttendance() {
+    const response = await this.client.get('/api/manager/attendance/team/today')
+    return response.data
+  }
+
+  async getTeamAttendanceSummary(params?: { month?: number; year?: number }) {
+    const response = await this.client.get('/api/manager/attendance/team/summary', { params })
+    return response.data
+  }
+
+  async getPendingCorrections() {
+    const response = await this.client.get('/api/manager/attendance/corrections/pending')
+    return response.data
+  }
+
+  async approveCorrection(id: number, reviewNotes?: string) {
+    const response = await this.client.put(`/api/manager/attendance/corrections/${id}/approve`, { reviewNotes })
+    return response.data
+  }
+
+  async rejectCorrection(id: number, reviewNotes: string) {
+    const response = await this.client.put(`/api/manager/attendance/corrections/${id}/reject`, { reviewNotes })
+    return response.data
+  }
+
+  // Admin Attendance
+  async getAllAttendance(params?: {
+    startDate?: string;
+    endDate?: string;
+    month?: number;
+    year?: number;
+    userId?: number;
+    departmentId?: number;
+    status?: string;
+  }) {
+    const response = await this.client.get('/api/admin/attendance', { params })
+    return response.data
+  }
+
+  async getAllAttendanceSummaries(params?: { month?: number; year?: number; departmentId?: number }) {
+    const response = await this.client.get('/api/admin/attendance/summaries', { params })
+    return response.data
+  }
+
+  async getAllCorrectionRequests(params?: { status?: string }) {
+    const response = await this.client.get('/api/admin/attendance/corrections', { params })
+    return response.data
+  }
+
+  async createManualAttendance(data: {
+    userId: number;
+    date: string;
+    checkIn?: string;
+    checkOut?: string;
+    status?: string;
+    notes?: string;
+  }) {
+    const response = await this.client.post('/api/admin/attendance', data)
+    return response.data
+  }
+
+  async updateAttendance(id: number, data: {
+    checkIn?: string;
+    checkOut?: string;
+    status?: string;
+    notes?: string;
+  }) {
+    const response = await this.client.put(`/api/admin/attendance/${id}`, data)
+    return response.data
+  }
+
+  async deleteAttendance(id: number) {
+    const response = await this.client.delete(`/api/admin/attendance/${id}`)
+    return response.data
+  }
+
+  async generateMonthlySummaries(data: { month: number; year: number }) {
+    const response = await this.client.post('/api/admin/attendance/generate-summaries', data)
     return response.data
   }
 }

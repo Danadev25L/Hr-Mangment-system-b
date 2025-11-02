@@ -4,6 +4,7 @@ import * as employeePersonalInfoController from '../controllers/personalInfo.emp
 import * as employeeApplicationController from '../controllers/application.employee.controller.js';
 import * as employeeAnnouncementController from '../controllers/announcement.employee.controller.js';
 import * as employeeHolidayController from '../controllers/holidays.employee.controller.js';
+import * as employeeAttendanceController from '../controllers/attendance.employee.controller.js';
 
 const router = express.Router();
 
@@ -41,5 +42,14 @@ router.get('/holidays/month', employeeHolidayController.getHolidaysByMonth);
 router.get('/holidays/today', employeeHolidayController.getTodayHolidayStatus);
 router.get('/holidays/next', employeeHolidayController.getNextHoliday);
 router.get('/holidays/:id', employeeHolidayController.getHoliday);
+
+// Employee Attendance Routes
+router.post('/attendance/check-in', employeeAttendanceController.checkIn);
+router.post('/attendance/check-out', employeeAttendanceController.checkOut);
+router.get('/attendance', employeeAttendanceController.getMyAttendance);
+router.get('/attendance/today', employeeAttendanceController.getTodayAttendance);
+router.get('/attendance/summary', employeeAttendanceController.getMyAttendanceSummary);
+router.post('/attendance/corrections', employeeAttendanceController.requestCorrection);
+router.get('/attendance/corrections', employeeAttendanceController.getMyCorrectionRequests);
 
 export default router;

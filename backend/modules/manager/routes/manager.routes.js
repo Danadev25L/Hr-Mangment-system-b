@@ -6,6 +6,7 @@ import * as managerEmployeeController from '../controllers/employee.manager.cont
 import * as managerExpenseController from '../controllers/expense.manager.controller.js';
 import * as managerHolidayController from '../controllers/holidays.manager.controller.js';
 import * as managerJobController from '../controllers/job.manager.controller.js';
+import * as managerAttendanceController from '../controllers/attendance.manager.controller.js';
 
 const router = express.Router();
 
@@ -63,5 +64,13 @@ router.get('/holidays/month', managerHolidayController.getHolidaysByMonth);
 router.get('/holidays/statistics', managerHolidayController.getOrganizationHolidayStats);
 router.get('/holidays/:id', managerHolidayController.getHoliday);
 router.post('/holidays/suggest', managerHolidayController.suggestHoliday);
+
+// Manager Attendance Routes
+router.get('/attendance/team', managerAttendanceController.getTeamAttendance);
+router.get('/attendance/team/today', managerAttendanceController.getTodayTeamAttendance);
+router.get('/attendance/team/summary', managerAttendanceController.getTeamAttendanceSummary);
+router.get('/attendance/corrections/pending', managerAttendanceController.getPendingCorrections);
+router.put('/attendance/corrections/:id/approve', managerAttendanceController.approveCorrection);
+router.put('/attendance/corrections/:id/reject', managerAttendanceController.rejectCorrection);
 
 export default router;

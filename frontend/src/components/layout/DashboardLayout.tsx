@@ -156,10 +156,48 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, role
         ],
       },
       {
+        key: 'holidays',
+        icon: <CalendarOutlined />,
+        label: 'Holidays',
+        children: [
+          {
+            key: 'holidays-list',
+            icon: <CalendarOutlined />,
+            label: 'All Holidays',
+            href: '/admin/holidays',
+          },
+          {
+            key: 'holidays-add',
+            icon: <PlusOutlined />,
+            label: 'Add Holiday',
+            href: '/admin/holidays/add',
+          },
+        ],
+      },
+      {
         key: 'departments',
         icon: <BankOutlined />,
         label: 'Departments',
         href: '/admin/departments',
+      },
+      {
+        key: 'attendance',
+        icon: <ClockCircleOutlined />,
+        label: 'Attendance',
+        children: [
+          {
+            key: 'attendance-records',
+            icon: <ClockCircleOutlined />,
+            label: 'All Records',
+            href: '/admin/attendance',
+          },
+          {
+            key: 'attendance-corrections',
+            icon: <FileSearchOutlined />,
+            label: 'Corrections',
+            href: '/admin/attendance/corrections',
+          },
+        ],
       },
     ],
     manager: [
@@ -246,10 +284,35 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, role
         ],
       },
       {
+        key: 'holidays',
+        icon: <CalendarOutlined />,
+        label: 'Company Holidays',
+        href: '/manager/holidays',
+      },
+      {
         key: 'team-overview',
         icon: <BarChartOutlined />,
         label: 'Team Overview',
         href: '/manager/team',
+      },
+      {
+        key: 'attendance',
+        icon: <ClockCircleOutlined />,
+        label: 'Team Attendance',
+        children: [
+          {
+            key: 'attendance-team',
+            icon: <TeamOutlined />,
+            label: 'Team Status',
+            href: '/manager/attendance',
+          },
+          {
+            key: 'attendance-corrections',
+            icon: <FileSearchOutlined />,
+            label: 'Pending Corrections',
+            href: '/manager/attendance/corrections',
+          },
+        ],
       },
     ],
     employee: [
@@ -270,6 +333,31 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, role
         icon: <NotificationOutlined />,
         label: 'Announcements',
         href: '/employee/announcements',
+      },
+      {
+        key: 'holidays',
+        icon: <CalendarOutlined />,
+        label: 'Company Holidays',
+        href: '/employee/holidays',
+      },
+      {
+        key: 'attendance',
+        icon: <ClockCircleOutlined />,
+        label: 'My Attendance',
+        children: [
+          {
+            key: 'attendance-records',
+            icon: <ClockCircleOutlined />,
+            label: 'Attendance Records',
+            href: '/employee/attendance',
+          },
+          {
+            key: 'attendance-corrections',
+            icon: <FileSearchOutlined />,
+            label: 'My Corrections',
+            href: '/employee/attendance/corrections',
+          },
+        ],
       },
     ],
   }

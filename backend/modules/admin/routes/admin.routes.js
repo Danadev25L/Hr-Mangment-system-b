@@ -7,6 +7,7 @@ import * as adminSalaryController from '../controllers/salary.admin.controller.j
 import * as adminApplicationController from '../controllers/application.admin.controller.js';
 import * as adminAnnouncementController from '../controllers/announcement.admin.controller.js';
 import * as adminHolidayController from '../controllers/holidays.admin.controller.js';
+import * as adminAttendanceController from '../controllers/attendance.admin.controller.js';
 
 const router = express.Router();
 
@@ -107,5 +108,14 @@ router.get('/holidays/statistics', adminHolidayController.getHolidayStatistics);
 router.get('/holidays/:id', adminHolidayController.getHoliday);
 router.put('/holidays/:id', adminHolidayController.updateHoliday);
 router.delete('/holidays/:id', adminHolidayController.deleteHoliday);
+
+// Admin Attendance Management Routes
+router.get('/attendance', adminAttendanceController.getAllAttendance);
+router.get('/attendance/summaries', adminAttendanceController.getAllAttendanceSummaries);
+router.get('/attendance/corrections', adminAttendanceController.getAllCorrectionRequests);
+router.post('/attendance', adminAttendanceController.createManualAttendance);
+router.put('/attendance/:id', adminAttendanceController.updateAttendance);
+router.delete('/attendance/:id', adminAttendanceController.deleteAttendance);
+router.post('/attendance/generate-summaries', adminAttendanceController.generateMonthlySummaries);
 
 export default router;

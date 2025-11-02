@@ -542,3 +542,107 @@ export const payrollBonusesRelations = relations(payrollBonuses, ({ one }) => ({
     references: [users.id]
   })
 }));
+
+// ==================== ATTENDANCE MANAGEMENT SYSTEM ====================
+
+// Attendance Records table - Daily check-in/check-out records
+export const attendanceRecords = pgTable('attendance_records', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  date: timestamp('date').notNull(), // Attendance date
+  checkIn: timestamp('check_in'), // Check-in timestamp
+  checkOut: timestamp('check_out'), // Check-out timestamp
+  workingHours: integer('working_hours').default(0), // Total working minutes
+  status: varchar('status', { length: 50 }).default('absent'), // present, absent, late, half_day, on_leave, holiday
+  isLate: boolean('is_late').default(false), // Late arrival flag
+  lateMinutes: integer('late_minutes').default(0), // Minutes late
+  isEarlyDeparture: boolean('is_early_departure').default(false), // Early departure flag
+  earlyDepartureMinutes: integer('early_departure_minutes').default(0), // Minutes early
+  overtimeMinutes: integer('overtime_minutes').default(0), // Overtime minutes
+  breakDuration: integer('break_duration').default(0), // Break duration in minutes
+  notes: text('notes'), // Additional notes
+  location: varchar('location', { length: 255 }), // Check-in location
+  ipAddress: varchar('ip_address', { length: 50 }), // IP address for audit
+  deviceInfo: text('device_info'), // Device information
+  isManualEntry: boolean('is_manual_entry').default(false), // Manual entry flag
+  approvedBy: integer('approved_by').references(() => users.id), // For manual entries
+  approvedAt: timestamp('approved_at'), // Approval timestamp
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull()
+});
+
+// Attendance Summary table - Monthly attendance summaries for quick reports
+export const attendanceSummary = pgTable('attendance_summary', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  month: integer('month').notNull(), // 1-12
+  year: integer('year').notNull(), // Year
+  totalWorkingDays: integer('total_working_days').notNull(), // Expected working days
+  presentDays: integer('present_days').default(0), // Days present
+  absentDays: integer('absent_days').default(0), // Days absent
+  lateDays: integer('late_days').default(0), // Days late
+  halfDays: integer('half_days').default(0), // Half days
+  leaveDays: integer('leave_days').default(0), // Approved leave days
+  holidayDays: integer('holiday_days').default(0), // Public holidays
+  totalWorkingHours: integer('total_working_hours').default(0), // Total minutes worked
+  totalOvertimeHours: integer('total_overtime_hours').default(0), // Total overtime minutes
+  attendancePercentage: integer('attendance_percentage').default(0), // Attendance percentage (0-100)
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull()
+}, (table) => ({
+  uniqueUserMonthYear: unique().on(table.userId, table.month, table.year)
+}));
+
+// Attendance Corrections table - Correction requests for missed punches
+export const attendanceCorrections = pgTable('attendance_corrections', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  attendanceId: integer('attendance_id').references(() => attendanceRecords.id),
+  date: timestamp('date').notNull(), // Correction date
+  requestType: varchar('request_type', { length: 50 }).notNull(), // missed_checkin, missed_checkout, wrong_time, forgot_punch
+  originalCheckIn: timestamp('original_check_in'), // Original check-in time
+  originalCheckOut: timestamp('original_check_out'), // Original check-out time
+  requestedCheckIn: timestamp('requested_check_in'), // Requested check-in time
+  requestedCheckOut: timestamp('requested_check_out'), // Requested check-out time
+  reason: text('reason').notNull(), // Reason for correction
+  status: varchar('status', { length: 20 }).default('pending'), // pending, approved, rejected
+  reviewedBy: integer('reviewed_by').references(() => users.id), // Manager who reviewed
+  reviewedAt: timestamp('reviewed_at'), // Review timestamp
+  reviewNotes: text('review_notes'), // Manager's notes
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull()
+});
+
+// Attendance Relations
+export const attendanceRecordsRelations = relations(attendanceRecords, ({ one }) => ({
+  user: one(users, {
+    fields: [attendanceRecords.userId],
+    references: [users.id]
+  }),
+  approver: one(users, {
+    fields: [attendanceRecords.approvedBy],
+    references: [users.id]
+  })
+}));
+
+export const attendanceSummaryRelations = relations(attendanceSummary, ({ one }) => ({
+  user: one(users, {
+    fields: [attendanceSummary.userId],
+    references: [users.id]
+  })
+}));
+
+export const attendanceCorrectionsRelations = relations(attendanceCorrections, ({ one }) => ({
+  user: one(users, {
+    fields: [attendanceCorrections.userId],
+    references: [users.id]
+  }),
+  attendance: one(attendanceRecords, {
+    fields: [attendanceCorrections.attendanceId],
+    references: [attendanceRecords.id]
+  }),
+  reviewer: one(users, {
+    fields: [attendanceCorrections.reviewedBy],
+    references: [users.id]
+  })
+}));

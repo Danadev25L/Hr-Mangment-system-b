@@ -6,6 +6,8 @@ import { UserOutlined, LockOutlined, MailOutlined } from '@ant-design/icons'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
+import { useTranslations } from 'next-intl'
+import LocaleSwitcher from '@/components/LocaleSwitcher'
 
 interface LoginFormData {
   username: string
@@ -18,12 +20,13 @@ export const LoginForm: React.FC = () => {
   const [loading, setLoading] = useState(false)
   const { login, error, isLoading } = useAuth()
   const router = useRouter()
+  const t = useTranslations()
 
   const handleSubmit = async (values: LoginFormData) => {
     try {
       setLoading(true)
       await login(values.username, values.password)
-      message.success('Login successful!')
+      message.success(t('auth.loginSuccess'))
 
       // Redirect based on user role from authenticated context
       setTimeout(() => {
@@ -53,16 +56,19 @@ export const LoginForm: React.FC = () => {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div>
-          <div className="mx-auto h-12 w-12 flex items-center justify-center rounded-full bg-primary-100">
-            <UserOutlined className="h-6 w-6 text-primary-600" />
+          <div className="flex justify-between items-start mb-4">
+            <div className="mx-auto h-12 w-12 flex items-center justify-center rounded-full bg-primary-100">
+              <UserOutlined className="h-6 w-6 text-primary-600" />
+            </div>
+            <LocaleSwitcher />
           </div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Sign in to your account
+            {t('auth.signIn')}
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
             Or{' '}
             <Link href="/register" className="font-medium text-primary-600 hover:text-primary-500">
-              create a new account
+              {t('auth.createAccount')}
             </Link>
           </p>
         </div>
@@ -84,24 +90,24 @@ export const LoginForm: React.FC = () => {
           >
             <Form.Item
               name="username"
-              label="Username"
-              rules={[{ required: true, message: 'Please input your username!' }]}
+              label={t('auth.username')}
+              rules={[{ required: true, message: t('auth.usernameRequired') }]}
             >
               <Input
                 prefix={<UserOutlined className="text-gray-400" />}
-                placeholder="Enter your username"
+                placeholder={t('auth.enterUsername')}
                 autoComplete="username"
               />
             </Form.Item>
 
             <Form.Item
               name="password"
-              label="Password"
-              rules={[{ required: true, message: 'Please input your password!' }]}
+              label={t('auth.password')}
+              rules={[{ required: true, message: t('auth.passwordRequired') }]}
             >
               <Input.Password
                 prefix={<LockOutlined className="text-gray-400" />}
-                placeholder="Enter your password"
+                placeholder={t('auth.enterPassword')}
                 autoComplete="current-password"
               />
             </Form.Item>
@@ -109,13 +115,13 @@ export const LoginForm: React.FC = () => {
             <Form.Item>
               <div className="flex items-center justify-between">
                 <Form.Item name="remember" valuePropName="checked" noStyle>
-                  <Checkbox>Remember me</Checkbox>
+                  <Checkbox>{t('auth.rememberMe')}</Checkbox>
                 </Form.Item>
                 <Link
                   href="/forgot-password"
                   className="text-sm text-primary-600 hover:text-primary-500"
                 >
-                  Forgot your password?
+                  {t('auth.forgotPassword')}
                 </Link>
               </div>
             </Form.Item>
@@ -128,19 +134,19 @@ export const LoginForm: React.FC = () => {
                 block
                 className="h-12 text-base font-medium"
               >
-                Sign In
+                {t('common.buttons.login')}
               </Button>
             </Form.Item>
           </Form>
 
-          <Divider>or continue with</Divider>
+          <Divider>{t('auth.orContinueWith')}</Divider>
 
           <div className="mt-6 grid grid-cols-2 gap-3">
             <Button
-              variant="outline"
+              type="default"
               block
               className="h-10"
-              onClick={() => message.info('Google login coming soon!')}
+              onClick={() => message.info(t('auth.googleLoginSoon'))}
             >
               <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
                 <path
@@ -160,13 +166,13 @@ export const LoginForm: React.FC = () => {
                   d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
                 />
               </svg>
-              Google
+              {t('auth.google')}
             </Button>
             <Button
-              variant="outline"
+              type="default"
               block
               className="h-10"
-              onClick={() => message.info('Microsoft login coming soon!')}
+              onClick={() => message.info(t('auth.microsoftLoginSoon'))}
             >
               <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
                 <path fill="#f25022" d="M11.4 11.4H2.6V2.6h8.8v8.8z" />
@@ -174,7 +180,7 @@ export const LoginForm: React.FC = () => {
                 <path fill="#7fba00" d="M11.4 21.4H2.6v-8.8h8.8v8.8z" />
                 <path fill="#ffb900" d="M21.4 21.4h-8.8v-8.8h8.8v8.8z" />
               </svg>
-              Microsoft
+              {t('auth.microsoft')}
             </Button>
           </div>
         </div>

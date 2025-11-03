@@ -61,6 +61,14 @@ body {
   overflow-x: hidden;
 }
 
+html {
+  background: white;
+}
+
+html.dark {
+  background: rgb(17 24 39);
+}
+
 body {
   color: rgb(15 23 42);
   background: white;
@@ -71,7 +79,16 @@ body {
 }
 
 .dark body {
-  color: rgb(248 250 252);
+  color: rgb(255 255 255);
+  background: rgb(17 24 39);
+}
+
+/* Ensure root element has proper background */
+#__next {
+  background: white;
+}
+
+.dark #__next {
   background: rgb(17 24 39);
 }
 
@@ -182,4 +199,493 @@ body {
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+/* Ant Design Dark Mode Overrides */
+.dark .ant-layout {
+  background: rgb(17 24 39) !important;
+  color: rgb(255 255 255) !important;
+}
+
+.dark .ant-layout-sider {
+  background: rgb(17 24 39) !important;
+  color: rgb(255 255 255) !important;
+}
+
+.dark .ant-layout-header {
+  background: rgb(17 24 39) !important;
+  border-bottom-color: rgb(55 65 81) !important;
+  color: rgb(255 255 255) !important;
+}
+
+/* Light mode overrides to ensure white background */
+.ant-layout {
+  background: rgb(249 250 251) !important;
+}
+
+.ant-layout-sider {
+  background: white !important;
+}
+
+.ant-layout-header {
+  background: white !important;
+  border-bottom-color: rgb(229 231 235) !important;
+}
+
+.ant-layout-content {
+  background: rgb(249 250 251) !important;
+}
+
+.dark .ant-layout-content {
+  background: rgb(17 24 39) !important;
+}
+
+.ant-drawer-content {
+  background: white !important;
+}
+
+.dark .ant-drawer-content {
+  background: rgb(17 24 39) !important;
+}
+
+.dark .ant-drawer-header {
+  background: rgb(17 24 39) !important;
+  border-bottom-color: rgb(55 65 81) !important;
+  color: rgb(255 255 255) !important;
+}
+
+.dark .ant-drawer-title {
+  color: rgb(255 255 255) !important;
+}
+
+.dark .ant-drawer-close {
+  color: rgb(229 231 235) !important;
+}
+
+.dark .ant-drawer-close:hover {
+  color: rgb(255 255 255) !important;
+}
+
+.dark .ant-btn {
+  border-color: rgb(55 65 81) !important;
+  color: rgb(229 231 235) !important;
+}
+
+.dark .ant-btn:hover {
+  color: rgb(255 255 255) !important;
+  border-color: rgb(75 85 99) !important;
+}
+
+.dark .ant-badge-count {
+  background: rgb(239 68 68) !important;
+}
+
+.dark .ant-avatar {
+  background: rgb(55 65 81) !important;
+  color: rgb(229 231 235) !important;
+}
+
+.dark .ant-dropdown {
+  background: rgb(31 41 55) !important;
+}
+
+.dark .ant-dropdown-menu {
+  background: rgb(31 41 55) !important;
+}
+
+.dark .ant-dropdown-menu-item {
+  color: rgb(255 255 255) !important;
+}
+
+.dark .ant-dropdown-menu-item:hover {
+  background: rgb(55 65 81) !important;
+}
+
+.dark .ant-dropdown-menu-item-divider {
+  background: rgb(55 65 81) !important;
+}
+
+/* Tooltip dark mode - ALL WHITE TEXT */
+.dark .ant-tooltip-inner {
+  background: rgb(31 41 55) !important;
+  color: rgb(255 255 255) !important;
+}
+
+.dark .ant-tooltip-arrow-content {
+  background: rgb(31 41 55) !important;
+}
+
+/* Card light mode */
+.ant-card {
+  background: white !important;
+  border-color: rgb(229 231 235) !important;
+}
+
+.ant-card-head {
+  background: white !important;
+  border-bottom-color: rgb(229 231 235) !important;
+}
+
+/* Card dark mode - ALL WHITE TEXT */
+.dark .ant-card {
+  background: rgb(31 41 55) !important;
+  border-color: rgb(55 65 81) !important;
+  color: rgb(255 255 255) !important;
+}
+
+.dark .ant-card-head {
+  background: rgb(31 41 55) !important;
+  border-bottom-color: rgb(55 65 81) !important;
+  color: rgb(255 255 255) !important;
+}
+
+.dark .ant-card-head-title {
+  color: rgb(255 255 255) !important;
+}
+
+.dark .ant-card-body {
+  color: rgb(255 255 255) !important;
+}
+
+/* List dark mode - ALL WHITE */
+.dark .ant-list {
+  color: rgb(255 255 255) !important;
+}
+
+.dark .ant-list-item {
+  border-bottom-color: rgb(55 65 81) !important;
+  color: rgb(255 255 255) !important;
+}
+
+.dark .ant-list-item-meta-title {
+  color: rgb(255 255 255) !important;
+}
+
+.dark .ant-list-item-meta-description {
+  color: rgb(229 231 235) !important;
+}
+
+/* Typography dark mode - ALL WHITE */
+.dark .ant-typography {
+  color: rgb(255 255 255) !important;
+}
+
+.dark h1, .dark h2, .dark h3, .dark h4, .dark h5, .dark h6 {
+  color: rgb(255 255 255) !important;
+}
+
+.dark .ant-typography-secondary {
+  color: rgb(229 231 235) !important;
+}
+
+.dark .ant-typography-success {
+  color: rgb(34 197 94) !important;
+}
+
+.dark .ant-typography-warning {
+  color: rgb(251 146 60) !important;
+}
+
+.dark .ant-typography-danger {
+  color: rgb(239 68 68) !important;
+}
+
+/* Statistic dark mode - ALL WHITE */
+.dark .ant-statistic {
+  color: rgb(255 255 255) !important;
+}
+
+.dark .ant-statistic-title {
+  color: rgb(229 231 235) !important;
+}
+
+.dark .ant-statistic-content {
+  color: rgb(255 255 255) !important;
+}
+
+/* Table dark mode - ALL WHITE TEXT */
+.dark .ant-table {
+  background: rgb(31 41 55) !important;
+  color: rgb(255 255 255) !important;
+}
+
+.dark .ant-table-thead > tr > th {
+  background: rgb(17 24 39) !important;
+  color: rgb(255 255 255) !important;
+  border-bottom-color: rgb(55 65 81) !important;
+}
+
+.dark .ant-table-tbody > tr > td {
+  border-bottom-color: rgb(55 65 81) !important;
+  color: rgb(255 255 255) !important;
+}
+
+.dark .ant-table-tbody > tr:hover > td {
+  background: rgb(55 65 81) !important;
+  color: rgb(255 255 255) !important;
+}
+
+.dark .ant-table-cell {
+  color: rgb(255 255 255) !important;
+}
+
+/* Timeline dark mode - ALL WHITE TEXT */
+.dark .ant-timeline-item-tail {
+  border-left-color: rgb(55 65 81) !important;
+}
+
+.dark .ant-timeline-item-head {
+  background: rgb(31 41 55) !important;
+  border-color: rgb(55 65 81) !important;
+}
+
+.dark .ant-timeline-item-content {
+  color: rgb(255 255 255) !important;
+}
+
+/* Progress dark mode - ALL WHITE TEXT */
+.dark .ant-progress-text {
+  color: rgb(255 255 255) !important;
+}
+
+/* Row & Col dark mode fixes - ALL WHITE TEXT */
+.dark .ant-row {
+  color: rgb(255 255 255) !important;
+}
+
+.dark .ant-col {
+  color: rgb(255 255 255) !important;
+}
+
+/* Title and Text component overrides - ALL WHITE */
+.dark .ant-typography.ant-typography-secondary {
+  color: rgb(229 231 235) !important;
+}
+
+/* Form dark mode - ALL WHITE TEXT */
+.dark .ant-form {
+  color: rgb(255 255 255) !important;
+}
+
+.dark .ant-form-item-label > label {
+  color: rgb(255 255 255) !important;
+}
+
+.dark .ant-input {
+  background: rgb(31 41 55) !important;
+  border-color: rgb(55 65 81) !important;
+  color: rgb(255 255 255) !important;
+}
+
+.dark .ant-input:hover {
+  border-color: rgb(75 85 99) !important;
+}
+
+.dark .ant-input:focus {
+  border-color: rgb(59 130 246) !important;
+  background: rgb(31 41 55) !important;
+}
+
+.dark .ant-input::placeholder {
+  color: rgb(107 114 128) !important;
+}
+
+.dark .ant-select {
+  color: rgb(229 231 235) !important;
+}
+
+.dark .ant-select-selector {
+  background: rgb(31 41 55) !important;
+  border-color: rgb(55 65 81) !important;
+  color: rgb(229 231 235) !important;
+}
+
+.dark .ant-select-arrow {
+  color: rgb(156 163 175) !important;
+}
+
+.dark .ant-select-dropdown {
+  background: rgb(31 41 55) !important;
+}
+
+.dark .ant-select-item {
+  color: rgb(229 231 235) !important;
+}
+
+.dark .ant-select-item-option-selected {
+  background: rgb(55 65 81) !important;
+}
+
+.dark .ant-select-item-option:hover {
+  background: rgb(55 65 81) !important;
+}
+
+/* Modal dark mode - ALL WHITE TEXT */
+.dark .ant-modal-content {
+  background: rgb(31 41 55) !important;
+  color: rgb(255 255 255) !important;
+}
+
+.dark .ant-modal-header {
+  background: rgb(31 41 55) !important;
+  border-bottom-color: rgb(55 65 81) !important;
+}
+
+.dark .ant-modal-title {
+  color: rgb(255 255 255) !important;
+}
+
+.dark .ant-modal-close {
+  color: rgb(229 231 235) !important;
+}
+
+.dark .ant-modal-close:hover {
+  color: rgb(255 255 255) !important;
+}
+
+.dark .ant-modal-footer {
+  border-top-color: rgb(55 65 81) !important;
+}
+
+/* Divider dark mode */
+.dark .ant-divider {
+  border-top-color: rgb(55 65 81) !important;
+}
+
+/* Empty dark mode - ALL WHITE TEXT */
+.dark .ant-empty-description {
+  color: rgb(229 231 235) !important;
+}
+
+/* Spin dark mode - ALL WHITE TEXT */
+.dark .ant-spin-text {
+  color: rgb(255 255 255) !important;
+}
+
+/* Page container backgrounds */
+.dark [class*="bg-gray-50"] {
+  background-color: rgb(17 24 39) !important;
+}
+
+.dark [class*="bg-white"]:not(.ant-btn):not([class*="hover"]) {
+  background-color: rgb(31 41 55) !important;
+}
+
+/* Text colors - ALL WHITE IN DARK MODE */
+.dark [class*="text-gray-900"],
+.dark [class*="text-gray-800"],
+.dark [class*="text-gray-700"],
+.dark [class*="text-gray-600"] {
+  color: rgb(255 255 255) !important;
+}
+
+.dark [class*="text-gray-500"],
+.dark [class*="text-gray-400"] {
+  color: rgb(229 231 235) !important;
+}
+
+/* Border colors */
+.dark [class*="border-gray-200"] {
+  border-color: rgb(55 65 81) !important;
+}
+
+.dark [class*="border-gray-300"] {
+  border-color: rgb(55 65 81) !important;
+}
+
+/* Recharts (Charts) dark mode - ALL WHITE TEXT */
+.dark .recharts-wrapper {
+  color: rgb(255 255 255) !important;
+}
+
+.dark .recharts-text {
+  fill: rgb(229 231 235) !important;
+}
+
+.dark .recharts-cartesian-axis-tick {
+  fill: rgb(229 231 235) !important;
+}
+
+.dark .recharts-cartesian-grid line {
+  stroke: rgb(55 65 81) !important;
+}
+
+.dark .recharts-label {
+  fill: rgb(255 255 255) !important;
+}
+
+/* Skeleton dark mode */
+.dark .ant-skeleton {
+  background: rgb(31 41 55) !important;
+}
+
+.dark .ant-skeleton-element {
+  background: rgb(31 41 55) !important;
+}
+
+.dark .ant-skeleton-content .ant-skeleton-title {
+  background: linear-gradient(90deg, rgb(31 41 55) 25%, rgb(55 65 81) 37%, rgb(31 41 55) 63%) !important;
+}
+
+.dark .ant-skeleton-content .ant-skeleton-paragraph > li {
+  background: linear-gradient(90deg, rgb(31 41 55) 25%, rgb(55 65 81) 37%, rgb(31 41 55) 63%) !important;
+}
+
+/* Tag dark mode - ALL WHITE TEXT */
+.dark .ant-tag {
+  background: rgb(55 65 81) !important;
+  border-color: rgb(75 85 99) !important;
+  color: rgb(255 255 255) !important;
+}
+
+/* Popover dark mode - ALL WHITE TEXT */
+.dark .ant-popover {
+  color: rgb(255 255 255) !important;
+}
+
+.dark .ant-popover-inner {
+  background: rgb(31 41 55) !important;
+  color: rgb(255 255 255) !important;
+}
+
+.dark .ant-popover-title {
+  color: rgb(255 255 255) !important;
+  border-bottom-color: rgb(55 65 81) !important;
+}
+
+.dark .ant-popover-inner-content {
+  color: rgb(255 255 255) !important;
+}
+
+.dark .ant-popover-arrow-content {
+  background: rgb(31 41 55) !important;
+}
+
+/* Message dark mode - ALL WHITE TEXT */
+.dark .ant-message-notice-content {
+  background: rgb(31 41 55) !important;
+  color: rgb(255 255 255) !important;
+}
+
+/* Notification dark mode - ALL WHITE TEXT */
+.dark .ant-notification-notice {
+  background: rgb(31 41 55) !important;
+  color: rgb(255 255 255) !important;
+  border: 1px solid rgb(55 65 81) !important;
+}
+
+.dark .ant-notification-notice-message {
+  color: rgb(255 255 255) !important;
+}
+
+.dark .ant-notification-notice-description {
+  color: rgb(229 231 235) !important;
+}
+
+.dark .ant-notification-close-icon {
+  color: rgb(229 231 235) !important;
+}
+
+.dark .ant-notification-close-icon:hover {
+  color: rgb(255 255 255) !important;
 }

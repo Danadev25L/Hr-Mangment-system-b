@@ -43,6 +43,7 @@ import * as XLSX from 'xlsx'
 import jsPDF from 'jspdf'
 import 'jspdf-autotable'
 import apiClient from '@/lib/api'
+import { useTranslations } from 'next-intl'
 
 const { RangePicker } = DatePicker
 
@@ -66,14 +67,15 @@ interface Expense {
 }
 
 export default function ExpenseListPage({ role, title, description }: ExpenseListPageProps) {
+  const t = useTranslations()
   const router = useRouter()
   const queryClient = useQueryClient()
 
   // Set default title and description if not provided
-  const pageTitle = title || (role === 'admin' ? 'Expense Management' : 'Department Expenses')
+  const pageTitle = title || (role === 'admin' ? t('expenses.allExpenses') : t('expenses.teamExpenses'))
   const pageDescription = description || (role === 'admin' 
-    ? 'Manage all expenses across the organization' 
-    : 'Manage expenses for your department')
+    ? t('expenses.subtitle') 
+    : t('expenses.subtitleManager'))
   
   const [searchText, setSearchText] = useState('')
   const [filters, setFilters] = useState({
@@ -109,23 +111,31 @@ export default function ExpenseListPage({ role, title, description }: ExpenseLis
   const deleteExpenseMutation = useMutation({
     mutationFn: (expenseId: number) => apiClient.deleteExpense(expenseId.toString()),
     onSuccess: () => {
-      message.success('Expense deleted successfully')
+      message.success(t('expenses.deleteSuccess'))
       queryClient.invalidateQueries({ queryKey: ['expenses'] })
     },
     onError: (error: any) => {
-      message.error(error.response?.data?.message || 'Failed to delete expense')
+      message.error(error.response?.data?.message || t('expenses.deleteError'))
     },
   })
 
   const updateStatusMutation = useMutation({
     mutationFn: ({ id, status }: { id: number; status: string }) =>
       apiClient.updateExpenseStatus(id.toString(), status),
-    onSuccess: () => {
-      message.success('Expense status updated successfully')
+    onSuccess: (_, { status }) => {
+      if (status === 'approved') {
+        message.success(t('expenses.approveSuccess'))
+      } else if (status === 'rejected') {
+        message.success(t('expenses.rejectSuccess'))
+      }
       queryClient.invalidateQueries({ queryKey: ['expenses'] })
     },
-    onError: (error: any) => {
-      message.error(error.response?.data?.message || 'Failed to update expense status')
+    onError: (error: any, { status }) => {
+      if (status === 'approved') {
+        message.error(error.response?.data?.message || t('expenses.approveError'))
+      } else if (status === 'rejected') {
+        message.error(error.response?.data?.message || t('expenses.rejectError'))
+      }
     },
   })
 
@@ -146,9 +156,9 @@ export default function ExpenseListPage({ role, title, description }: ExpenseLis
 
   const handleDeleteExpense = (expense: Expense) => {
     Modal.confirm({
-      title: 'Delete Expense',
-      content: `Are you sure you want to delete this expense: ${expense.reason}?`,
-      okText: 'Yes',
+      title: t('expenses.deleteExpense'),
+      content: t('expenses.deleteConfirm'),
+      okText: t('common.delete'),
       okType: 'danger',
       cancelText: 'No',
       onOk: () => deleteExpenseMutation.mutate(expense.id),
@@ -157,22 +167,22 @@ export default function ExpenseListPage({ role, title, description }: ExpenseLis
 
   const handleApprove = (expense: Expense) => {
     Modal.confirm({
-      title: 'Approve Expense',
-      content: `Approve expense of $${expense.amount} for "${expense.reason}"?`,
-      okText: 'Approve',
+      title: t('expenses.approve'),
+      content: `${t('expenses.approve')} $${expense.amount} - "${expense.reason}"?`,
+      okText: t('expenses.approve'),
       okType: 'primary',
-      cancelText: 'Cancel',
+      cancelText: t('common.cancel'),
       onOk: () => updateStatusMutation.mutate({ id: expense.id, status: 'approved' }),
     })
   }
 
   const handleReject = (expense: Expense) => {
     Modal.confirm({
-      title: 'Reject Expense',
-      content: `Reject expense of $${expense.amount} for "${expense.reason}"?`,
-      okText: 'Reject',
+      title: t('expenses.reject'),
+      content: `${t('expenses.reject')} $${expense.amount} - "${expense.reason}"?`,
+      okText: t('expenses.reject'),
       okType: 'danger',
-      cancelText: 'Cancel',
+      cancelText: t('common.cancel'),
       onOk: () => updateStatusMutation.mutate({ id: expense.id, status: 'rejected' }),
     })
   }
@@ -242,22 +252,22 @@ export default function ExpenseListPage({ role, title, description }: ExpenseLis
 
   const getStatusTag = (status: string) => {
     const statusConfig = {
-      pending: { color: 'warning', icon: <ClockCircleOutlined /> },
-      approved: { color: 'success', icon: <CheckCircleOutlined /> },
-      rejected: { color: 'error', icon: <CloseCircleOutlined /> },
-      paid: { color: 'processing', icon: <DollarOutlined /> },
+      pending: { color: 'warning', icon: <ClockCircleOutlined />, text: t('expenses.pending') },
+      approved: { color: 'success', icon: <CheckCircleOutlined />, text: t('expenses.approved') },
+      rejected: { color: 'error', icon: <CloseCircleOutlined />, text: t('expenses.rejected') },
+      paid: { color: 'processing', icon: <DollarOutlined />, text: t('expenses.approved') },
     }
     const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.pending
     return (
       <Tag color={config.color} icon={config.icon}>
-        {status.toUpperCase()}
+        {config.text.toUpperCase()}
       </Tag>
     )
   }
 
   const columns = [
     {
-      title: 'Submitted By',
+      title: t('expenses.submittedBy'),
       dataIndex: 'userName',
       key: 'userName',
       width: 150,
@@ -265,22 +275,22 @@ export default function ExpenseListPage({ role, title, description }: ExpenseLis
     ...(role === 'admin'
       ? [
           {
-            title: 'Department',
+            title: t('expenses.department'),
             dataIndex: 'departmentName',
             key: 'departmentName',
             width: 150,
-            render: (text: string) => text || 'Company-wide',
+            render: (text: string) => text || t('expenses.department'),
           },
         ]
       : []),
     {
-      title: 'Reason',
+      title: t('expenses.expenseTitle'),
       dataIndex: 'reason',
       key: 'reason',
       ellipsis: true,
     },
     {
-      title: 'Amount',
+      title: t('expenses.amount'),
       dataIndex: 'amount',
       key: 'amount',
       width: 120,
@@ -289,85 +299,77 @@ export default function ExpenseListPage({ role, title, description }: ExpenseLis
       ),
     },
     {
-      title: 'Status',
+      title: t('expenses.status'),
       dataIndex: 'status',
       key: 'status',
       width: 120,
       render: (status: string) => getStatusTag(status),
     },
     {
-      title: 'Date',
+      title: t('expenses.date'),
       dataIndex: 'date',
       key: 'date',
       width: 120,
       render: (date: string) => dayjs(date).format('MMM DD, YYYY'),
     },
     {
-      title: 'Actions',
+      title: t('expenses.actions'),
       key: 'actions',
       width: 100,
       render: (_: any, record: Expense) => {
-        const menu = (
-          <Menu>
-            <Menu.Item
-              key="view"
-              icon={<EyeOutlined />}
-              onClick={() => router.push(`${basePath}/${record.id}`)}
-            >
-              View Details
-            </Menu.Item>
-            <Menu.Item
-              key="edit"
-              icon={<EditOutlined />}
-              onClick={() => router.push(`${basePath}/${record.id}/edit`)}
-            >
-              Edit
-            </Menu.Item>
-            {role === 'admin' && record.status === 'pending' && (
-              <>
-                <Menu.Divider />
-                <Menu.Item
-                  key="approve"
-                  icon={<CheckCircleOutlined />}
-                  onClick={() => handleApprove(record)}
-                >
-                  Approve
-                </Menu.Item>
-                <Menu.Item
-                  key="reject"
-                  icon={<CloseCircleOutlined />}
-                  onClick={() => handleReject(record)}
-                >
-                  Reject
-                </Menu.Item>
-              </>
-            )}
-            {role === 'admin' && record.status === 'approved' && (
-              <>
-                <Menu.Divider />
-                <Menu.Item
-                  key="paid"
-                  icon={<DollarOutlined />}
-                  onClick={() => handleMarkPaid(record)}
-                >
-                  Mark as Paid
-                </Menu.Item>
-              </>
-            )}
-            <Menu.Divider />
-            <Menu.Item
-              key="delete"
-              danger
-              icon={<DeleteOutlined />}
-              onClick={() => handleDeleteExpense(record)}
-            >
-              Delete
-            </Menu.Item>
-          </Menu>
-        )
+        const menuItems = [
+          {
+            key: 'view',
+            icon: <EyeOutlined />,
+            label: t('expenses.viewDetails'),
+            onClick: () => router.push(`${basePath}/${record.id}`),
+          },
+          {
+            key: 'edit',
+            icon: <EditOutlined />,
+            label: t('common.edit'),
+            onClick: () => router.push(`${basePath}/${record.id}/edit`),
+          },
+          ...(role === 'admin' && record.status === 'pending'
+            ? [
+                { type: 'divider' as const },
+                {
+                  key: 'approve',
+                  icon: <CheckCircleOutlined />,
+                  label: t('expenses.approve'),
+                  onClick: () => handleApprove(record),
+                },
+                {
+                  key: 'reject',
+                  icon: <CloseCircleOutlined />,
+                  label: 'Reject',
+                  onClick: () => handleReject(record),
+                },
+              ]
+            : []),
+          ...(role === 'admin' && record.status === 'approved'
+            ? [
+                { type: 'divider' as const },
+                {
+                  key: 'paid',
+                  icon: <DollarOutlined />,
+                  label: 'Mark as Paid',
+                  onClick: () => handleMarkPaid(record),
+                },
+              ]
+            : []),
+          { type: 'divider' as const },
+          {
+            key: 'delete',
+            danger: true,
+            icon: <DeleteOutlined />,
+            label: 'Delete',
+            onClick: () => handleDeleteExpense(record),
+          },
+        ]
 
         return (
-          <Dropdown overlay={menu} trigger={['click']}>
+          <Dropdown menu={{ items: menuItems }} trigger={['click']}>
             <Button type="text" icon={<MoreOutlined />} />
           </Dropdown>
         )
@@ -375,19 +377,26 @@ export default function ExpenseListPage({ role, title, description }: ExpenseLis
     },
   ]
 
-  const exportMenu = (
-    <Menu>
-      <Menu.Item key="excel" icon={<FileExcelOutlined />} onClick={exportToExcel}>
-        Export to Excel
-      </Menu.Item>
-      <Menu.Item key="pdf" icon={<FilePdfOutlined />} onClick={exportToPDF}>
-        Export to PDF
-      </Menu.Item>
-      <Menu.Item key="print" icon={<PrinterOutlined />} onClick={handlePrint}>
-        Print
-      </Menu.Item>
-    </Menu>
-  )
+  const exportMenuItems = [
+    {
+      key: 'excel',
+      icon: <FileExcelOutlined />,
+      label: 'Export to Excel',
+      onClick: exportToExcel,
+    },
+    {
+      key: 'pdf',
+      icon: <FilePdfOutlined />,
+      label: 'Export to PDF',
+      onClick: exportToPDF,
+    },
+    {
+      key: 'print',
+      icon: <PrinterOutlined />,
+      label: 'Print',
+      onClick: handlePrint,
+    },
+  ]
 
   // Calculate statistics
   const expenses = expensesData?.data || []
@@ -410,7 +419,7 @@ export default function ExpenseListPage({ role, title, description }: ExpenseLis
           <Button icon={<ReloadOutlined />} onClick={() => refetch()}>
             Refresh
           </Button>
-          <Dropdown overlay={exportMenu} trigger={['click']}>
+          <Dropdown menu={{ items: exportMenuItems }} trigger={['click']}>
             <Button icon={<ExportOutlined />}>Export</Button>
           </Dropdown>
           <Button

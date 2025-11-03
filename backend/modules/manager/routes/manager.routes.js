@@ -7,6 +7,7 @@ import * as managerExpenseController from '../controllers/expense.manager.contro
 import * as managerHolidayController from '../controllers/holidays.manager.controller.js';
 import * as managerJobController from '../controllers/job.manager.controller.js';
 import * as managerAttendanceController from '../controllers/attendance.manager.controller.js';
+import * as managerSalaryController from '../controllers/salary.manager.controller.js';
 
 const router = express.Router();
 
@@ -72,5 +73,9 @@ router.get('/attendance/team/summary', managerAttendanceController.getTeamAttend
 router.get('/attendance/corrections/pending', managerAttendanceController.getPendingCorrections);
 router.put('/attendance/corrections/:id/approve', managerAttendanceController.approveCorrection);
 router.put('/attendance/corrections/:id/reject', managerAttendanceController.rejectCorrection);
+
+// Manager Salary Management Routes (View-Only for Department)
+router.get('/salary-management/department', managerSalaryController.getDepartmentSalaries);
+router.get('/salary-management/employee/:employeeId', managerSalaryController.getEmployeeSalaryDetails);
 
 export default router;

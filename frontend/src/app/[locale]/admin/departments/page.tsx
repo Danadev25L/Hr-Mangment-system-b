@@ -33,10 +33,12 @@ import apiClient from '@/lib/api'
 import { formatDate, formatCurrency } from '@/lib/utils'
 import type { ColumnsType } from 'antd/es/table'
 import type { Department } from '@/types'
+import { useTranslations } from 'next-intl'
 
 const { Search } = Input
 
 export default function DepartmentsPage() {
+  const t = useTranslations()
   const [searchText, setSearchText] = useState('')
   const [isModalVisible, setIsModalVisible] = useState(false)
   const [editingDepartment, setEditingDepartment] = useState<Department | null>(null)
@@ -56,13 +58,13 @@ export default function DepartmentsPage() {
   const createDepartmentMutation = useMutation({
     mutationFn: (data: any) => apiClient.createDepartment(data),
     onSuccess: () => {
-      message.success('Department created successfully')
+      message.success(t('departments.createSuccess'))
       setIsModalVisible(false)
       form.resetFields()
       queryClient.invalidateQueries({ queryKey: ['departments'] })
     },
     onError: (error: any) => {
-      message.error(error.response?.data?.message || 'Failed to create department')
+      message.error(error.response?.data?.message || t('departments.createError'))
     },
   })
 
@@ -70,25 +72,25 @@ export default function DepartmentsPage() {
     mutationFn: ({ id, data }: { id: string; data: any }) =>
       apiClient.updateDepartment(id, data),
     onSuccess: () => {
-      message.success('Department updated successfully')
+      message.success(t('departments.updateSuccess'))
       setIsModalVisible(false)
       setEditingDepartment(null)
       form.resetFields()
       queryClient.invalidateQueries({ queryKey: ['departments'] })
     },
     onError: (error: any) => {
-      message.error(error.response?.data?.message || 'Failed to update department')
+      message.error(error.response?.data?.message || t('departments.updateError'))
     },
   })
 
   const deleteDepartmentMutation = useMutation({
     mutationFn: (id: string) => apiClient.deleteDepartment(id),
     onSuccess: () => {
-      message.success('Department deleted successfully')
+      message.success(t('departments.deleteSuccess'))
       queryClient.invalidateQueries({ queryKey: ['departments'] })
     },
     onError: (error: any) => {
-      message.error(error.response?.data?.message || 'Failed to delete department')
+      message.error(error.response?.data?.message || t('departments.deleteError'))
     },
   })
 
@@ -122,7 +124,7 @@ export default function DepartmentsPage() {
   
   const columns: ColumnsType<Department> = [
     {
-      title: 'Department',
+      title: t('departments.departmentName'),
       key: 'department',
       render: (_, record) => (
         <div className="flex items-center space-x-3">
@@ -132,13 +134,13 @@ export default function DepartmentsPage() {
           />
           <div>
             <p className="font-medium text-gray-900">{record.departmentName}</p>
-            <p className="text-sm text-gray-500">Department ID: {record.id}</p>
+            <p className="text-sm text-gray-500">{t('departments.departmentId')}: {record.id}</p>
           </div>
         </div>
       ),
     },
     {
-      title: 'Employees',
+      title: t('departments.employees'),
       dataIndex: 'employeeCount',
       key: 'employeeCount',
       render: (count, record) => (
@@ -176,29 +178,29 @@ export default function DepartmentsPage() {
       sorter: (a, b) => (a.employeeCount || 0) - (b.employeeCount || 0),
     },
     {
-      title: 'Status',
+      title: t('departments.status'),
       dataIndex: 'isActive',
       key: 'isActive',
       render: (isActive) => (
         <Tag color={isActive ? 'green' : 'red'} className="capitalize">
-          {isActive ? 'Active' : 'Inactive'}
+          {isActive ? t('departments.active') : t('departments.inactive')}
         </Tag>
       ),
       filters: [
-        { text: 'Active', value: true },
-        { text: 'Inactive', value: false },
+        { text: t('departments.active'), value: true },
+        { text: t('departments.inactive'), value: false },
       ],
       onFilter: (value, record) => record.isActive === value,
     },
     {
-      title: 'Created',
+      title: t('departments.created'),
       dataIndex: 'createdAt',
       key: 'createdAt',
       render: (date) => formatDate(date),
       sorter: (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
     },
     {
-      title: 'Actions',
+      title: t('departments.actions'),
       key: 'actions',
       render: (_, record) => (
         <Space>
@@ -208,11 +210,11 @@ export default function DepartmentsPage() {
             onClick={() => handleEditDepartment(record)}
           />
           <Popconfirm
-            title="Delete Department"
-            description={`Are you sure you want to delete ${record.departmentName}?`}
+            title={t('departments.deleteDepartment')}
+            description={`${t('departments.deleteConfirm')} ${record.departmentName}?`}
             onConfirm={() => deleteDepartmentMutation.mutate(record.id.toString())}
-            okText="Delete"
-            cancelText="Cancel"
+            okText={t('common.delete')}
+            cancelText={t('common.cancel')}
             okType="danger"
           >
             <Button type="text" danger icon={<DeleteOutlined />} />
@@ -233,15 +235,15 @@ export default function DepartmentsPage() {
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Departments</h1>
-              <p className="text-gray-500">Manage organizational departments</p>
+              <h1 className="text-2xl font-bold text-gray-900">{t('departments.title')}</h1>
+              <p className="text-gray-500">{t('departments.subtitle')}</p>
             </div>
             <Button
               type="primary"
               icon={<PlusOutlined />}
               onClick={handleCreateDepartment}
             >
-              Add Department
+              {t('departments.addDepartment')}
             </Button>
           </div>
 
@@ -250,7 +252,7 @@ export default function DepartmentsPage() {
             <Card>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">Total Departments</p>
+                  <p className="text-sm text-gray-600">{t('departments.totalDepartments')}</p>
                   <p className="text-2xl font-bold text-gray-900">
                     {departmentStats?.totalDepartments || 0}
                   </p>
@@ -263,7 +265,7 @@ export default function DepartmentsPage() {
             <Card>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">Active Departments</p>
+                  <p className="text-sm text-gray-600">{t('departments.activeDepartments')}</p>
                   <p className="text-2xl font-bold text-green-600">
                     {departmentStats?.activeDepartments || 0}
                   </p>
@@ -276,7 +278,7 @@ export default function DepartmentsPage() {
             <Card>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">Total Employees</p>
+                  <p className="text-sm text-gray-600">{t('departments.totalEmployees')}</p>
                   <p className="text-2xl font-bold text-purple-600">
                     {departmentStats?.totalEmployees || 0}
                   </p>
@@ -291,7 +293,7 @@ export default function DepartmentsPage() {
           {/* Search */}
           <Card>
             <Search
-              placeholder="Search departments..."
+              placeholder={t('departments.searchPlaceholder')}
               allowClear
               enterButton={<SearchOutlined />}
               value={searchText}
@@ -311,14 +313,14 @@ export default function DepartmentsPage() {
                 showSizeChanger: true,
                 showQuickJumper: true,
                 showTotal: (total, range) =>
-                  `Showing ${range[0]} to ${range[1]} of ${total} departments`,
+                  t('departments.showingResults', { from: range[0], to: range[1], total }),
               }}
             />
           </Card>
 
           {/* Create/Edit Department Modal */}
           <Modal
-            title={editingDepartment ? 'Edit Department' : 'Create Department'}
+            title={editingDepartment ? t('departments.editDepartment') : t('departments.createDepartment')}
             open={isModalVisible}
             onCancel={() => {
               setIsModalVisible(false)
@@ -335,31 +337,31 @@ export default function DepartmentsPage() {
             >
               <Form.Item
                 name="departmentName"
-                label="Department Name"
-                rules={[{ required: true, message: 'Please enter department name' }]}
+                label={t('departments.departmentName')}
+                rules={[{ required: true, message: t('departments.departmentNameRequired') }]}
               >
-                <Input placeholder="Enter department name" />
+                <Input placeholder={t('departments.enterDepartmentName')} />
               </Form.Item>
 
               <Form.Item
                 name="isActive"
-                label="Status"
+                label={t('departments.status')}
                 valuePropName="checked"
               >
-                <Checkbox>Active</Checkbox>
+                <Checkbox>{t('departments.active')}</Checkbox>
               </Form.Item>
 
               <Form.Item className="mb-0">
                 <div className="flex justify-end space-x-2">
                   <Button onClick={() => setIsModalVisible(false)}>
-                    Cancel
+                    {t('departments.cancel')}
                   </Button>
                   <Button
                     type="primary"
                     htmlType="submit"
                     loading={createDepartmentMutation.isPending || updateDepartmentMutation.isPending}
                   >
-                    {editingDepartment ? 'Update' : 'Create'}
+                    {editingDepartment ? t('departments.update') : t('departments.create')}
                   </Button>
                 </div>
               </Form.Item>

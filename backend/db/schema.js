@@ -1,4 +1,4 @@
-import { pgTable, serial, varchar, text, timestamp, integer, boolean, unique } from 'drizzle-orm/pg-core';
+import { pgTable, serial, varchar, text, timestamp, integer, boolean, unique, decimal, time, date, jsonb } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
 
@@ -644,5 +644,609 @@ export const attendanceCorrectionsRelations = relations(attendanceCorrections, (
   reviewer: one(users, {
     fields: [attendanceCorrections.reviewedBy],
     references: [users.id]
+  })
+}));
+
+// ==================== ADVANCED ATTENDANCE FEATURES ====================
+
+// Work Shifts table
+export const workShifts = pgTable('work_shifts', {
+  id: serial('id').primaryKey(),
+  shiftName: varchar('shift_name', { length: 100 }).notNull(),
+  shiftCode: varchar('shift_code', { length: 20 }).notNull().unique(),
+  startTime: time('start_time').notNull(),
+  endTime: time('end_time').notNull(),
+  gracePeriodMinutes: integer('grace_period_minutes').default(15),
+  earlyDepartureThreshold: integer('early_departure_threshold').default(15),
+  minimumWorkHours: integer('minimum_work_hours').default(480),
+  halfDayThreshold: integer('half_day_threshold').default(240),
+  breakDuration: integer('break_duration').default(60),
+  isNightShift: boolean('is_night_shift').default(false),
+  isActive: boolean('is_active').default(true),
+  description: text('description'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull()
+});
+
+// Employee Shift Assignments
+export const employeeShifts = pgTable('employee_shifts', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  shiftId: integer('shift_id').references(() => workShifts.id, { onDelete: 'cascade' }).notNull(),
+  effectiveFrom: date('effective_from').notNull(),
+  effectiveTo: date('effective_to'),
+  isActive: boolean('is_active').default(true),
+  assignedBy: integer('assigned_by').references(() => users.id),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull()
+}, (table) => ({
+  uniqueUserEffectiveFrom: unique().on(table.userId, table.effectiveFrom)
+}));
+
+// Attendance Policies
+export const attendancePolicies = pgTable('attendance_policies', {
+  id: serial('id').primaryKey(),
+  policyName: varchar('policy_name', { length: 255 }).notNull(),
+  policyCode: varchar('policy_code', { length: 50 }).notNull().unique(),
+  lateMarkAfterMinutes: integer('late_mark_after_minutes').default(15),
+  halfDayAfterMinutes: integer('half_day_after_minutes').default(240),
+  absentAfterMinutes: integer('absent_after_minutes').default(480),
+  allowEarlyCheckinMinutes: integer('allow_early_checkin_minutes').default(60),
+  allowLateCheckoutMinutes: integer('allow_late_checkout_minutes').default(120),
+  overtimeStartAfterMinutes: integer('overtime_start_after_minutes').default(30),
+  maxOvertimePerDay: integer('max_overtime_per_day').default(180),
+  requireCheckout: boolean('require_checkout').default(true),
+  autoCheckoutAfterHours: integer('auto_checkout_after_hours').default(12),
+  enableGeofencing: boolean('enable_geofencing').default(false),
+  enableBiometric: boolean('enable_biometric').default(false),
+  monthlyAttendanceThreshold: integer('monthly_attendance_threshold').default(75),
+  continuousAbsentAlertDays: integer('continuous_absent_alert_days').default(3),
+  isActive: boolean('is_active').default(true),
+  description: text('description'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull()
+});
+
+// Department Attendance Policies
+export const departmentPolicies = pgTable('department_policies', {
+  id: serial('id').primaryKey(),
+  departmentId: integer('department_id').references(() => departments.id, { onDelete: 'cascade' }).notNull(),
+  policyId: integer('policy_id').references(() => attendancePolicies.id, { onDelete: 'cascade' }).notNull(),
+  effectiveFrom: date('effective_from').notNull(),
+  effectiveTo: date('effective_to'),
+  isActive: boolean('is_active').default(true),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull()
+}, (table) => ({
+  uniqueDeptEffectiveFrom: unique().on(table.departmentId, table.effectiveFrom)
+}));
+
+// Break Types
+export const breakTypes = pgTable('break_types', {
+  id: serial('id').primaryKey(),
+  breakName: varchar('break_name', { length: 100 }).notNull(),
+  breakCode: varchar('break_code', { length: 20 }).notNull().unique(),
+  durationMinutes: integer('duration_minutes').notNull(),
+  isPaid: boolean('is_paid').default(false),
+  isMandatory: boolean('is_mandatory').default(true),
+  description: text('description'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull()
+});
+
+// Attendance Breaks
+export const attendanceBreaks = pgTable('attendance_breaks', {
+  id: serial('id').primaryKey(),
+  attendanceId: integer('attendance_id').references(() => attendanceRecords.id, { onDelete: 'cascade' }).notNull(),
+  breakTypeId: integer('break_type_id').references(() => breakTypes.id),
+  breakStart: timestamp('break_start').notNull(),
+  breakEnd: timestamp('break_end'),
+  durationMinutes: integer('duration_minutes').default(0),
+  breakReason: varchar('break_reason', { length: 255 }),
+  isApproved: boolean('is_approved').default(true),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull()
+});
+
+// Geofence Locations
+export const geofenceLocations = pgTable('geofence_locations', {
+  id: serial('id').primaryKey(),
+  locationName: varchar('location_name', { length: 255 }).notNull(),
+  locationCode: varchar('location_code', { length: 50 }).notNull().unique(),
+  latitude: decimal('latitude', { precision: 10, scale: 8 }).notNull(),
+  longitude: decimal('longitude', { precision: 11, scale: 8 }).notNull(),
+  radiusMeters: integer('radius_meters').default(100),
+  address: text('address'),
+  isActive: boolean('is_active').default(true),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull()
+});
+
+// Device Whitelist
+export const deviceWhitelist = pgTable('device_whitelist', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  deviceId: varchar('device_id', { length: 255 }).notNull(),
+  deviceName: varchar('device_name', { length: 255 }),
+  deviceType: varchar('device_type', { length: 50 }),
+  deviceOs: varchar('device_os', { length: 100 }),
+  browserInfo: varchar('browser_info', { length: 255 }),
+  isApproved: boolean('is_approved').default(false),
+  approvedBy: integer('approved_by').references(() => users.id),
+  approvedAt: timestamp('approved_at'),
+  lastUsedAt: timestamp('last_used_at'),
+  isActive: boolean('is_active').default(true),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull()
+}, (table) => ({
+  uniqueUserDevice: unique().on(table.userId, table.deviceId)
+}));
+
+// Attendance Location Logs
+export const attendanceLocationLogs = pgTable('attendance_location_logs', {
+  id: serial('id').primaryKey(),
+  attendanceId: integer('attendance_id').references(() => attendanceRecords.id, { onDelete: 'cascade' }).notNull(),
+  logType: varchar('log_type', { length: 20 }).notNull(),
+  latitude: decimal('latitude', { precision: 10, scale: 8 }),
+  longitude: decimal('longitude', { precision: 11, scale: 8 }),
+  accuracyMeters: decimal('accuracy_meters', { precision: 8, scale: 2 }),
+  geofenceId: integer('geofence_id').references(() => geofenceLocations.id),
+  isWithinGeofence: boolean('is_within_geofence').default(false),
+  ipAddress: varchar('ip_address', { length: 50 }),
+  deviceId: varchar('device_id', { length: 255 }),
+  timestamp: timestamp('timestamp').defaultNow().notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull()
+});
+
+// Biometric Logs
+export const biometricLogs = pgTable('biometric_logs', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  attendanceId: integer('attendance_id').references(() => attendanceRecords.id, { onDelete: 'cascade' }),
+  biometricType: varchar('biometric_type', { length: 50 }).notNull(),
+  verificationStatus: varchar('verification_status', { length: 20 }).notNull(),
+  confidenceScore: integer('confidence_score'),
+  deviceSerial: varchar('device_serial', { length: 255 }),
+  deviceLocation: varchar('device_location', { length: 255 }),
+  timestamp: timestamp('timestamp').defaultNow().notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull()
+});
+
+// Overtime Requests
+export const overtimeRequests = pgTable('overtime_requests', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  requestDate: date('request_date').notNull(),
+  plannedHours: integer('planned_hours').notNull(),
+  reason: text('reason').notNull(),
+  status: varchar('status', { length: 20 }).default('pending'),
+  requestedBy: integer('requested_by').references(() => users.id),
+  approvedBy: integer('approved_by').references(() => users.id),
+  approvedAt: timestamp('approved_at'),
+  rejectionReason: text('rejection_reason'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull()
+});
+
+// Overtime Tracking
+export const overtimeTracking = pgTable('overtime_tracking', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  attendanceId: integer('attendance_id').references(() => attendanceRecords.id, { onDelete: 'cascade' }).notNull(),
+  overtimeRequestId: integer('overtime_request_id').references(() => overtimeRequests.id),
+  date: date('date').notNull(),
+  overtimeMinutes: integer('overtime_minutes').notNull(),
+  overtimeRate: decimal('overtime_rate', { precision: 10, scale: 2 }).default('1.5'),
+  isApproved: boolean('is_approved').default(false),
+  approvedBy: integer('approved_by').references(() => users.id),
+  approvedAt: timestamp('approved_at'),
+  remarks: text('remarks'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull()
+});
+
+// Attendance Alerts
+export const attendanceAlerts = pgTable('attendance_alerts', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  alertType: varchar('alert_type', { length: 50 }).notNull(),
+  alertDate: date('alert_date').notNull(),
+  severity: varchar('severity', { length: 20 }).default('medium'),
+  message: text('message').notNull(),
+  isRead: boolean('is_read').default(false),
+  isResolved: boolean('is_resolved').default(false),
+  resolvedBy: integer('resolved_by').references(() => users.id),
+  resolvedAt: timestamp('resolved_at'),
+  resolutionNotes: text('resolution_notes'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull()
+});
+
+// Leave Balances
+export const leaveBalances = pgTable('leave_balances', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  leaveType: varchar('leave_type', { length: 50 }).notNull(),
+  totalLeaves: integer('total_leaves').notNull(),
+  usedLeaves: integer('used_leaves').default(0),
+  remainingLeaves: integer('remaining_leaves').notNull(),
+  year: integer('year').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull()
+}, (table) => ({
+  uniqueUserLeaveYear: unique().on(table.userId, table.leaveType, table.year)
+}));
+
+// Daily Attendance Reports
+export const dailyAttendanceReports = pgTable('daily_attendance_reports', {
+  id: serial('id').primaryKey(),
+  reportDate: date('report_date').notNull().unique(),
+  totalEmployees: integer('total_employees').notNull(),
+  presentCount: integer('present_count').default(0),
+  absentCount: integer('absent_count').default(0),
+  lateCount: integer('late_count').default(0),
+  onLeaveCount: integer('on_leave_count').default(0),
+  halfDayCount: integer('half_day_count').default(0),
+  attendancePercentage: decimal('attendance_percentage', { precision: 5, scale: 2 }).default('0'),
+  generatedAt: timestamp('generated_at').defaultNow().notNull(),
+  generatedBy: integer('generated_by').references(() => users.id),
+  createdAt: timestamp('created_at').defaultNow().notNull()
+});
+
+// Department Attendance Reports
+export const departmentAttendanceReports = pgTable('department_attendance_reports', {
+  id: serial('id').primaryKey(),
+  departmentId: integer('department_id').references(() => departments.id, { onDelete: 'cascade' }).notNull(),
+  reportDate: date('report_date').notNull(),
+  totalEmployees: integer('total_employees').notNull(),
+  presentCount: integer('present_count').default(0),
+  absentCount: integer('absent_count').default(0),
+  lateCount: integer('late_count').default(0),
+  attendancePercentage: decimal('attendance_percentage', { precision: 5, scale: 2 }).default('0'),
+  createdAt: timestamp('created_at').defaultNow().notNull()
+}, (table) => ({
+  uniqueDeptDate: unique().on(table.departmentId, table.reportDate)
+}));
+
+// Attendance Audit Log
+export const attendanceAuditLog = pgTable('attendance_audit_log', {
+  id: serial('id').primaryKey(),
+  attendanceId: integer('attendance_id').references(() => attendanceRecords.id, { onDelete: 'set null' }),
+  userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  actionType: varchar('action_type', { length: 50 }).notNull(),
+  actionBy: integer('action_by').references(() => users.id).notNull(),
+  oldValues: jsonb('old_values'),
+  newValues: jsonb('new_values'),
+  reason: text('reason'),
+  ipAddress: varchar('ip_address', { length: 50 }),
+  userAgent: text('user_agent'),
+  timestamp: timestamp('timestamp').defaultNow().notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull()
+});
+
+// ==================== ADVANCED ATTENDANCE RELATIONS ====================
+
+export const workShiftsRelations = relations(workShifts, ({ many }) => ({
+  employeeShifts: many(employeeShifts)
+}));
+
+export const employeeShiftsRelations = relations(employeeShifts, ({ one }) => ({
+  user: one(users, {
+    fields: [employeeShifts.userId],
+    references: [users.id]
+  }),
+  shift: one(workShifts, {
+    fields: [employeeShifts.shiftId],
+    references: [workShifts.id]
+  }),
+  assignedByUser: one(users, {
+    fields: [employeeShifts.assignedBy],
+    references: [users.id]
+  })
+}));
+
+export const attendancePoliciesRelations = relations(attendancePolicies, ({ many }) => ({
+  departmentPolicies: many(departmentPolicies)
+}));
+
+export const departmentPoliciesRelations = relations(departmentPolicies, ({ one }) => ({
+  department: one(departments, {
+    fields: [departmentPolicies.departmentId],
+    references: [departments.id]
+  }),
+  policy: one(attendancePolicies, {
+    fields: [departmentPolicies.policyId],
+    references: [attendancePolicies.id]
+  })
+}));
+
+export const breakTypesRelations = relations(breakTypes, ({ many }) => ({
+  attendanceBreaks: many(attendanceBreaks)
+}));
+
+export const attendanceBreaksRelations = relations(attendanceBreaks, ({ one }) => ({
+  attendance: one(attendanceRecords, {
+    fields: [attendanceBreaks.attendanceId],
+    references: [attendanceRecords.id]
+  }),
+  breakType: one(breakTypes, {
+    fields: [attendanceBreaks.breakTypeId],
+    references: [breakTypes.id]
+  })
+}));
+
+export const overtimeRequestsRelations = relations(overtimeRequests, ({ one, many }) => ({
+  user: one(users, {
+    fields: [overtimeRequests.userId],
+    references: [users.id]
+  }),
+  approver: one(users, {
+    fields: [overtimeRequests.approvedBy],
+    references: [users.id]
+  }),
+  tracking: many(overtimeTracking)
+}));
+
+export const overtimeTrackingRelations = relations(overtimeTracking, ({ one }) => ({
+  user: one(users, {
+    fields: [overtimeTracking.userId],
+    references: [users.id]
+  }),
+  attendance: one(attendanceRecords, {
+    fields: [overtimeTracking.attendanceId],
+    references: [attendanceRecords.id]
+  }),
+  request: one(overtimeRequests, {
+    fields: [overtimeTracking.overtimeRequestId],
+    references: [overtimeRequests.id]
+  }),
+  approver: one(users, {
+    fields: [overtimeTracking.approvedBy],
+    references: [users.id]
+  })
+}));
+
+export const attendanceAlertsRelations = relations(attendanceAlerts, ({ one }) => ({
+  user: one(users, {
+    fields: [attendanceAlerts.userId],
+    references: [users.id]
+  }),
+  resolver: one(users, {
+    fields: [attendanceAlerts.resolvedBy],
+    references: [users.id]
+  })
+}));
+
+export const leaveBalancesRelations = relations(leaveBalances, ({ one }) => ({
+  user: one(users, {
+    fields: [leaveBalances.userId],
+    references: [users.id]
+  })
+}));
+
+// ==================== COMPREHENSIVE SALARY MANAGEMENT SYSTEM ====================
+
+// Salary Components - Define reusable salary components
+export const salaryComponents = pgTable('salary_components', {
+  id: serial('id').primaryKey(),
+  componentName: varchar('component_name', { length: 100 }).notNull(),
+  componentType: varchar('component_type', { length: 50 }).notNull(), // bonus, deduction, allowance, adjustment
+  description: text('description'),
+  isPercentage: boolean('is_percentage').default(false), // If true, amount is percentage of base salary
+  defaultAmount: decimal('default_amount', { precision: 10, scale: 2 }).default('0'),
+  isTaxable: boolean('is_taxable').default(true),
+  isActive: boolean('is_active').default(true),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull()
+});
+
+// Employee Salary Components - Link employees to salary components
+export const employeeSalaryComponents = pgTable('employee_salary_components', {
+  id: serial('id').primaryKey(),
+  employeeId: integer('employee_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  componentId: integer('component_id').references(() => salaryComponents.id, { onDelete: 'cascade' }).notNull(),
+  amount: decimal('amount', { precision: 10, scale: 2 }).notNull(),
+  effectiveFrom: date('effective_from').notNull(),
+  effectiveTo: date('effective_to'),
+  isRecurring: boolean('is_recurring').default(true), // If true, applies every month
+  notes: text('notes'),
+  createdBy: integer('created_by').references(() => users.id),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull()
+});
+
+// Monthly Salary Calculations - Final calculated salary for each month
+export const monthlySalaries = pgTable('monthly_salaries', {
+  id: serial('id').primaryKey(),
+  employeeId: integer('employee_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  month: integer('month').notNull(), // 1-12
+  year: integer('year').notNull(),
+  baseSalary: decimal('base_salary', { precision: 10, scale: 2 }).notNull(),
+  
+  // Earnings
+  totalBonuses: decimal('total_bonuses', { precision: 10, scale: 2 }).default('0'),
+  totalAllowances: decimal('total_allowances', { precision: 10, scale: 2 }).default('0'),
+  overtimePay: decimal('overtime_pay', { precision: 10, scale: 2 }).default('0'),
+  
+  // Deductions
+  totalDeductions: decimal('total_deductions', { precision: 10, scale: 2 }).default('0'),
+  absenceDeductions: decimal('absence_deductions', { precision: 10, scale: 2 }).default('0'),
+  latencyDeductions: decimal('latency_deductions', { precision: 10, scale: 2 }).default('0'),
+  taxDeduction: decimal('tax_deduction', { precision: 10, scale: 2 }).default('0'),
+  otherDeductions: decimal('other_deductions', { precision: 10, scale: 2 }).default('0'),
+  
+  // Summary
+  grossSalary: decimal('gross_salary', { precision: 10, scale: 2 }).notNull(),
+  netSalary: decimal('net_salary', { precision: 10, scale: 2 }).notNull(),
+  
+  // Attendance metrics
+  workingDays: integer('working_days').default(0),
+  presentDays: integer('present_days').default(0),
+  absentDays: integer('absent_days').default(0),
+  lateDays: integer('late_days').default(0),
+  totalLateMinutes: integer('total_late_minutes').default(0),
+  overtimeHours: decimal('overtime_hours', { precision: 10, scale: 2 }).default('0'),
+  
+  // Status
+  status: varchar('status', { length: 20 }).default('draft'), // draft, calculated, approved, paid
+  calculatedAt: timestamp('calculated_at'),
+  approvedBy: integer('approved_by').references(() => users.id),
+  approvedAt: timestamp('approved_at'),
+  paidBy: integer('paid_by').references(() => users.id),
+  paidAt: timestamp('paid_at'),
+  paymentMethod: varchar('payment_method', { length: 50 }), // bank_transfer, cash, cheque
+  paymentReference: varchar('payment_reference', { length: 100 }),
+  
+  notes: text('notes'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull()
+}, (table) => ({
+  uniqueEmployeeMonthYear: unique().on(table.employeeId, table.month, table.year)
+}));
+
+// Salary Adjustments - One-time adjustments for specific months
+export const salaryAdjustments = pgTable('salary_adjustments', {
+  id: serial('id').primaryKey(),
+  employeeId: integer('employee_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  monthlySalaryId: integer('monthly_salary_id').references(() => monthlySalaries.id, { onDelete: 'cascade' }),
+  adjustmentType: varchar('adjustment_type', { length: 50 }).notNull(), // bonus, deduction, correction, penalty
+  amount: decimal('amount', { precision: 10, scale: 2 }).notNull(),
+  reason: text('reason').notNull(),
+  month: integer('month').notNull(),
+  year: integer('year').notNull(),
+  isApplied: boolean('is_applied').default(false),
+  appliedAt: timestamp('applied_at'),
+  createdBy: integer('created_by').references(() => users.id).notNull(),
+  approvedBy: integer('approved_by').references(() => users.id),
+  approvedAt: timestamp('approved_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull()
+});
+
+// Absence Deductions - Track deductions for absences
+export const absenceDeductions = pgTable('absence_deductions', {
+  id: serial('id').primaryKey(),
+  employeeId: integer('employee_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  attendanceId: integer('attendance_id').references(() => attendanceRecords.id, { onDelete: 'cascade' }),
+  monthlySalaryId: integer('monthly_salary_id').references(() => monthlySalaries.id, { onDelete: 'cascade' }),
+  absenceDate: date('absence_date').notNull(),
+  deductionAmount: decimal('deduction_amount', { precision: 10, scale: 2 }).notNull(),
+  deductionReason: varchar('deduction_reason', { length: 255 }),
+  isApplied: boolean('is_applied').default(false),
+  appliedAt: timestamp('applied_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull()
+});
+
+// Latency Deductions - Track deductions for lateness
+export const latencyDeductions = pgTable('latency_deductions', {
+  id: serial('id').primaryKey(),
+  employeeId: integer('employee_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  attendanceId: integer('attendance_id').references(() => attendanceRecords.id, { onDelete: 'cascade' }).notNull(),
+  monthlySalaryId: integer('monthly_salary_id').references(() => monthlySalaries.id, { onDelete: 'cascade' }),
+  lateDate: date('late_date').notNull(),
+  lateMinutes: integer('late_minutes').notNull(),
+  deductionAmount: decimal('deduction_amount', { precision: 10, scale: 2 }).notNull(),
+  deductionRate: decimal('deduction_rate', { precision: 10, scale: 2 }), // Deduction per minute
+  isApplied: boolean('is_applied').default(false),
+  appliedAt: timestamp('applied_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull()
+});
+
+// Salary Configuration - System-wide salary settings
+export const salaryConfiguration = pgTable('salary_configuration', {
+  id: serial('id').primaryKey(),
+  configKey: varchar('config_key', { length: 100 }).notNull().unique(),
+  configValue: text('config_value').notNull(),
+  description: text('description'),
+  updatedBy: integer('updated_by').references(() => users.id),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull()
+});
+
+// ==================== SALARY MANAGEMENT RELATIONS ====================
+
+export const salaryComponentsRelations = relations(salaryComponents, ({ many }) => ({
+  employeeComponents: many(employeeSalaryComponents)
+}));
+
+export const employeeSalaryComponentsRelations = relations(employeeSalaryComponents, ({ one }) => ({
+  employee: one(users, {
+    fields: [employeeSalaryComponents.employeeId],
+    references: [users.id]
+  }),
+  component: one(salaryComponents, {
+    fields: [employeeSalaryComponents.componentId],
+    references: [salaryComponents.id]
+  }),
+  creator: one(users, {
+    fields: [employeeSalaryComponents.createdBy],
+    references: [users.id]
+  })
+}));
+
+export const monthlySalariesRelations = relations(monthlySalaries, ({ one, many }) => ({
+  employee: one(users, {
+    fields: [monthlySalaries.employeeId],
+    references: [users.id]
+  }),
+  approver: one(users, {
+    fields: [monthlySalaries.approvedBy],
+    references: [users.id]
+  }),
+  payer: one(users, {
+    fields: [monthlySalaries.paidBy],
+    references: [users.id]
+  }),
+  adjustments: many(salaryAdjustments),
+  absenceDeductions: many(absenceDeductions),
+  latencyDeductions: many(latencyDeductions)
+}));
+
+export const salaryAdjustmentsRelations = relations(salaryAdjustments, ({ one }) => ({
+  employee: one(users, {
+    fields: [salaryAdjustments.employeeId],
+    references: [users.id]
+  }),
+  monthlySalary: one(monthlySalaries, {
+    fields: [salaryAdjustments.monthlySalaryId],
+    references: [monthlySalaries.id]
+  }),
+  creator: one(users, {
+    fields: [salaryAdjustments.createdBy],
+    references: [users.id]
+  }),
+  approver: one(users, {
+    fields: [salaryAdjustments.approvedBy],
+    references: [users.id]
+  })
+}));
+
+export const absenceDeductionsRelations = relations(absenceDeductions, ({ one }) => ({
+  employee: one(users, {
+    fields: [absenceDeductions.employeeId],
+    references: [users.id]
+  }),
+  attendance: one(attendanceRecords, {
+    fields: [absenceDeductions.attendanceId],
+    references: [attendanceRecords.id]
+  }),
+  monthlySalary: one(monthlySalaries, {
+    fields: [absenceDeductions.monthlySalaryId],
+    references: [monthlySalaries.id]
+  })
+}));
+
+export const latencyDeductionsRelations = relations(latencyDeductions, ({ one }) => ({
+  employee: one(users, {
+    fields: [latencyDeductions.employeeId],
+    references: [users.id]
+  }),
+  attendance: one(attendanceRecords, {
+    fields: [latencyDeductions.attendanceId],
+    references: [attendanceRecords.id]
+  }),
+  monthlySalary: one(monthlySalaries, {
+    fields: [latencyDeductions.monthlySalaryId],
+    references: [monthlySalaries.id]
   })
 }));

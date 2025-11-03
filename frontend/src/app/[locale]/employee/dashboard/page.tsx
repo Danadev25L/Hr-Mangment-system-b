@@ -15,6 +15,7 @@ import {
   RiseOutlined,
 } from '@ant-design/icons'
 import { DashboardLayout } from '@/components/layout/DashboardLayout'
+import { AttendanceWidget } from '@/components/attendance/AttendanceWidget'
 import { useQuery } from '@tanstack/react-query'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import {
@@ -180,28 +181,32 @@ export default function EmployeeDashboard() {
             </div>
           </div>
 
+          {/* Attendance Widget - Priority */}
+          <Col xs={24} lg={8}>
+            <AttendanceWidget />
+          </Col>
+
           {/* Personal Stats Cards */}
-          <Row gutter={[16, 16]}>
-            <Col xs={24} sm={12} lg={6}>
-              <Card className="card-hover">
-                <Statistic
-                  title="Performance Score"
-                  value={employeeData?.performance || 92}
-                  suffix="%"
-                  prefix={<TrophyOutlined className="text-yellow-500" />}
-                  loading={isLoading}
+          <Col xs={24} sm={12} lg={4}>
+            <Card className="card-hover">
+              <Statistic
+                title="Performance Score"
+                value={employeeData?.performance || 92}
+                suffix="%"
+                prefix={<TrophyOutlined className="text-yellow-500" />}
+                loading={isLoading}
+              />
+              <div className="mt-2">
+                <Progress
+                  percent={employeeData?.performance || 92}
+                  size="small"
+                  strokeColor="#52c41a"
+                  showInfo={false}
                 />
-                <div className="mt-2">
-                  <Progress
-                    percent={employeeData?.performance || 92}
-                    size="small"
-                    strokeColor="#52c41a"
-                    showInfo={false}
-                  />
-                </div>
-              </Card>
-            </Col>
-            <Col xs={24} sm={12} lg={6}>
+              </div>
+            </Card>
+          </Col>
+            <Col xs={24} sm={12} lg={4}>
               <Card className="card-hover">
                 <Statistic
                   title="Leave Balance"
@@ -217,7 +222,7 @@ export default function EmployeeDashboard() {
                 </div>
               </Card>
             </Col>
-            <Col xs={24} sm={12} lg={6}>
+            <Col xs={24} sm={12} lg={4}>
               <Card className="card-hover">
                 <Statistic
                   title="Pending Expenses"
@@ -232,7 +237,7 @@ export default function EmployeeDashboard() {
                 </div>
               </Card>
             </Col>
-            <Col xs={24} sm={12} lg={6}>
+            <Col xs={24} sm={12} lg={4}>
               <Card className="card-hover">
                 <Statistic
                   title="Total Expenses"

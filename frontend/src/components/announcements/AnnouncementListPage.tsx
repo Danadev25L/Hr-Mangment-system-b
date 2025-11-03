@@ -31,6 +31,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/lib/api'
 import { useRouter } from 'next/navigation'
 import dayjs from 'dayjs'
+import { useTranslations } from 'next-intl'
 
 const { confirm } = Modal
 const { Text } = Typography
@@ -40,6 +41,7 @@ interface AnnouncementListPageProps {
 }
 
 export function AnnouncementListPage({ role }: AnnouncementListPageProps) {
+  const t = useTranslations()
   const router = useRouter()
   const queryClient = useQueryClient()
   const [searchText, setSearchText] = useState('')
@@ -59,11 +61,11 @@ export function AnnouncementListPage({ role }: AnnouncementListPageProps) {
   const deleteAnnouncementMutation = useMutation({
     mutationFn: (id: number) => apiClient.deleteAnnouncement(id),
     onSuccess: () => {
-      message.success('Announcement deleted successfully')
+      message.success(t('announcements.deleteSuccess'))
       queryClient.invalidateQueries({ queryKey: ['announcements'] })
     },
     onError: (error: any) => {
-      message.error(error.response?.data?.message || 'Failed to delete announcement')
+      message.error(error.response?.data?.message || t('announcements.deleteError'))
     },
   })
 
@@ -71,11 +73,11 @@ export function AnnouncementListPage({ role }: AnnouncementListPageProps) {
   const toggleStatusMutation = useMutation({
     mutationFn: (id: number) => apiClient.toggleAnnouncementStatus(id),
     onSuccess: () => {
-      message.success('Announcement status updated')
+      message.success(t('announcements.statusUpdateSuccess'))
       queryClient.invalidateQueries({ queryKey: ['announcements'] })
     },
     onError: (error: any) => {
-      message.error(error.response?.data?.message || 'Failed to update status')
+      message.error(error.response?.data?.message || t('announcements.statusUpdateError'))
     },
   })
 
@@ -89,9 +91,9 @@ export function AnnouncementListPage({ role }: AnnouncementListPageProps) {
 
   const handleDelete = (id: number, title: string) => {
     confirm({
-      title: 'Delete Announcement',
-      content: `Are you sure you want to delete "${title}"?`,
-      okText: 'Delete',
+      title: t('announcements.deleteAnnouncement'),
+      content: t('announcements.deleteConfirm', { title }),
+      okText: t('common.delete'),
       okType: 'danger',
       onOk: () => deleteAnnouncementMutation.mutate(id),
     })
@@ -119,7 +121,7 @@ export function AnnouncementListPage({ role }: AnnouncementListPageProps) {
 
   const columns: ColumnsType<any> = [
     {
-      title: 'Title',
+      title: t('announcements.announcementTitle'),
       dataIndex: 'title',
       key: 'title',
       render: (text: string, record: any) => (
@@ -127,16 +129,16 @@ export function AnnouncementListPage({ role }: AnnouncementListPageProps) {
           <NotificationOutlined />
           <span>{text}</span>
           {role === 'employee' && record.isRead && (
-            <Tag color="green" icon={<CheckCircleOutlined />}>Read</Tag>
+            <Tag color="green" icon={<CheckCircleOutlined />}>{t('announcements.read')}</Tag>
           )}
           {role === 'employee' && !record.isRead && (
-            <Tag color="orange">Unread</Tag>
+            <Tag color="orange">{t('announcements.unread')}</Tag>
           )}
         </Space>
       ),
     },
     {
-      title: 'Description',
+      title: t('announcements.description'),
       dataIndex: 'description',
       key: 'description',
       ellipsis: true,
@@ -147,36 +149,36 @@ export function AnnouncementListPage({ role }: AnnouncementListPageProps) {
       ),
     },
     ...(role !== 'employee' ? [{
-      title: 'Department',
+      title: t('announcements.department'),
       dataIndex: ['department', 'departmentName'],
       key: 'department',
-      render: (text: string) => text || 'N/A',
+      render: (text: string) => text || t('announcements.notAvailable'),
     }] : []),
     {
-      title: 'Date',
+      title: t('announcements.date'),
       dataIndex: 'date',
       key: 'date',
       render: (date: string) => dayjs(date).format('MMM DD, YYYY'),
       sorter: (a: any, b: any) => dayjs(a.date).unix() - dayjs(b.date).unix(),
     },
     ...(role !== 'employee' ? [{
-      title: 'Status',
+      title: t('announcements.status'),
       dataIndex: 'isActive',
       key: 'isActive',
       render: (isActive: boolean) => (
         <Tag color={isActive ? 'green' : 'red'}>
-          {isActive ? 'Active' : 'Inactive'}
+          {isActive ? t('announcements.active') : t('announcements.inactive')}
         </Tag>
       ),
     }] : []),
     {
-      title: 'Created By',
+      title: t('announcements.createdBy'),
       dataIndex: ['creator', 'fullName'],
       key: 'creator',
-      render: (text: string) => text || 'Unknown',
+      render: (text: string) => text || t('announcements.unknown'),
     },
     {
-      title: 'Actions',
+      title: t('announcements.actions'),
       key: 'actions',
       fixed: 'right',
       width: 120,
@@ -185,7 +187,7 @@ export function AnnouncementListPage({ role }: AnnouncementListPageProps) {
           {
             key: 'view',
             icon: <EyeOutlined />,
-            label: 'View Details',
+            label: t('announcements.viewDetails'),
             onClick: () => handleView(record.id),
           },
         ]
@@ -195,13 +197,13 @@ export function AnnouncementListPage({ role }: AnnouncementListPageProps) {
             {
               key: 'edit',
               icon: <EditOutlined />,
-              label: 'Edit',
+              label: t('common.edit'),
               onClick: () => router.push(`${listPath}/${record.id}/edit`),
             },
             {
               key: 'delete',
               icon: <DeleteOutlined />,
-              label: 'Delete',
+              label: t('common.delete'),
               danger: true,
               onClick: () => handleDelete(record.id, record.title),
             }
@@ -212,7 +214,7 @@ export function AnnouncementListPage({ role }: AnnouncementListPageProps) {
           menuItems.push({
             key: 'toggle',
             icon: <PoweroffOutlined />,
-            label: record.isActive ? 'Deactivate' : 'Activate',
+            label: record.isActive ? t('announcements.deactivate') : t('announcements.activate'),
             onClick: () => handleToggleStatus(record.id),
           })
         }
@@ -235,12 +237,12 @@ export function AnnouncementListPage({ role }: AnnouncementListPageProps) {
             title: (
               <span className="flex items-center cursor-pointer" onClick={() => router.push(dashboardPath)}>
                 <HomeOutlined className="mr-1" />
-                Dashboard
+                {t('common.dashboard')}
               </span>
             ),
           },
           {
-            title: 'Announcements',
+            title: t('announcements.title'),
           },
         ]}
       />
@@ -250,12 +252,14 @@ export function AnnouncementListPage({ role }: AnnouncementListPageProps) {
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-2xl font-bold m-0">
-              {role === 'admin' ? 'All Announcements' : role === 'manager' ? 'Department Announcements' : 'My Announcements'}
+              {role === 'admin' ? t('announcements.allAnnouncements') : 
+               role === 'manager' ? t('announcements.departmentAnnouncements') : 
+               t('announcements.myAnnouncements')}
             </h1>
             <p className="text-gray-500 mt-2">
-              {role === 'admin' ? 'Manage announcements across all departments' :
-               role === 'manager' ? 'Manage announcements for your department' :
-               'View announcements from your department'}
+              {role === 'admin' ? t('announcements.subtitle') :
+               role === 'manager' ? t('announcements.subtitleManager') :
+               t('announcements.subtitleEmployee')}
             </p>
           </div>
           {(role === 'admin' || role === 'manager') && (
@@ -264,7 +268,7 @@ export function AnnouncementListPage({ role }: AnnouncementListPageProps) {
               icon={<PlusOutlined />}
               onClick={() => router.push(addPath)}
             >
-              Create Announcement
+              {t('announcements.createAnnouncement')}
             </Button>
           )}
         </div>
@@ -274,7 +278,7 @@ export function AnnouncementListPage({ role }: AnnouncementListPageProps) {
       <Card>
         <div className="mb-4">
           <Input
-            placeholder="Search announcements..."
+            placeholder={t('announcements.searchPlaceholder')}
             prefix={<SearchOutlined />}
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
@@ -290,7 +294,7 @@ export function AnnouncementListPage({ role }: AnnouncementListPageProps) {
           scroll={{ x: 'max-content' }}
           pagination={{
             showSizeChanger: true,
-            showTotal: (total) => `Total ${total} announcements`,
+            showTotal: (total) => t('announcements.totalItems', { total }),
           }}
         />
       </Card>

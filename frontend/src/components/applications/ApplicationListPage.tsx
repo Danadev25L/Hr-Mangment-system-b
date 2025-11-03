@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Table,
@@ -70,14 +71,15 @@ interface Application {
 }
 
 export default function ApplicationListPage({ role, title, description }: ApplicationListPageProps) {
+  const t = useTranslations()
   const router = useRouter()
   const queryClient = useQueryClient()
 
   // Set default title and description if not provided
-  const pageTitle = title || (role === 'admin' ? 'Application Management' : 'Department Applications')
+  const pageTitle = title || (role === 'admin' ? t('applications.allApplications') : t('applications.teamApplications'))
   const pageDescription = description || (role === 'admin' 
-    ? 'Manage all applications across the organization' 
-    : 'Manage applications for your department')
+    ? t('applications.subtitle') 
+    : t('applications.subtitleManager'))
   
   const [searchText, setSearchText] = useState('')
   const [filters, setFilters] = useState({
@@ -350,55 +352,48 @@ export default function ApplicationListPage({ role, title, description }: Applic
       key: 'actions',
       width: 100,
       render: (_: any, record: Application) => {
-        const menu = (
-          <Menu>
-            <Menu.Item
-              key="view"
-              icon={<EyeOutlined />}
-              onClick={() => router.push(`${basePath}/${record.id}`)}
-            >
-              View Details
-            </Menu.Item>
-            <Menu.Item
-              key="edit"
-              icon={<EditOutlined />}
-              onClick={() => router.push(`${basePath}/${record.id}/edit`)}
-            >
-              Edit
-            </Menu.Item>
-            {record.status === 'pending' && (
-              <>
-                <Menu.Divider />
-                <Menu.Item
-                  key="approve"
-                  icon={<CheckCircleOutlined />}
-                  onClick={() => handleApprove(record)}
-                >
-                  Approve
-                </Menu.Item>
-                <Menu.Item
-                  key="reject"
-                  icon={<CloseCircleOutlined />}
-                  onClick={() => handleReject(record)}
-                >
-                  Reject
-                </Menu.Item>
-              </>
-            )}
-            <Menu.Divider />
-            <Menu.Item
-              key="delete"
-              icon={<DeleteOutlined />}
-              danger
-              onClick={() => handleDeleteApplication(record)}
-            >
-              Delete
-            </Menu.Item>
-          </Menu>
-        )
+        const menuItems = [
+          {
+            key: 'view',
+            icon: <EyeOutlined />,
+            label: 'View Details',
+            onClick: () => router.push(`${basePath}/${record.id}`),
+          },
+          {
+            key: 'edit',
+            icon: <EditOutlined />,
+            label: 'Edit',
+            onClick: () => router.push(`${basePath}/${record.id}/edit`),
+          },
+          ...(record.status === 'pending'
+            ? [
+                { type: 'divider' as const },
+                {
+                  key: 'approve',
+                  icon: <CheckCircleOutlined />,
+                  label: 'Approve',
+                  onClick: () => handleApprove(record),
+                },
+                {
+                  key: 'reject',
+                  icon: <CloseCircleOutlined />,
+                  label: 'Reject',
+                  onClick: () => handleReject(record),
+                },
+              ]
+            : []),
+          { type: 'divider' as const },
+          {
+            key: 'delete',
+            icon: <DeleteOutlined />,
+            danger: true,
+            label: 'Delete',
+            onClick: () => handleDeleteApplication(record),
+          },
+        ]
 
         return (
-          <Dropdown overlay={menu} trigger={['click']}>
+          <Dropdown menu={{ items: menuItems }} trigger={['click']}>
             <Button type="text" icon={<MoreOutlined />} />
           </Dropdown>
         )
@@ -484,19 +479,28 @@ export default function ApplicationListPage({ role, title, description }: Applic
                 Refresh
               </Button>
               <Dropdown
-                overlay={
-                  <Menu>
-                    <Menu.Item key="excel" icon={<FileExcelOutlined />} onClick={exportToExcel}>
-                      Export to Excel
-                    </Menu.Item>
-                    <Menu.Item key="pdf" icon={<FilePdfOutlined />} onClick={exportToPDF}>
-                      Export to PDF
-                    </Menu.Item>
-                    <Menu.Item key="print" icon={<PrinterOutlined />} onClick={handlePrint}>
-                      Print
-                    </Menu.Item>
-                  </Menu>
-                }
+                menu={{
+                  items: [
+                    {
+                      key: 'excel',
+                      icon: <FileExcelOutlined />,
+                      label: 'Export to Excel',
+                      onClick: exportToExcel,
+                    },
+                    {
+                      key: 'pdf',
+                      icon: <FilePdfOutlined />,
+                      label: 'Export to PDF',
+                      onClick: exportToPDF,
+                    },
+                    {
+                      key: 'print',
+                      icon: <PrinterOutlined />,
+                      label: 'Print',
+                      onClick: handlePrint,
+                    },
+                  ],
+                }}
               >
                 <Button icon={<ExportOutlined />}>Export</Button>
               </Dropdown>

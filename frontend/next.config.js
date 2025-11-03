@@ -1,4 +1,8 @@
 /** @type {import('next').NextConfig} */
+const createNextIntlPlugin = require('next-intl/plugin');
+
+const withNextIntl = createNextIntlPlugin('./i18next/request.ts');
+
 const nextConfig = {
   // Enhanced module resolution
   transpilePackages: ['antd', '@ant-design/icons'],
@@ -17,15 +21,22 @@ const nextConfig = {
   },
 
   // Webpack configuration for better module resolution
-  webpack: (config) => {
+  webpack: (config, { dev, isServer }) => {
     // Fix for antd and other modules
     config.resolve.fallback = {
       ...config.resolve.fallback,
       fs: false,
     };
 
+    // Disable WebSocket in development
+    if (dev && !isServer) {
+      config.infrastructureLogging = {
+        level: 'error',
+      };
+    }
+
     return config;
   },
 };
 
-module.exports = nextConfig;
+module.exports = withNextIntl(nextConfig);

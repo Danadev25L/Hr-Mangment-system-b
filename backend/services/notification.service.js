@@ -1,6 +1,6 @@
-const db = require('../../db');
-const { notifications, users } = require('../../db/schema');
-const { eq } = require('drizzle-orm');
+import { db } from '../db/index.js';
+import { notifications, users } from '../db/schema.js';
+import { eq } from 'drizzle-orm';
 
 /**
  * Notification Service
@@ -157,7 +157,7 @@ const notifyAllEmployees = async (title, message, type, relatedId = null) => {
   }
 };
 
-module.exports = {
+export {
   createNotification,
   notifyNewAnnouncement,
   notifyApplicationStatusChange,

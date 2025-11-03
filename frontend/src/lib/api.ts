@@ -797,6 +797,178 @@ class ApiClient {
     const response = await this.client.post('/api/admin/attendance/generate-summaries', data)
     return response.data
   }
+
+  // Advanced Attendance Management
+  async getAllEmployeesWithAttendance(params?: {
+    date?: string;
+    departmentId?: string;
+    search?: string;
+  }) {
+    const response = await this.client.get('/api/admin/attendance/employees', { params })
+    return response.data
+  }
+
+  async getEmployeeAttendanceDetails(params: { userId: number; date: string }) {
+    const response = await this.client.get('/api/admin/attendance/employee/details', { params })
+    return response.data
+  }
+
+  async markEmployeeCheckIn(data: {
+    employeeId: number;
+    checkInTime: string;
+    location?: string;
+    notes?: string;
+  }) {
+    const response = await this.client.post('/api/admin/attendance/checkin', data)
+    return response.data
+  }
+
+  async markEmployeeCheckOut(data: {
+    employeeId: number;
+    checkOutTime: string;
+    location?: string;
+    notes?: string;
+  }) {
+    const response = await this.client.post('/api/admin/attendance/checkout', data)
+    return response.data
+  }
+
+  async markEmployeeAbsent(data: {
+    employeeId: number;
+    date: string;
+    reason?: string;
+  }) {
+    const response = await this.client.post('/api/admin/attendance/mark-absent', data)
+    return response.data
+  }
+
+  async bulkMarkAttendance(data: {
+    employees: number[];
+    date: string;
+    status: string;
+    notes?: string;
+  }) {
+    const response = await this.client.post('/api/admin/attendance/bulk-mark', data)
+    return response.data
+  }
+
+  async getAttendanceReport(params: {
+    type: 'daily' | 'monthly' | 'yearly';
+    date?: string;
+    month?: number;
+    year?: number;
+    departmentId?: string;
+  }) {
+    const response = await this.client.get('/api/admin/attendance/report', { params })
+    return response.data
+  }
+
+  async exportAttendanceCSV(params: {
+    startDate: string;
+    endDate: string;
+    format?: string;
+    departmentId?: string;
+  }) {
+    const url = `/api/admin/attendance/export/csv?${new URLSearchParams(params as any).toString()}`
+    window.open(`${this.client.defaults.baseURL}${url}`, '_blank')
+  }
+
+  // ==================== SALARY MANAGEMENT ====================
+  
+  // Get monthly salaries
+  async getMonthlySalaries(params: { month: number; year: number; status?: string; role: string }) {
+    const endpoint = params.role === 'ROLE_ADMIN' 
+      ? '/api/admin/salary-management/monthly'
+      : '/api/manager/salary-management/department'
+    
+    const response = await this.client.get(endpoint, { 
+      params: { 
+        month: params.month, 
+        year: params.year,
+        ...(params.status && { status: params.status })
+      }
+    })
+    return response.data
+  }
+
+  // Get employee salary details
+  async getEmployeeSalaryDetails(params: { employeeId: number; month: number; year: number; role: string }) {
+    const endpoint = params.role === 'ROLE_ADMIN'
+      ? `/api/admin/salary-management/employee/${params.employeeId}`
+      : `/api/manager/salary-management/employee/${params.employeeId}`
+    
+    const response = await this.client.get(endpoint, {
+      params: { month: params.month, year: params.year }
+    })
+    return response.data
+  }
+
+  // Calculate salaries
+  async calculateMonthlySalaries(data: { month: number; year: number }) {
+    const response = await this.client.post('/api/admin/salary-management/calculate', data)
+    return response.data
+  }
+
+  // Add bonus
+  async addBonus(data: { employeeId: number; amount: number; reason: string; month: number; year: number }) {
+    const response = await this.client.post('/api/admin/salary-management/bonus', data)
+    return response.data
+  }
+
+  // Add deduction
+  async addDeduction(data: { employeeId: number; amount: number; reason: string; month: number; year: number }) {
+    const response = await this.client.post('/api/admin/salary-management/deduction', data)
+    return response.data
+  }
+
+  // Approve salary
+  async approveSalary(salaryId: number) {
+    const response = await this.client.put(`/api/admin/salary-management/${salaryId}/approve`)
+    return response.data
+  }
+
+  // Mark salary as paid
+  async markSalaryAsPaid(salaryId: number, paymentData: { paymentMethod: string; paymentReference: string }) {
+    const response = await this.client.put(`/api/admin/salary-management/${salaryId}/paid`, paymentData)
+    return response.data
+  }
+
+  // Get salary components
+  async getSalaryComponents() {
+    const response = await this.client.get('/api/admin/salary-management/components')
+    return response.data
+  }
+
+  // Assign component to employee
+  async assignSalaryComponent(data: {
+    employeeId: number;
+    componentId: number;
+    amount: number;
+    effectiveFrom: string;
+    isRecurring?: boolean;
+    notes?: string;
+  }) {
+    const response = await this.client.post('/api/admin/salary-management/components/assign', data)
+    return response.data
+  }
+
+  // Get employee salary components
+  async getEmployeeSalaryComponents(employeeId: number) {
+    const response = await this.client.get(`/api/admin/salary-management/components/employee/${employeeId}`)
+    return response.data
+  }
+
+  // Get salary configuration
+  async getSalaryConfig() {
+    const response = await this.client.get('/api/admin/salary-management/config')
+    return response.data
+  }
+
+  // Update salary configuration
+  async updateSalaryConfig(data: { configKey: string; configValue: string }) {
+    const response = await this.client.put('/api/admin/salary-management/config', data)
+    return response.data
+  }
 }
 
 export const apiClient = new ApiClient()

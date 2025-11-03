@@ -4,10 +4,15 @@ import * as adminPayrollController from '../controllers/payroll.admin.controller
 import * as adminPaymentController from '../controllers/payment.admin.controller.js';
 import * as adminDepartmentController from '../controllers/department.admin.controller.js';
 import * as adminSalaryController from '../controllers/salary.admin.controller.js';
+import * as salaryManagementController from '../controllers/salary.management.admin.controller.js';
 import * as adminApplicationController from '../controllers/application.admin.controller.js';
 import * as adminAnnouncementController from '../controllers/announcement.admin.controller.js';
 import * as adminHolidayController from '../controllers/holidays.admin.controller.js';
 import * as adminAttendanceController from '../controllers/attendance.admin.controller.js';
+import * as advancedAttendanceController from '../controllers/attendance.advanced.admin.controller.js';
+import * as attendanceReportsController from '../controllers/attendance.reports.admin.controller.js';
+import * as attendanceFeaturesController from '../controllers/attendance.features.admin.controller.js';
+import * as enhancedAttendanceController from '../controllers/attendance.enhanced.admin.controller.js';
 
 const router = express.Router();
 
@@ -49,7 +54,7 @@ router.put('/departments/:id', adminDepartmentController.updateDepartment);
 router.delete('/departments/:id', adminDepartmentController.deleteDepartment);
 
 
-// Admin Salary Management Routes
+// Admin Salary Management Routes (Legacy)
 router.post('/salary/generate', adminSalaryController.generateMonthlySalary);
 router.get('/salary/records', adminSalaryController.getAllSalaryRecords);
 router.get('/salary/analytics', adminSalaryController.getSalaryAnalytics);
@@ -59,6 +64,20 @@ router.post('/salary/adjustment', adminSalaryController.addSalaryAdjustment);
 router.put('/salary/base-salary', adminSalaryController.updateEmployeeBaseSalary);
 router.post('/salary/overtime', adminSalaryController.addEmployeeOvertime);
 router.get('/salary/overtime', adminSalaryController.getAllOvertimeRecords);
+
+// Comprehensive Salary Management Routes (New System)
+router.get('/salary-management/config', salaryManagementController.getSalaryConfig);
+router.put('/salary-management/config', salaryManagementController.updateSalaryConfig);
+router.post('/salary-management/calculate', salaryManagementController.calculateMonthlySalaries);
+router.get('/salary-management/monthly', salaryManagementController.getAllMonthlySalaries);
+router.get('/salary-management/employee/:employeeId', salaryManagementController.getEmployeeSalaryDetails);
+router.post('/salary-management/bonus', salaryManagementController.addBonus);
+router.post('/salary-management/deduction', salaryManagementController.addDeduction);
+router.put('/salary-management/:salaryId/approve', salaryManagementController.approveSalary);
+router.put('/salary-management/:salaryId/paid', salaryManagementController.markAsPaid);
+router.get('/salary-management/components', salaryManagementController.getAllComponents);
+router.post('/salary-management/components/assign', salaryManagementController.assignComponentToEmployee);
+router.get('/salary-management/components/employee/:employeeId', salaryManagementController.getEmployeeComponents);
 
 // Admin Employee Personal Information Management Routes
 router.post('/personal-info', adminUserController.createEmployeePersonalInfo);
@@ -109,7 +128,9 @@ router.get('/holidays/:id', adminHolidayController.getHoliday);
 router.put('/holidays/:id', adminHolidayController.updateHoliday);
 router.delete('/holidays/:id', adminHolidayController.deleteHoliday);
 
-// Admin Attendance Management Routes
+// ==================== ADVANCED ATTENDANCE SYSTEM ====================
+
+// Basic Attendance Management Routes
 router.get('/attendance', adminAttendanceController.getAllAttendance);
 router.get('/attendance/summaries', adminAttendanceController.getAllAttendanceSummaries);
 router.get('/attendance/corrections', adminAttendanceController.getAllCorrectionRequests);
@@ -117,5 +138,59 @@ router.post('/attendance', adminAttendanceController.createManualAttendance);
 router.put('/attendance/:id', adminAttendanceController.updateAttendance);
 router.delete('/attendance/:id', adminAttendanceController.deleteAttendance);
 router.post('/attendance/generate-summaries', adminAttendanceController.generateMonthlySummaries);
+
+// Employee Selection & Viewing
+router.get('/attendance/employees', advancedAttendanceController.getAllEmployeesWithAttendance);
+router.get('/attendance/employee/:employeeId/details', advancedAttendanceController.getEmployeeAttendanceDetails);
+router.get('/attendance/employee/details', enhancedAttendanceController.getEmployeeAttendanceDetails);
+
+// Enhanced Reports & Export
+router.get('/attendance/report', enhancedAttendanceController.getAttendanceReport);
+router.get('/attendance/export/csv', enhancedAttendanceController.exportAttendanceCSV);
+
+// Attendance Marking & Management
+router.post('/attendance/checkin', advancedAttendanceController.markEmployeeCheckIn);
+router.post('/attendance/checkout', advancedAttendanceController.markEmployeeCheckOut);
+router.post('/attendance/mark-absent', advancedAttendanceController.markEmployeeAbsent);
+router.post('/attendance/bulk-mark', advancedAttendanceController.bulkMarkAttendance);
+
+// Comprehensive Attendance Reports
+router.post('/attendance/reports/daily', attendanceReportsController.generateDailyReport);
+router.get('/attendance/reports/weekly', attendanceReportsController.getWeeklyReport);
+router.get('/attendance/reports/monthly', attendanceReportsController.getMonthlyReport);
+router.get('/attendance/reports/employee-wise', attendanceReportsController.getEmployeeWiseReport);
+router.get('/attendance/reports/department-wise', attendanceReportsController.getDepartmentWiseReport);
+router.get('/attendance/reports/trends', attendanceReportsController.getAttendanceTrends);
+router.get('/attendance/reports/export', attendanceReportsController.exportAttendanceData);
+
+// Shift Management
+router.get('/shifts', attendanceFeaturesController.getAllShifts);
+router.post('/shifts', attendanceFeaturesController.createShift);
+router.put('/shifts/:id', attendanceFeaturesController.updateShift);
+router.post('/shifts/assign', attendanceFeaturesController.assignShiftToEmployee);
+router.post('/shifts/bulk-assign', attendanceFeaturesController.bulkAssignShifts);
+router.get('/shifts/employee/:userId', attendanceFeaturesController.getEmployeeShifts);
+
+// Attendance Policies
+router.get('/attendance/policies', attendanceFeaturesController.getAllPolicies);
+router.post('/attendance/policies', attendanceFeaturesController.createPolicy);
+router.put('/attendance/policies/:id', attendanceFeaturesController.updatePolicy);
+router.post('/attendance/policies/assign', attendanceFeaturesController.assignPolicyToDepartment);
+
+// Overtime Management
+router.get('/overtime/requests', attendanceFeaturesController.getAllOvertimeRequests);
+router.put('/overtime/requests/:id/approve', attendanceFeaturesController.approveOvertimeRequest);
+router.put('/overtime/requests/:id/reject', attendanceFeaturesController.rejectOvertimeRequest);
+router.get('/overtime/tracking', attendanceFeaturesController.getOvertimeTracking);
+router.put('/overtime/tracking/:id/approve', attendanceFeaturesController.approveOvertimeTracking);
+
+// Geofence Management
+router.get('/geofences', attendanceFeaturesController.getAllGeofences);
+router.post('/geofences', attendanceFeaturesController.createGeofence);
+router.put('/geofences/:id', attendanceFeaturesController.updateGeofence);
+
+// Break Types Management
+router.get('/break-types', attendanceFeaturesController.getAllBreakTypes);
+router.post('/break-types', attendanceFeaturesController.createBreakType);
 
 export default router;

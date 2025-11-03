@@ -1,16 +1,20 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { useEffect } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { Spin } from 'antd'
 
 export default function HomePage() {
   const router = useRouter()
+  const pathname = usePathname()
   const { isAuthenticated, isLoading } = useAuth()
 
   useEffect(() => {
     if (!isLoading) {
+      // Get current locale from pathname
+      const locale = pathname.split('/')[1] || 'en'
+
       if (isAuthenticated) {
         // User is authenticated, redirect to appropriate dashboard
         // Try localStorage first, then cookie as fallback
@@ -33,24 +37,24 @@ export default function HomePage() {
         const userRole = getRole()
         switch (userRole) {
           case 'ROLE_ADMIN':
-            router.replace('/admin/dashboard')
+            router.replace(`/${locale}/admin/dashboard`)
             break
           case 'ROLE_MANAGER':
-            router.replace('/manager/dashboard')
+            router.replace(`/${locale}/manager/dashboard`)
             break
           case 'ROLE_EMPLOYEE':
-            router.replace('/employee/dashboard')
+            router.replace(`/${locale}/employee/dashboard`)
             break
           default:
             // If no role found, redirect to login to re-authenticate
-            router.replace('/login')
+            router.replace(`/${locale}/login`)
         }
       } else {
         // User is not authenticated, redirect to login
-        router.replace('/login')
+        router.replace(`/${locale}/login`)
       }
     }
-  }, [isAuthenticated, isLoading, router])
+  }, [isAuthenticated, isLoading, router, pathname])
 
   // Show loading spinner while checking authentication
   return (

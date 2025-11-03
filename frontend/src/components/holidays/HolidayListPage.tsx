@@ -35,6 +35,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/lib/api'
 import { useRouter } from 'next/navigation'
 import dayjs from 'dayjs'
+import { useTranslations } from 'next-intl'
 
 const { confirm } = Modal
 const { Text, Title } = Typography
@@ -44,6 +45,7 @@ interface HolidayListPageProps {
 }
 
 export function HolidayListPage({ role }: HolidayListPageProps) {
+  const t = useTranslations()
   const router = useRouter()
   const queryClient = useQueryClient()
   const [searchText, setSearchText] = useState('')
@@ -64,19 +66,19 @@ export function HolidayListPage({ role }: HolidayListPageProps) {
   const deleteHolidayMutation = useMutation({
     mutationFn: (id: number) => apiClient.deleteHoliday(id),
     onSuccess: () => {
-      message.success('Holiday deleted successfully')
+      message.success(t('holidays.deleteSuccess'))
       queryClient.invalidateQueries({ queryKey: ['holidays'] })
     },
     onError: (error: any) => {
-      message.error(error.response?.data?.message || 'Failed to delete holiday')
+      message.error(error.response?.data?.message || t('holidays.deleteError'))
     },
   })
 
   const handleDelete = (id: number, name: string) => {
     confirm({
-      title: 'Delete Holiday',
-      content: `Are you sure you want to delete "${name || 'this holiday'}"?`,
-      okText: 'Delete',
+      title: t('holidays.deleteHoliday'),
+      content: t('holidays.deleteConfirm', { name: name || t('holidays.unnamedHoliday') }),
+      okText: t('common.delete'),
       okType: 'danger',
       onOk: () => deleteHolidayMutation.mutate(id),
     })
@@ -106,7 +108,7 @@ export function HolidayListPage({ role }: HolidayListPageProps) {
 
   const columns: ColumnsType<any> = [
     {
-      title: 'Date',
+      title: t('holidays.date'),
       dataIndex: 'date',
       key: 'date',
       render: (date: string) => (
@@ -114,7 +116,7 @@ export function HolidayListPage({ role }: HolidayListPageProps) {
           <CalendarOutlined />
           <span>{dayjs(date).format('MMMM DD, YYYY')}</span>
           {dayjs(date).isSame(today, 'day') && (
-            <Tag color="green">Today</Tag>
+            <Tag color="green">{t('holidays.today')}</Tag>
           )}
         </Space>
       ),
@@ -122,62 +124,64 @@ export function HolidayListPage({ role }: HolidayListPageProps) {
       defaultSortOrder: 'ascend',
     },
     {
-      title: 'Holiday Name',
+      title: t('holidays.holidayName'),
       dataIndex: 'name',
       key: 'name',
-      render: (text: string) => <Text strong>{text || 'Unnamed Holiday'}</Text>,
+      render: (text: string) => <Text strong>{text || t('holidays.unnamedHoliday')}</Text>,
     },
     {
-      title: 'Description',
+      title: t('holidays.description'),
       dataIndex: 'description',
       key: 'description',
       ellipsis: true,
       render: (text: string) => (
         <Text ellipsis style={{ maxWidth: 400 }}>
-          {text || 'No description'}
+          {text || t('holidays.noDescription')}
         </Text>
       ),
     },
     {
-      title: 'Type',
+      title: t('holidays.type'),
       dataIndex: 'isRecurring',
       key: 'isRecurring',
       render: (isRecurring: boolean) => (
         <Tag color={isRecurring ? 'blue' : 'default'}>
-          {isRecurring ? 'Recurring' : 'One-time'}
+          {isRecurring ? t('holidays.recurring') : t('holidays.oneTime')}
         </Tag>
       ),
       filters: [
-        { text: 'Recurring', value: true },
-        { text: 'One-time', value: false },
+        { text: t('holidays.recurring'), value: true },
+        { text: t('holidays.oneTime'), value: false },
       ],
       onFilter: (value: any, record: any) => record.isRecurring === value,
     },
     {
-      title: 'Status',
+      title: t('holidays.status'),
       key: 'status',
       render: (_: any, record: any) => {
         const holidayDate = dayjs(record.date)
         const isToday = holidayDate.isSame(today, 'day')
         const isPast = holidayDate.isBefore(today, 'day')
-        const isUpcoming = holidayDate.isAfter(today)
 
         if (isToday) {
-          return <Tag color="green" icon={<CheckCircleOutlined />}>Today</Tag>
+          return <Tag color="green" icon={<CheckCircleOutlined />}>{t('holidays.today')}</Tag>
         } else if (isPast) {
-          return <Tag color="default">Past</Tag>
+          return <Tag color="default">{t('holidays.past')}</Tag>
         } else {
           const daysUntil = holidayDate.diff(today, 'days')
           return (
             <Tag color="blue">
-              In {daysUntil} {daysUntil === 1 ? 'day' : 'days'}
+              {t('holidays.inDays', { 
+                days: daysUntil, 
+                unit: daysUntil === 1 ? t('holidays.day') : t('holidays.days')
+              })}
             </Tag>
           )
         }
       },
     },
     {
-      title: 'Actions',
+      title: t('holidays.actions'),
       key: 'actions',
       fixed: 'right',
       width: 120,
@@ -186,7 +190,7 @@ export function HolidayListPage({ role }: HolidayListPageProps) {
           {
             key: 'view',
             icon: <EyeOutlined />,
-            label: 'View Details',
+            label: t('holidays.viewDetails'),
             onClick: () => handleView(record.id),
           },
         ]
@@ -196,13 +200,13 @@ export function HolidayListPage({ role }: HolidayListPageProps) {
             {
               key: 'edit',
               icon: <EditOutlined />,
-              label: 'Edit',
+              label: t('common.edit'),
               onClick: () => router.push(`${listPath}/${record.id}/edit`),
             },
             {
               key: 'delete',
               icon: <DeleteOutlined />,
-              label: 'Delete',
+              label: t('common.delete'),
               danger: true,
               onClick: () => handleDelete(record.id, record.name),
             }
@@ -256,12 +260,12 @@ export function HolidayListPage({ role }: HolidayListPageProps) {
             title: (
               <span className="flex items-center cursor-pointer" onClick={() => router.push(dashboardPath)}>
                 <HomeOutlined className="mr-1" />
-                Dashboard
+                {t('common.dashboard')}
               </span>
             ),
           },
           {
-            title: 'Company Holidays',
+            title: t('holidays.title'),
           },
         ]}
       />
@@ -271,10 +275,10 @@ export function HolidayListPage({ role }: HolidayListPageProps) {
         <div className="flex justify-between items-center">
           <div>
             <Title level={2} className="m-0">
-              Company Holidays
+              {t('holidays.title')}
             </Title>
             <Text type="secondary">
-              {role === 'admin' ? 'Manage company-wide holidays' : 'View company holiday schedule'}
+              {role === 'admin' ? t('holidays.subtitle') : t('holidays.subtitleView')}
             </Text>
           </div>
           <Space>
@@ -283,14 +287,14 @@ export function HolidayListPage({ role }: HolidayListPageProps) {
               icon={<CalendarOutlined />}
               onClick={() => setViewMode('table')}
             >
-              List View
+              {t('holidays.listView')}
             </Button>
             <Button
               type={viewMode === 'calendar' ? 'primary' : 'default'}
               icon={<CalendarOutlined />}
               onClick={() => setViewMode('calendar')}
             >
-              Calendar View
+              {t('holidays.calendarView')}
             </Button>
             {role === 'admin' && (
               <Button
@@ -298,7 +302,7 @@ export function HolidayListPage({ role }: HolidayListPageProps) {
                 icon={<PlusOutlined />}
                 onClick={() => router.push(addPath)}
               >
-                Add Holiday
+                {t('holidays.addHoliday')}
               </Button>
             )}
           </Space>
@@ -310,7 +314,7 @@ export function HolidayListPage({ role }: HolidayListPageProps) {
         <Card>
           <div className="flex items-center justify-between">
             <div>
-              <Text type="secondary">Total Holidays</Text>
+              <Text type="secondary">{t('holidays.totalHolidays')}</Text>
               <div className="text-2xl font-bold">{holidays.length}</div>
             </div>
             <CalendarOutlined className="text-4xl text-blue-500" />
@@ -319,7 +323,7 @@ export function HolidayListPage({ role }: HolidayListPageProps) {
         <Card>
           <div className="flex items-center justify-between">
             <div>
-              <Text type="secondary">Upcoming Holidays</Text>
+              <Text type="secondary">{t('holidays.upcomingHolidays')}</Text>
               <div className="text-2xl font-bold text-green-600">{upcomingHolidays.length}</div>
             </div>
             <CheckCircleOutlined className="text-4xl text-green-500" />
@@ -328,7 +332,7 @@ export function HolidayListPage({ role }: HolidayListPageProps) {
         <Card>
           <div className="flex items-center justify-between">
             <div>
-              <Text type="secondary">Past Holidays</Text>
+              <Text type="secondary">{t('holidays.pastHolidays')}</Text>
               <div className="text-2xl font-bold text-gray-500">{pastHolidays.length}</div>
             </div>
             <CloseCircleOutlined className="text-4xl text-gray-400" />
@@ -341,7 +345,7 @@ export function HolidayListPage({ role }: HolidayListPageProps) {
         <Card>
           <Space direction="vertical" style={{ width: '100%' }} size="large">
             <Input
-              placeholder="Search holidays by name or description..."
+              placeholder={t('holidays.searchPlaceholder')}
               prefix={<SearchOutlined />}
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
@@ -363,7 +367,7 @@ export function HolidayListPage({ role }: HolidayListPageProps) {
             pagination={{
               pageSize: 10,
               showSizeChanger: true,
-              showTotal: (total) => `Total ${total} holidays`,
+              showTotal: (total) => t('holidays.totalItems', { total }),
             }}
           />
         </Card>

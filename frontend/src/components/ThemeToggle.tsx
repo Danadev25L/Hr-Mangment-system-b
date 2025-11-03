@@ -14,6 +14,7 @@ export const ThemeToggle: React.FC = () => {
       icon={theme === 'light' ? <MoonOutlined /> : <SunOutlined />}
       onClick={toggleTheme}
       title={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
+      className="!text-gray-600 dark:!text-gray-400 hover:!text-gray-900 dark:hover:!text-white"
     />
   )
 }

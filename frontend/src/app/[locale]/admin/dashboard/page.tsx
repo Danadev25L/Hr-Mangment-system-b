@@ -3,6 +3,7 @@
 // Fixed compilation issues
 import React from 'react'
 import { Row, Col, Card, Statistic, Typography, List, Avatar } from 'antd'
+import { useTranslations } from 'next-intl'
 import {
   UserOutlined,
   TeamOutlined,
@@ -33,6 +34,8 @@ import {
 const { Title, Text } = Typography
 
 export default function AdminDashboard() {
+  const t = useTranslations()
+
   const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ['dashboard-stats'],
     queryFn: () => apiClient.getDashboardStats(),
@@ -109,11 +112,11 @@ export default function AdminDashboard() {
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <div>
-              <Title level={2} className="!mb-2">
-                Admin Dashboard
+              <Title level={2} className="!mb-2 !text-gray-900 dark:!text-white">
+                {t('dashboard.admin.title')}
               </Title>
-              <Text className="text-gray-500">
-                Welcome back! Here&apos;s what&apos;s happening with your team today.
+              <Text className="text-gray-500 dark:text-gray-400">
+                {t('dashboard.welcome')}
               </Text>
             </div>
           </div>
@@ -121,62 +124,66 @@ export default function AdminDashboard() {
           {/* Stats Cards */}
           <Row gutter={[16, 16]}>
             <Col xs={24} sm={12} lg={6}>
-              <Card className="card-hover">
+              <Card className="card-hover bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
                 <Statistic
-                  title="Total Employees"
+                  title={t('dashboard.admin.totalEmployees')}
                   value={stats?.totalUsers || 180}
                   prefix={<UserOutlined className="text-blue-500" />}
                   loading={statsLoading}
+                  valueStyle={{ color: 'inherit' }}
                 />
                 <div className="mt-2">
                   <Text type="success" className="text-xs">
-                    <RiseOutlined /> +12% from last month
+                    <RiseOutlined /> {t('dashboard.admin.lastMonth')}
                   </Text>
                 </div>
               </Card>
             </Col>
             <Col xs={24} sm={12} lg={6}>
-              <Card className="card-hover">
+              <Card className="card-hover bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
                 <Statistic
-                  title="Active Departments"
+                  title={t('dashboard.admin.activeDepartments')}
                   value={stats?.totalDepartments || 5}
                   prefix={<TeamOutlined className="text-green-500" />}
                   loading={statsLoading}
+                  valueStyle={{ color: 'inherit' }}
                 />
                 <div className="mt-2">
                   <Text type="success" className="text-xs">
-                    <RiseOutlined /> +2 new this quarter
+                    <RiseOutlined /> {t('dashboard.admin.thisQuarter')}
                   </Text>
                 </div>
               </Card>
             </Col>
             <Col xs={24} sm={12} lg={6}>
-              <Card className="card-hover">
+              <Card className="card-hover bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
                 <Statistic
-                  title="Pending Applications"
+                  title={t('dashboard.admin.pendingApplications')}
                   value={stats?.pendingApplications || 8}
                   prefix={<FileTextOutlined className="text-orange-500" />}
                   loading={statsLoading}
+                  valueStyle={{ color: 'inherit' }}
                 />
                 <div className="mt-2">
                   <Text type="warning" className="text-xs">
-                    <CalendarOutlined /> 3 require urgent attention
+                    <CalendarOutlined /> {t('dashboard.admin.urgentAttention')}
                   </Text>
                 </div>
               </Card>
             </Col>
             <Col xs={24} sm={12} lg={6}>
-              <Card className="card-hover">
+              <Card className="card-hover bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
                 <Statistic
-                  title="Total Expenses"
+                  title={t('dashboard.admin.totalExpenses')}
                   value={stats?.totalExpenses || 15420}
                   prefix={<DollarOutlined className="text-purple-500" />}
                   formatter={(value) => formatCurrency(Number(value))}
                   loading={statsLoading}
+                  valueStyle={{ color: 'inherit' }}
                 />
                 <div className="mt-2">
                   <Text type="success" className="text-xs">
-                    <RiseOutlined /> -8% from last month
+                    <RiseOutlined /> -8% {t('dashboard.admin.lastMonth')}
                   </Text>
                 </div>
               </Card>
@@ -186,13 +193,13 @@ export default function AdminDashboard() {
           {/* Charts Row */}
           <Row gutter={[16, 16]}>
             <Col xs={24} lg={16}>
-              <Card title="User Growth Trend" className="h-96">
+              <Card title={t('dashboard.userGrowthTrend')} className="h-96 bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
                 <ResponsiveContainer width="100%" height={280}>
                   <LineChart data={mockUserGrowth}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="month" />
                     <YAxis />
-                    <Tooltip />
+                    <Tooltip contentStyle={{ backgroundColor: 'rgb(31 41 55)', border: '1px solid rgb(55 65 81)', color: 'rgb(229 231 235)' }} />
                     <Line
                       type="monotone"
                       dataKey="users"
@@ -205,7 +212,7 @@ export default function AdminDashboard() {
               </Card>
             </Col>
             <Col xs={24} lg={8}>
-              <Card title="Department Distribution" className="h-96">
+              <Card title={t('dashboard.departmentDistribution')} className="h-96 bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
                 <ResponsiveContainer width="100%" height={280}>
                   <PieChart>
                     <Pie
@@ -222,7 +229,7 @@ export default function AdminDashboard() {
                         <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
                     </Pie>
-                    <Tooltip />
+                    <Tooltip contentStyle={{ backgroundColor: 'rgb(31 41 55)', border: '1px solid rgb(55 65 81)', color: 'rgb(229 231 235)' }} />
                   </PieChart>
                 </ResponsiveContainer>
               </Card>
@@ -232,16 +239,16 @@ export default function AdminDashboard() {
           {/* Recent Activities and Quick Actions */}
           <Row gutter={[16, 16]}>
             <Col xs={24} lg={16}>
-              <Card title="Recent Activities" className="h-96">
+              <Card title={t('dashboard.recentActivities')} className="h-96 bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
                 <List
                   loading={activitiesLoading}
                   dataSource={mockRecentActivities}
                   renderItem={(item) => (
                     <List.Item>
                       <List.Item.Meta
-                        avatar={<Avatar icon={<UserOutlined />} />}
-                        title={item.description}
-                        description={`${item.userName} • ${formatDate(item.timestamp)}`}
+                        avatar={<Avatar icon={<UserOutlined />} className="bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400" />}
+                        title={<span className="text-gray-900 dark:text-gray-100">{item.description}</span>}
+                        description={<span className="text-gray-500 dark:text-gray-400">{`${item.userName} • ${formatDate(item.timestamp)}`}</span>}
                       />
                     </List.Item>
                   )}
@@ -249,41 +256,41 @@ export default function AdminDashboard() {
               </Card>
             </Col>
             <Col xs={24} lg={8}>
-              <Card title="Quick Actions" className="h-96">
+              <Card title={t('dashboard.quickActions')} className="h-96 bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
                 <div className="space-y-4">
-                  <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <div className="p-4 bg-blue-50 dark:bg-blue-950 rounded-lg border border-blue-200 dark:border-blue-800">
                     <div className="flex items-center space-x-3">
-                      <UserOutlined className="text-blue-600 text-xl" />
+                      <UserOutlined className="text-blue-600 dark:text-blue-400 text-xl" />
                       <div>
-                        <p className="font-medium text-gray-900">Add New Employee</p>
-                        <p className="text-sm text-gray-500">Onboard team members</p>
+                        <p className="font-medium text-gray-900 dark:text-gray-100">{t('dashboard.admin.addNewEmployee')}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">{t('dashboard.teamMembers')}</p>
                       </div>
                     </div>
                   </div>
-                  <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+                  <div className="p-4 bg-green-50 dark:bg-green-950 rounded-lg border border-green-200 dark:border-green-800">
                     <div className="flex items-center space-x-3">
-                      <FileTextOutlined className="text-green-600 text-xl" />
+                      <FileTextOutlined className="text-green-600 dark:text-green-400 text-xl" />
                       <div>
-                        <p className="font-medium text-gray-900">Review Applications</p>
-                        <p className="text-sm text-gray-500">8 pending requests</p>
+                        <p className="font-medium text-gray-900 dark:text-gray-100">{t('dashboard.admin.reviewApplications')}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">8 {t('dashboard.manager.pendingApprovals')}</p>
                       </div>
                     </div>
                   </div>
-                  <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
+                  <div className="p-4 bg-purple-50 dark:bg-purple-950 rounded-lg border border-purple-200 dark:border-purple-800">
                     <div className="flex items-center space-x-3">
-                      <NotificationOutlined className="text-purple-600 text-xl" />
+                      <NotificationOutlined className="text-purple-600 dark:text-purple-400 text-xl" />
                       <div>
-                        <p className="font-medium text-gray-900">Send Announcement</p>
-                        <p className="text-sm text-gray-500">Company-wide updates</p>
+                        <p className="font-medium text-gray-900 dark:text-gray-100">{t('dashboard.admin.sendAnnouncement')}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">{t('dashboard.announcements')}</p>
                       </div>
                     </div>
                   </div>
-                  <div className="p-4 bg-orange-50 rounded-lg border border-orange-200">
+                  <div className="p-4 bg-orange-50 dark:bg-orange-950 rounded-lg border border-orange-200 dark:border-orange-800">
                     <div className="flex items-center space-x-3">
-                      <DollarOutlined className="text-orange-600 text-xl" />
+                      <DollarOutlined className="text-orange-600 dark:text-orange-400 text-xl" />
                       <div>
-                        <p className="font-medium text-gray-900">Expense Reports</p>
-                        <p className="text-sm text-gray-500">View monthly spending</p>
+                        <p className="font-medium text-gray-900 dark:text-gray-100">{t('dashboard.admin.expenseReports')}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">{t('dashboard.reports')}</p>
                       </div>
                     </div>
                   </div>

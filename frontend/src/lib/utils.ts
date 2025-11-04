@@ -54,3 +54,33 @@ export function debounce<T extends (...args: any[]) => any>(
     timeout = setTimeout(() => func.apply(this, args), wait)
   }
 }
+
+export function getRoleColor(role: string): string {
+  const roleMap: Record<string, string> = {
+    ROLE_ADMIN: 'red',
+    ROLE_MANAGER: 'blue',
+    ROLE_EMPLOYEE: 'green',
+    admin: 'red',
+    manager: 'blue',
+    employee: 'green',
+  }
+  return roleMap[role] || 'default'
+}
+
+export function getRoleLabel(role: string): string {
+  return role.replace('ROLE_', '').charAt(0).toUpperCase() + 
+         role.replace('ROLE_', '').slice(1).toLowerCase()
+}
+
+export function getStatusColor(status: string): string {
+  const statusMap: Record<string, string> = {
+    active: 'green',
+    inactive: 'red',
+    pending: 'orange',
+    approved: 'green',
+    rejected: 'red',
+    completed: 'blue',
+    cancelled: 'gray',
+  }
+  return statusMap[status.toLowerCase()] || 'default'
+}

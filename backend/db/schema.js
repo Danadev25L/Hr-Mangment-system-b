@@ -262,6 +262,7 @@ export const notifications = pgTable('notifications', {
   message: text('message').notNull(),
   type: varchar('type', { length: 50 }).notNull(), // 'announcement', 'application', 'salary', 'leave', etc.
   relatedId: integer('related_id'), // ID of related entity (announcement ID, application ID, etc.)
+  metadata: jsonb('metadata'), // Additional context data for the notification
   isRead: boolean('is_read').default(false),
   readAt: timestamp('read_at', { mode: 'string' }),
   createdAt: timestamp('created_at', { mode: 'string' }).defaultNow().notNull(),

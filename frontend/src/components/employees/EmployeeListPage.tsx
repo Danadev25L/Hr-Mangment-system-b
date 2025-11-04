@@ -35,6 +35,7 @@ import {
   FileTextOutlined,
   ReloadOutlined,
   ClearOutlined,
+  TeamOutlined,
 } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/lib/api'
@@ -43,8 +44,24 @@ import type { ColumnsType } from 'antd/es/table'
 import type { MenuProps } from 'antd'
 import type { User } from '@/types'
 import dayjs from 'dayjs'
-import { useRouter, useSearchParams, usePathname } from 'next/navigation'
+import { useRouter, useSearchParams, usePathname, useParams } from 'next/navigation'
 import { exportToExcel, exportToPDF, printEmployeeList } from '@/lib/exportUtils'
+import { useLocale } from 'next-intl'
+import {
+  EnhancedTable,
+  SearchInput,
+  StatCard,
+  PageHeader,
+  FilterBar,
+  FilterSelect,
+  FilterDateRange,
+  EnhancedButton,
+  EnhancedModal,
+} from '@/components/ui'
+import { EmployeesIllustration } from '@/components/ui/illustrations'
+import { EmployeeStats } from './EmployeeStats'
+import { EmployeeFilters } from './EmployeeFilters'
+import { EmployeeTable } from './EmployeeTable'
 
 const { Option } = Select
 const { RangePicker } = DatePicker
@@ -60,6 +77,7 @@ export function EmployeeListPage({ role, title, description }: EmployeeListPageP
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const queryClient = useQueryClient()
+  const locale = useLocale()
   
   // Initialize from URL params
   const [searchText, setSearchText] = useState(searchParams.get('search') || '')
@@ -244,315 +262,142 @@ export function EmployeeListPage({ role, title, description }: EmployeeListPageP
     })
   }
 
-  const columns: ColumnsType<User> = [
-    {
-      title: 'Employee',
-      key: 'user',
-      render: (_, record) => (
-        <div className="flex items-center space-x-3">
-          <Avatar
-            src={record.avatar}
-            icon={<UserOutlined />}
-            className="bg-primary-100 dark:bg-primary-900 text-primary-600 dark:text-primary-300"
-          >
-            {getInitials(record.fullName)}
-          </Avatar>
-          <div>
-            <p className="font-medium text-gray-900 dark:text-gray-100">{record.fullName}</p>
-            <p className="text-sm text-gray-500 dark:text-gray-400">@{record.username}</p>
-            <p className="text-xs text-gray-400 dark:text-gray-500">Code: {record.employeeCode}</p>
-          </div>
-        </div>
-      ),
-    },
-    ...(role === 'admin' ? [{
-      title: 'Role',
-      dataIndex: 'role',
-      key: 'role',
-      render: (roleValue: string) => (
-        <Tag color={roleValue === 'ROLE_ADMIN' ? 'red' : roleValue === 'ROLE_MANAGER' ? 'blue' : 'green'}>
-          {roleValue.replace('ROLE_', '')}
-        </Tag>
-      ),
-    }] : []),
-    {
-      title: 'Job Title',
-      dataIndex: 'jobTitle',
-      key: 'jobTitle',
-      render: (jobTitle) => jobTitle || '-',
-    },
-    {
-      title: 'Department',
-      dataIndex: 'department',
-      key: 'department',
-      render: (dept) => {
-        if (typeof dept === 'object' && dept?.departmentName) {
-          return dept.departmentName
-        }
-        return dept || '-'
-      },
-    },
-    {
-      title: 'Base Salary',
-      dataIndex: 'baseSalary',
-      key: 'baseSalary',
-      render: (salary) => salary !== undefined && salary !== null ? formatCurrency(salary) : '-',
-      sorter: (a, b) => (a.baseSalary || 0) - (b.baseSalary || 0),
-    },
-    {
-      title: 'Status',
-      dataIndex: 'active',
-      key: 'active',
-      render: (active) => (
-        <Tag color={active ? 'green' : 'red'}>
-          {active ? 'Active' : 'Inactive'}
-        </Tag>
-      ),
-    },
-    {
-      title: 'Created',
-      dataIndex: 'createdAt',
-      key: 'createdAt',
-      render: (date) => formatDate(date),
-      sorter: (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
-    },
-    {
-      title: 'Actions',
-      key: 'actions',
-      render: (_, record) => {
-        const basePath = role === 'admin' ? '/admin/employees' : '/manager/employees'
-        const items: MenuProps['items'] = [
-          {
-            key: 'view',
-            icon: <EyeOutlined />,
-            label: 'View Details',
-            onClick: () => router.push(`${basePath}/${record.id}`),
-          },
-          {
-            key: 'edit',
-            icon: <EditOutlined />,
-            label: 'Edit',
-            onClick: () => router.push(`${basePath}/${record.id}/edit`),
-          },
-          {
-            type: 'divider',
-          },
-          {
-            key: 'delete',
-            icon: <DeleteOutlined />,
-            label: 'Delete',
-            danger: true,
-            onClick: () => handleDeleteEmployee(record),
-          },
-        ]
-
-        return (
-          <Space size="small">
-            <Tooltip title="View Details">
-              <Button
-                type="text"
-                icon={<EyeOutlined />}
-                onClick={() => router.push(`${basePath}/${record.id}`)}
-                size="small"
-              />
-            </Tooltip>
-            <Tooltip title="Edit">
-              <Button
-                type="text"
-                icon={<EditOutlined />}
-                onClick={() => router.push(`${basePath}/${record.id}/edit`)}
-                size="small"
-              />
-            </Tooltip>
-            <Dropdown menu={{ items }} trigger={['click']}>
-              <Button type="text" icon={<MoreOutlined />} size="small" />
-            </Dropdown>
-          </Space>
-        )
-      },
-    },
-  ]
-
   const basePath = role === 'admin' ? '/admin/employees' : '/manager/employees'
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{title}</h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{description}</p>
-        </div>
-        <div className="flex items-center space-x-2">
-          <Dropdown menu={{ items: exportMenuItems }} placement="bottomRight">
-            <Button icon={<ExportOutlined />}>Export</Button>
-          </Dropdown>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => router.push(`${basePath}/add`)}
-          >
-            Add Employee
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title={title}
+        description={description}
+        icon={<EmployeesIllustration className="w-20 h-20" />}
+        gradient="purple"
+        action={
+          <div className="flex items-center gap-3">
+            <Dropdown menu={{ items: exportMenuItems }} placement="bottomRight">
+              <EnhancedButton variant="secondary" icon={<ExportOutlined />}>
+                Export
+              </EnhancedButton>
+            </Dropdown>
+            <EnhancedButton
+              variant="primary"
+              icon={<PlusOutlined />}
+              onClick={() => router.push(`/${locale}${basePath}/add`)}
+            >
+              Add Employee
+            </EnhancedButton>
+          </div>
+        }
+      />
 
       {/* Stats */}
-      <Row gutter={16}>
-        <Col xs={12} sm={8} md={6}>
-          <Card>
-            <Statistic
-              title="Total Employees"
-              value={usersData?.pagination?.total || 0}
-              prefix={<UserOutlined />}
-              valueStyle={{ color: '#3f8600' }}
-            />
-          </Card>
-        </Col>
-        <Col xs={12} sm={8} md={6}>
-          <Card>
-            <Statistic
-              title="Active"
-              value={usersData?.data?.filter((u: User) => u.active).length || 0}
-              valueStyle={{ color: '#52c41a' }}
-            />
-          </Card>
-        </Col>
-        <Col xs={12} sm={8} md={6}>
-          <Card>
-            <Statistic
-              title="Inactive"
-              value={usersData?.data?.filter((u: User) => !u.active).length || 0}
-              valueStyle={{ color: '#ff4d4f' }}
-            />
-          </Card>
-        </Col>
-      </Row>
+      <EmployeeStats
+        totalEmployees={usersData?.pagination?.total || 0}
+        activeCount={usersData?.data?.filter((u: User) => u.active).length || 0}
+        inactiveCount={usersData?.data?.filter((u: User) => !u.active).length || 0}
+      />
+
+      {/* Search */}
+      <SearchInput
+        placeholder="Search by name, code, email..."
+        value={searchText}
+        onChange={(e) => {
+          setSearchText(e.target.value)
+          setPagination({ ...pagination, current: 1 })
+        }}
+      />
 
       {/* Filters */}
-      <Card 
-        title={
-          <Space>
-            <FilterOutlined />
-            <span>Filters & Search</span>
-          </Space>
-        }
-        extra={
-          <Space>
-            <Button icon={<ReloadOutlined />} onClick={() => refetch()} loading={isLoading}>
-              Refresh
-            </Button>
-            <Button icon={<ClearOutlined />} onClick={handleResetFilters}>
-              Reset
-            </Button>
-          </Space>
-        }
-      >
-        <Row gutter={[16, 16]}>
-          <Col xs={24} sm={12} md={6}>
-            <Input
-              placeholder="Search by name, code, email..."
-              prefix={<SearchOutlined />}
-              value={searchText}
-              onChange={(e) => {
-                setSearchText(e.target.value)
-                setPagination({ ...pagination, current: 1 })
-              }}
-              allowClear
-              size="large"
-            />
-          </Col>
-          
-          <Col xs={24} sm={12} md={6}>
-            <Select
-              placeholder="Role"
-              style={{ width: '100%' }}
-              value={filters.role}
-              onChange={(value) => {
-                setFilters({ ...filters, role: value })
-                setPagination({ ...pagination, current: 1 })
-              }}
-              allowClear
-              size="large"
-            >
-              {role === 'admin' && <Option value="ROLE_ADMIN">Admin</Option>}
-              <Option value="ROLE_MANAGER">Manager</Option>
-              <Option value="ROLE_EMPLOYEE">Employee</Option>
-            </Select>
-          </Col>
-          
-          <Col xs={24} sm={12} md={6}>
-            <Select
-              placeholder="Status"
-              style={{ width: '100%' }}
-              value={filters.status}
-              onChange={(value) => {
-                setFilters({ ...filters, status: value })
-                setPagination({ ...pagination, current: 1 })
-              }}
-              allowClear
-              size="large"
-            >
-              <Option value="active">Active</Option>
-              <Option value="inactive">Inactive</Option>
-            </Select>
-          </Col>
-          
-          {role === 'admin' && (
-            <Col xs={24} sm={12} md={6}>
-              <Select
-                placeholder="Department"
-                style={{ width: '100%' }}
-                value={filters.department}
-                onChange={(value) => {
-                  setFilters({ ...filters, department: value })
-                  setPagination({ ...pagination, current: 1 })
-                }}
-                allowClear
-                size="large"
-              >
-                {Array.isArray(departmentsData) && departmentsData.map((dept: any) => (
-                  <Option key={dept.id} value={dept.id.toString()}>
-                    {dept.departmentName}
-                  </Option>
-                ))}
-              </Select>
-            </Col>
-          )}
-          
-          <Col xs={24} sm={12} md={6}>
-            <RangePicker
-              style={{ width: '100%' }}
-              value={dateRange}
-              onChange={(dates) => {
-                setDateRange(dates as [dayjs.Dayjs, dayjs.Dayjs] | null)
-                setPagination({ ...pagination, current: 1 })
-              }}
-              size="large"
-              placeholder={['Start Date', 'End Date']}
-            />
-          </Col>
-        </Row>
-      </Card>
+      <FilterBar>
+        <FilterSelect
+          placeholder="Role"
+          options={[
+            ...(role === 'admin' ? [{ label: 'Admin', value: 'ROLE_ADMIN' }] : []),
+            { label: 'Manager', value: 'ROLE_MANAGER' },
+            { label: 'Employee', value: 'ROLE_EMPLOYEE' },
+          ]}
+          value={filters.role}
+          onChange={(value) => {
+            setFilters({ ...filters, role: value as string })
+            setPagination({ ...pagination, current: 1 })
+          }}
+        />
+        
+        <FilterSelect
+          placeholder="Status"
+          options={[
+            { label: 'Active', value: 'active' },
+            { label: 'Inactive', value: 'inactive' },
+          ]}
+          value={filters.status}
+          onChange={(value) => {
+            setFilters({ ...filters, status: value as string })
+            setPagination({ ...pagination, current: 1 })
+          }}
+        />
+        
+        {role === 'admin' && (
+          <FilterSelect
+            placeholder="Department"
+            options={
+              Array.isArray(departmentsData)
+                ? departmentsData.map((dept: any) => ({
+                    label: dept.departmentName,
+                    value: dept.id.toString(),
+                  }))
+                : []
+            }
+            value={filters.department}
+            onChange={(value) => {
+              setFilters({ ...filters, department: value as string })
+              setPagination({ ...pagination, current: 1 })
+            }}
+          />
+        )}
+        
+        <FilterDateRange
+          value={dateRange as any}
+          onChange={(dates) => {
+            setDateRange(dates as [dayjs.Dayjs, dayjs.Dayjs] | null)
+            setPagination({ ...pagination, current: 1 })
+          }}
+          placeholder={['Start Date', 'End Date']}
+        />
+        
+        <div className="ml-auto flex gap-2">
+          <EnhancedButton
+            variant="ghost"
+            icon={<ReloadOutlined />}
+            onClick={() => refetch()}
+            loading={isLoading}
+          >
+            Refresh
+          </EnhancedButton>
+          <EnhancedButton
+            variant="secondary"
+            icon={<ClearOutlined />}
+            onClick={handleResetFilters}
+          >
+            Reset
+          </EnhancedButton>
+        </div>
+      </FilterBar>
 
       {/* Table */}
-      <Card>
-        <Table
-          columns={columns}
-          dataSource={usersData?.data || []}
-          rowKey="id"
-          loading={isLoading}
-          pagination={{
-            current: pagination.current,
-            pageSize: pagination.pageSize,
-            total: usersData?.pagination?.total || 0,
-            showSizeChanger: true,
-            showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} employees`,
-          }}
-          onChange={handleTableChange}
-          scroll={{ x: 1200 }}
-        />
-      </Card>
+      <EmployeeTable
+        data={usersData?.data || []}
+        loading={isLoading}
+        pagination={{
+          current: pagination.current,
+          pageSize: pagination.pageSize,
+          total: usersData?.pagination?.total || 0,
+        }}
+        onTableChange={handleTableChange}
+        onView={(employee) => router.push(`/${locale}${basePath}/${employee.id}`)}
+        onEdit={(employee) => router.push(`/${locale}${basePath}/${employee.id}/edit`)}
+        onDelete={handleDeleteEmployee}
+        role={role}
+      />
     </div>
   )
 }

@@ -73,6 +73,7 @@ router.get('/salary-management/monthly', salaryManagementController.getAllMonthl
 router.get('/salary-management/employee/:employeeId', salaryManagementController.getEmployeeSalaryDetails);
 router.post('/salary-management/bonus', salaryManagementController.addBonus);
 router.post('/salary-management/deduction', salaryManagementController.addDeduction);
+router.post('/salary-management/overtime', salaryManagementController.addOvertime);
 router.put('/salary-management/:salaryId/approve', salaryManagementController.approveSalary);
 router.put('/salary-management/:salaryId/paid', salaryManagementController.markAsPaid);
 router.get('/salary-management/components', salaryManagementController.getAllComponents);
@@ -153,6 +154,12 @@ router.post('/attendance/checkin', advancedAttendanceController.markEmployeeChec
 router.post('/attendance/checkout', advancedAttendanceController.markEmployeeCheckOut);
 router.post('/attendance/mark-absent', advancedAttendanceController.markEmployeeAbsent);
 router.post('/attendance/bulk-mark', advancedAttendanceController.bulkMarkAttendance);
+
+// New Comprehensive Attendance Features
+router.post('/attendance/add-latency', adminAttendanceController.addLatency);
+router.post('/attendance/add-early-departure', adminAttendanceController.addEarlyDeparture);
+router.post('/attendance/add-partial-leave', adminAttendanceController.addPartialLeave);
+router.get('/attendance/check-leave', adminAttendanceController.checkEmployeeLeave);
 
 // Comprehensive Attendance Reports
 router.post('/attendance/reports/daily', attendanceReportsController.generateDailyReport);

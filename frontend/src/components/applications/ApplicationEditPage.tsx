@@ -19,6 +19,8 @@ import {
   SaveOutlined,
   ArrowLeftOutlined,
   HomeOutlined,
+  EditOutlined,
+  FileTextOutlined,
 } from '@ant-design/icons'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/lib/api'
@@ -115,7 +117,7 @@ export function ApplicationEditPage({ role }: ApplicationEditPageProps) {
         items={[
           {
             title: (
-              <span className="flex items-center cursor-pointer" onClick={() => router.push(dashboardPath)}>
+              <span className="flex items-center cursor-pointer hover:text-blue-600 transition-colors" onClick={() => router.push(dashboardPath)}>
                 <HomeOutlined className="mr-1" />
                 Dashboard
               </span>
@@ -123,14 +125,14 @@ export function ApplicationEditPage({ role }: ApplicationEditPageProps) {
           },
           {
             title: (
-              <span className="cursor-pointer" onClick={() => router.push(listPath)}>
+              <span className="cursor-pointer hover:text-blue-600 transition-colors" onClick={() => router.push(listPath)}>
                 Applications
               </span>
             ),
           },
           {
             title: (
-              <span className="cursor-pointer" onClick={() => router.push(viewPath)}>
+              <span className="cursor-pointer hover:text-blue-600 transition-colors" onClick={() => router.push(viewPath)}>
                 View Details
               </span>
             ),
@@ -142,49 +144,64 @@ export function ApplicationEditPage({ role }: ApplicationEditPageProps) {
       />
 
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-            Edit Application
-          </h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Update application information
-          </p>
+      <Card className="shadow-lg border-t-4 border-t-purple-500">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
+              <EditOutlined className="text-white text-2xl" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 m-0">
+                Edit Application
+              </h1>
+              <p className="text-gray-500 dark:text-gray-400 m-0">
+                Update application information
+              </p>
+            </div>
+          </div>
+          <Button 
+            icon={<ArrowLeftOutlined />} 
+            onClick={() => router.push(viewPath)}
+            size="large"
+          >
+            Back to View
+          </Button>
         </div>
-        <Button icon={<ArrowLeftOutlined />} onClick={() => router.push(viewPath)}>
-          Back to View
-        </Button>
-      </div>
+      </Card>
 
       {/* Form */}
-      <Card>
+      <Card className="shadow-md">
         <Form
           form={form}
           layout="vertical"
           onFinish={handleSubmit}
           autoComplete="off"
         >
-          <Row gutter={16}>
+          <Row gutter={[16, 16]}>
             <Col xs={24} md={12}>
               <Form.Item
                 name="title"
-                label="Title"
+                label={<span className="font-semibold">Title</span>}
                 rules={[
                   { required: true, message: 'Please enter application title' },
                   { max: 200, message: 'Title cannot exceed 200 characters' },
                 ]}
               >
-                <Input placeholder="e.g., Annual Leave Request" />
+                <Input 
+                  placeholder="e.g., Annual Leave Request" 
+                  size="large"
+                  prefix={<FileTextOutlined className="text-gray-400" />}
+                />
               </Form.Item>
             </Col>
 
             <Col xs={24} md={12}>
               <Form.Item
                 name="applicationType"
-                label="Application Type"
+                label={<span className="font-semibold">Application Type</span>}
                 rules={[{ required: true, message: 'Please select application type' }]}
               >
-                <Select placeholder="Select type">
+                <Select placeholder="Select type" size="large">
                   <Select.Option value="leave">Leave</Select.Option>
                   <Select.Option value="overtime">Overtime</Select.Option>
                   <Select.Option value="remote">Remote Work</Select.Option>
@@ -194,14 +211,14 @@ export function ApplicationEditPage({ role }: ApplicationEditPageProps) {
             </Col>
           </Row>
 
-          <Row gutter={16}>
+          <Row gutter={[16, 16]}>
             <Col xs={24} md={12}>
               <Form.Item
                 name="priority"
-                label="Priority"
+                label={<span className="font-semibold">Priority</span>}
                 rules={[{ required: true, message: 'Please select priority' }]}
               >
-                <Select placeholder="Select priority">
+                <Select placeholder="Select priority" size="large">
                   <Select.Option value="low">Low</Select.Option>
                   <Select.Option value="medium">Medium</Select.Option>
                   <Select.Option value="high">High</Select.Option>
@@ -214,13 +231,14 @@ export function ApplicationEditPage({ role }: ApplicationEditPageProps) {
               <Col xs={24} md={12}>
                 <Form.Item
                   name="departmentId"
-                  label="User's Department"
+                  label={<span className="font-semibold">User's Department</span>}
                   tooltip="Department is automatically determined from the user who created this application"
                 >
                   <Select
                     placeholder="Select department"
                     loading={isLoadingDepartments}
                     disabled
+                    size="large"
                   >
                     {(Array.isArray(departments) ? departments : (departments as any)?.data || [])?.map((dept: any) => (
                       <Select.Option key={dept.id} value={dept.id}>
@@ -233,16 +251,17 @@ export function ApplicationEditPage({ role }: ApplicationEditPageProps) {
             )}
           </Row>
 
-          <Row gutter={16}>
+          <Row gutter={[16, 16]}>
             <Col xs={24} md={12}>
               <Form.Item
                 name="startDate"
-                label="Start Date"
+                label={<span className="font-semibold">Start Date</span>}
                 rules={[{ required: true, message: 'Please select start date' }]}
               >
                 <DatePicker
                   style={{ width: '100%' }}
                   format="YYYY-MM-DD"
+                  size="large"
                 />
               </Form.Item>
             </Col>
@@ -250,7 +269,7 @@ export function ApplicationEditPage({ role }: ApplicationEditPageProps) {
             <Col xs={24} md={12}>
               <Form.Item
                 name="endDate"
-                label="End Date"
+                label={<span className="font-semibold">End Date</span>}
                 rules={[
                   { required: true, message: 'Please select end date' },
                   ({ getFieldValue }) => ({
@@ -266,6 +285,7 @@ export function ApplicationEditPage({ role }: ApplicationEditPageProps) {
                 <DatePicker
                   style={{ width: '100%' }}
                   format="YYYY-MM-DD"
+                  size="large"
                 />
               </Form.Item>
             </Col>
@@ -273,32 +293,40 @@ export function ApplicationEditPage({ role }: ApplicationEditPageProps) {
 
           <Form.Item
             name="reason"
-            label="Reason"
+            label={<span className="font-semibold">Reason</span>}
             rules={[
               { required: true, message: 'Please enter a reason' },
               { max: 500, message: 'Reason cannot exceed 500 characters' },
             ]}
           >
             <TextArea
-              rows={4}
+              rows={5}
               placeholder="Please provide details about your application..."
               showCount
               maxLength={500}
+              size="large"
             />
           </Form.Item>
 
-          <Form.Item>
-            <Space>
+          <Form.Item className="mb-0 pt-4 border-t">
+            <div className="flex justify-end gap-3">
+              <Button 
+                onClick={() => router.push(viewPath)}
+                size="large"
+              >
+                Cancel
+              </Button>
               <Button
                 type="primary"
                 htmlType="submit"
                 icon={<SaveOutlined />}
                 loading={updateApplicationMutation.isPending}
+                size="large"
+                className="bg-gradient-to-r from-purple-500 to-indigo-600 border-none hover:from-purple-600 hover:to-indigo-700"
               >
                 Update Application
               </Button>
-              <Button onClick={() => router.push(viewPath)}>Cancel</Button>
-            </Space>
+            </div>
           </Form.Item>
         </Form>
       </Card>

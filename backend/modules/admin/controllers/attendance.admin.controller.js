@@ -369,6 +369,228 @@ export const generateMonthlySummaries = async (req, res) => {
   }
 };
 
+// Add latency to employee attendance
+export const addLatency = async (req, res) => {
+  try {
+    const { employeeId, attendanceId, date, lateMinutes, reason } = req.body;
+
+    if (!employeeId || !date || !lateMinutes) {
+      return res.status(400).json({ message: 'Employee ID, date, and late minutes are required' });
+    }
+
+    // Find or create attendance record for the date
+    let attendance;
+    if (attendanceId) {
+      [attendance] = await db.select().from(attendanceRecords).where(eq(attendanceRecords.id, attendanceId)).limit(1);
+    } else {
+      [attendance] = await db.select().from(attendanceRecords)
+        .where(and(
+          eq(attendanceRecords.userId, employeeId),
+          sql`DATE(${attendanceRecords.date}) = DATE(${date})`
+        ))
+        .limit(1);
+    }
+
+    if (!attendance) {
+      // Create new attendance record if doesn't exist
+      [attendance] = await db.insert(attendanceRecords)
+        .values({
+          userId: employeeId,
+          date: new Date(date),
+          status: 'late',
+          isLate: true,
+          lateMinutes: parseInt(lateMinutes),
+          notes: reason || 'Late arrival added manually',
+          isManualEntry: true
+        })
+        .returning();
+    } else {
+      // Update existing record
+      [attendance] = await db.update(attendanceRecords)
+        .set({
+          isLate: true,
+          lateMinutes: sql`${attendanceRecords.lateMinutes} + ${parseInt(lateMinutes)}`,
+          status: 'late',
+          notes: reason ? sql`COALESCE(${attendanceRecords.notes}, '') || '\n' || ${reason}` : attendanceRecords.notes,
+          updatedAt: new Date()
+        })
+        .where(eq(attendanceRecords.id, attendance.id))
+        .returning();
+    }
+
+    res.json({
+      message: 'Latency added successfully',
+      attendance
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      message: error.message || 'Error occurred while adding latency'
+    });
+  }
+};
+
+// Add early departure to employee attendance
+export const addEarlyDeparture = async (req, res) => {
+  try {
+    const { employeeId, attendanceId, date, earlyMinutes, reason } = req.body;
+
+    if (!employeeId || !date || !earlyMinutes) {
+      return res.status(400).json({ message: 'Employee ID, date, and early minutes are required' });
+    }
+
+    // Find or create attendance record
+    let attendance;
+    if (attendanceId) {
+      [attendance] = await db.select().from(attendanceRecords).where(eq(attendanceRecords.id, attendanceId)).limit(1);
+    } else {
+      [attendance] = await db.select().from(attendanceRecords)
+        .where(and(
+          eq(attendanceRecords.userId, employeeId),
+          sql`DATE(${attendanceRecords.date}) = DATE(${date})`
+        ))
+        .limit(1);
+    }
+
+    if (!attendance) {
+      // Create new attendance record
+      [attendance] = await db.insert(attendanceRecords)
+        .values({
+          userId: employeeId,
+          date: new Date(date),
+          status: 'present',
+          isEarlyDeparture: true,
+          earlyDepartureMinutes: parseInt(earlyMinutes),
+          notes: reason || 'Early departure added manually',
+          isManualEntry: true
+        })
+        .returning();
+    } else {
+      // Update existing record
+      [attendance] = await db.update(attendanceRecords)
+        .set({
+          isEarlyDeparture: true,
+          earlyDepartureMinutes: sql`${attendanceRecords.earlyDepartureMinutes} + ${parseInt(earlyMinutes)}`,
+          notes: reason ? sql`COALESCE(${attendanceRecords.notes}, '') || '\n' || ${reason}` : attendanceRecords.notes,
+          updatedAt: new Date()
+        })
+        .where(eq(attendanceRecords.id, attendance.id))
+        .returning();
+    }
+
+    res.json({
+      message: 'Early departure added successfully',
+      attendance
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      message: error.message || 'Error occurred while adding early departure'
+    });
+  }
+};
+
+// Add partial day leave (e.g., 12 PM - 1 PM)
+export const addPartialLeave = async (req, res) => {
+  try {
+    const { employeeId, attendanceId, date, startTime, endTime, reason } = req.body;
+
+    if (!employeeId || !date || !startTime || !endTime || !reason) {
+      return res.status(400).json({ message: 'All fields are required' });
+    }
+
+    // Calculate leave duration in minutes
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+    const leaveMinutes = Math.floor((end - start) / (1000 * 60));
+
+    // Find or create attendance record
+    let attendance;
+    if (attendanceId) {
+      [attendance] = await db.select().from(attendanceRecords).where(eq(attendanceRecords.id, attendanceId)).limit(1);
+    } else {
+      [attendance] = await db.select().from(attendanceRecords)
+        .where(and(
+          eq(attendanceRecords.userId, employeeId),
+          sql`DATE(${attendanceRecords.date}) = DATE(${date})`
+        ))
+        .limit(1);
+    }
+
+    const leaveNote = `Partial leave: ${start.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })} - ${end.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })} (${leaveMinutes} min). Reason: ${reason}`;
+
+    if (!attendance) {
+      // Create new attendance record
+      [attendance] = await db.insert(attendanceRecords)
+        .values({
+          userId: employeeId,
+          date: new Date(date),
+          status: 'present',
+          breakDuration: leaveMinutes,
+          notes: leaveNote,
+          isManualEntry: true
+        })
+        .returning();
+    } else {
+      // Update existing record
+      [attendance] = await db.update(attendanceRecords)
+        .set({
+          breakDuration: sql`${attendanceRecords.breakDuration} + ${leaveMinutes}`,
+          notes: sql`COALESCE(${attendanceRecords.notes}, '') || '\n' || ${leaveNote}`,
+          updatedAt: new Date()
+        })
+        .where(eq(attendanceRecords.id, attendance.id))
+        .returning();
+    }
+
+    res.json({
+      message: 'Partial leave added successfully',
+      attendance,
+      leaveMinutes
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      message: error.message || 'Error occurred while adding partial leave'
+    });
+  }
+};
+
+// Check if employee has approved leave for a date
+export const checkEmployeeLeave = async (req, res) => {
+  try {
+    const { employeeId, date } = req.query;
+
+    if (!employeeId || !date) {
+      return res.status(400).json({ message: 'Employee ID and date are required' });
+    }
+
+    // Import applications from schema
+    const { applications } = await import('../../../db/schema.js');
+
+    // Check if there's an approved leave application for this date
+    const targetDate = new Date(date);
+    const approvedLeaves = await db.select()
+      .from(applications)
+      .where(and(
+        eq(applications.userId, parseInt(employeeId)),
+        eq(applications.status, 'approved'),
+        lte(applications.startDate, targetDate),
+        gte(applications.endDate, targetDate)
+      ));
+
+    res.json({
+      hasLeave: approvedLeaves.length > 0,
+      leaveApplications: approvedLeaves
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      message: error.message || 'Error occurred while checking employee leave'
+    });
+  }
+};
+
 export default {
   getAllAttendance,
   getAllAttendanceSummaries,
@@ -376,5 +598,9 @@ export default {
   createManualAttendance,
   updateAttendance,
   deleteAttendance,
-  generateMonthlySummaries
+  generateMonthlySummaries,
+  addLatency,
+  addEarlyDeparture,
+  addPartialLeave,
+  checkEmployeeLeave
 };

@@ -13,6 +13,7 @@ import {
   message,
   Modal,
   Typography,
+  Avatar,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import {
@@ -26,7 +27,9 @@ import {
   NotificationOutlined,
   CheckCircleOutlined,
   PoweroffOutlined,
+  UserOutlined,
 } from '@ant-design/icons'
+import { AvatarWithInitials } from '@/components/ui'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/lib/api'
 import { useRouter } from 'next/navigation'
@@ -175,7 +178,12 @@ export function AnnouncementListPage({ role }: AnnouncementListPageProps) {
       title: t('announcements.createdBy'),
       dataIndex: ['creator', 'fullName'],
       key: 'creator',
-      render: (text: string) => text || t('announcements.unknown'),
+      render: (text: string, record: any) => (
+        <div className="flex items-center space-x-3">
+          <AvatarWithInitials name={text || t('announcements.unknown')} size="md" />
+          <span className="font-medium">{text || t('announcements.unknown')}</span>
+        </div>
+      ),
     },
     {
       title: t('announcements.actions'),

@@ -19,9 +19,32 @@
     "viewAll": "View All",
     "menu": "Menu",
     "notifications": "Notifications",
+    "refresh": "Refresh",
     "buttons": {
       "login": "Login"
     }
+  },
+  "notifications": {
+    "title": "Notifications",
+    "subtitle": "Stay updated with all your important alerts",
+    "markAllRead": "Mark All as Read",
+    "markRead": "Mark as Read",
+    "markedAsRead": "Marked as read",
+    "allMarkedAsRead": "All notifications marked as read",
+    "deleted": "Notification deleted",
+    "noNotifications": "No notifications yet",
+    "viewAll": "View All Notifications",
+    "new": "New",
+    "unread": "Unread",
+    "read": "Read",
+    "all": "All",
+    "search": "Search notifications...",
+    "salary": "Salary",
+    "application": "Applications",
+    "expense": "Expenses",
+    "attendance": "Attendance",
+    "announcement": "Announcements",
+    "total": "notifications"
   },
   "navigation": {
     "home": "Home",
@@ -45,6 +68,10 @@
     "holidays": "Holidays",
     "allHolidays": "All Holidays",
     "addHoliday": "Add Holiday",
+    "salaryManagement": "Salary Management",
+    "salaryList": "Salary List",
+    "calculateSalary": "Calculate Salary",
+    "salaryAdjustments": "Salary Adjustments",
     "departments": "Departments",
     "allRecords": "All Records",
     "corrections": "Corrections",

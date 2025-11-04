@@ -813,6 +813,13 @@ class ApiClient {
     return response.data
   }
 
+  async getEmployeeAttendanceStats(employeeId: number, month: number, year: number) {
+    const response = await this.client.get(`/api/admin/attendance/employee/${employeeId}/details`, {
+      params: { month, year }
+    })
+    return response.data
+  }
+
   async markEmployeeCheckIn(data: {
     employeeId: number;
     checkInTime: string;
@@ -873,6 +880,51 @@ class ApiClient {
     window.open(`${this.client.defaults.baseURL}${url}`, '_blank')
   }
 
+  // Add latency to attendance
+  async addLatency(data: {
+    employeeId: number;
+    attendanceId?: number;
+    date: string;
+    lateMinutes: number;
+    reason?: string;
+  }) {
+    const response = await this.client.post('/api/admin/attendance/add-latency', data)
+    return response.data
+  }
+
+  // Add early departure
+  async addEarlyDeparture(data: {
+    employeeId: number;
+    attendanceId?: number;
+    date: string;
+    earlyMinutes: number;
+    reason?: string;
+  }) {
+    const response = await this.client.post('/api/admin/attendance/add-early-departure', data)
+    return response.data
+  }
+
+  // Add partial day leave
+  async addPartialLeave(data: {
+    employeeId: number;
+    attendanceId?: number;
+    date: string;
+    startTime: string;
+    endTime: string;
+    reason: string;
+  }) {
+    const response = await this.client.post('/api/admin/attendance/add-partial-leave', data)
+    return response.data
+  }
+
+  // Check if employee has approved leave for a date
+  async checkEmployeeLeave(employeeId: number, date: string) {
+    const response = await this.client.get('/api/admin/attendance/check-leave', {
+      params: { employeeId, date }
+    })
+    return response.data
+  }
+
   // ==================== SALARY MANAGEMENT ====================
   
   // Get monthly salaries
@@ -918,6 +970,12 @@ class ApiClient {
   // Add deduction
   async addDeduction(data: { employeeId: number; amount: number; reason: string; month: number; year: number }) {
     const response = await this.client.post('/api/admin/salary-management/deduction', data)
+    return response.data
+  }
+
+  // Add overtime
+  async addOvertime(data: { employeeId: number; amount: number; reason: string; month: number; year: number }) {
+    const response = await this.client.post('/api/admin/salary-management/overtime', data)
     return response.data
   }
 

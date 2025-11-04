@@ -8,6 +8,10 @@ import {
     announcementRecipients, 
     notifications 
 } from '../../../db/schema.js';
+import {
+    notifyNewAnnouncement,
+    notifyAnnouncementUpdated
+} from '../../../services/notification.enhanced.service.js';
 
 // Admin: Get all announcements across all departments
 export const getAllAnnouncements = async (req, res) => {
@@ -210,20 +214,17 @@ export const createAnnouncement = async (req, res) => {
             await db.insert(announcementRecipients)
                 .values(recipientRecords);
 
-            // Create notifications for recipients
-            const notificationRecords = finalRecipientIds.map(recipientId => ({
-                userId: recipientId,
-                title: 'New Announcement',
-                message: `New announcement: ${title}`,
-                type: 'announcement',
-                relatedId: newAnnouncement.id,
-                isRead: false,
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString()
-            }));
-
-            await db.insert(notifications)
-                .values(notificationRecords);
+            // Send notifications using the enhanced service
+            try {
+                await notifyNewAnnouncement(
+                    finalRecipientIds,
+                    newAnnouncement.id,
+                    title
+                );
+            } catch (notifError) {
+                console.error('Error sending notifications:', notifError);
+                // Don't fail announcement creation if notifications fail
+            }
         }
 
         res.json({

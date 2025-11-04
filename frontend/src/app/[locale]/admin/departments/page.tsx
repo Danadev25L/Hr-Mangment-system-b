@@ -34,8 +34,17 @@ import { formatDate, formatCurrency } from '@/lib/utils'
 import type { ColumnsType } from 'antd/es/table'
 import type { Department } from '@/types'
 import { useTranslations } from 'next-intl'
+import {
+  EnhancedTable,
+  SearchInput,
+  StatCard,
+  PageHeader,
+  EnhancedModal,
+  EnhancedButton,
+} from '@/components/ui'
+import { DepartmentsIllustration } from '@/components/ui/illustrations'
 
-const { Search } = Input
+const { Search} = Input
 
 export default function DepartmentsPage() {
   const t = useTranslations()
@@ -233,93 +242,67 @@ export default function DepartmentsPage() {
     <ProtectedRoute requiredRole="ROLE_ADMIN">
       <DashboardLayout role="ROLE_ADMIN">
         <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">{t('departments.title')}</h1>
-              <p className="text-gray-500">{t('departments.subtitle')}</p>
-            </div>
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={handleCreateDepartment}
-            >
-              {t('departments.addDepartment')}
-            </Button>
-          </div>
+          <PageHeader
+            title={t('departments.title')}
+            description={t('departments.subtitle')}
+            icon={<DepartmentsIllustration className="w-20 h-20" />}
+            gradient="blue"
+            action={
+              <EnhancedButton
+                variant="primary"
+                icon={<PlusOutlined />}
+                onClick={handleCreateDepartment}
+              >
+                {t('departments.addDepartment')}
+              </EnhancedButton>
+            }
+          />
 
           {/* Statistics Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">{t('departments.totalDepartments')}</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {departmentStats?.totalDepartments || 0}
-                  </p>
-                </div>
-                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                  <BankOutlined className="text-blue-600 text-xl" />
-                </div>
-              </div>
-            </Card>
-            <Card>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">{t('departments.activeDepartments')}</p>
-                  <p className="text-2xl font-bold text-green-600">
-                    {departmentStats?.activeDepartments || 0}
-                  </p>
-                </div>
-                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                  <TeamOutlined className="text-green-600 text-xl" />
-                </div>
-              </div>
-            </Card>
-            <Card>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">{t('departments.totalEmployees')}</p>
-                  <p className="text-2xl font-bold text-purple-600">
-                    {departmentStats?.totalEmployees || 0}
-                  </p>
-                </div>
-                <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
-                  <UserOutlined className="text-purple-600 text-xl" />
-                </div>
-              </div>
-            </Card>
+            <StatCard
+              title={t('departments.totalDepartments')}
+              value={departmentStats?.totalDepartments || 0}
+              icon={<BankOutlined />}
+              color="blue"
+            />
+            <StatCard
+              title={t('departments.activeDepartments')}
+              value={departmentStats?.activeDepartments || 0}
+              icon={<TeamOutlined />}
+              color="green"
+            />
+            <StatCard
+              title={t('departments.totalEmployees')}
+              value={departmentStats?.totalEmployees || 0}
+              icon={<UserOutlined />}
+              color="purple"
+            />
           </div>
 
           {/* Search */}
-          <Card>
-            <Search
-              placeholder={t('departments.searchPlaceholder')}
-              allowClear
-              enterButton={<SearchOutlined />}
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-              style={{ maxWidth: 400 }}
-            />
-          </Card>
+          <SearchInput
+            placeholder={t('departments.searchPlaceholder')}
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+          />
 
           {/* Departments Table */}
-          <Card>
-            <Table
-              columns={columns}
-              dataSource={filteredDepartments}
-              rowKey="id"
-              loading={isLoading}
-              pagination={{
-                showSizeChanger: true,
-                showQuickJumper: true,
-                showTotal: (total, range) =>
-                  t('departments.showingResults', { from: range[0], to: range[1], total }),
-              }}
-            />
-          </Card>
+          <EnhancedTable
+            columns={columns}
+            dataSource={filteredDepartments}
+            rowKey="id"
+            loading={isLoading}
+            pagination={{
+              showSizeChanger: true,
+              showQuickJumper: true,
+              showTotal: (total, range) =>
+                t('departments.showingResults', { from: range[0], to: range[1], total }),
+            }}
+          />
 
           {/* Create/Edit Department Modal */}
-          <Modal
+          <EnhancedModal
             title={editingDepartment ? t('departments.editDepartment') : t('departments.createDepartment')}
             open={isModalVisible}
             onCancel={() => {
@@ -340,7 +323,7 @@ export default function DepartmentsPage() {
                 label={t('departments.departmentName')}
                 rules={[{ required: true, message: t('departments.departmentNameRequired') }]}
               >
-                <Input placeholder={t('departments.enterDepartmentName')} />
+                <Input placeholder={t('departments.enterDepartmentName')} className="rounded-lg" />
               </Form.Item>
 
               <Form.Item
@@ -352,21 +335,24 @@ export default function DepartmentsPage() {
               </Form.Item>
 
               <Form.Item className="mb-0">
-                <div className="flex justify-end space-x-2">
-                  <Button onClick={() => setIsModalVisible(false)}>
+                <div className="flex justify-end gap-3">
+                  <EnhancedButton
+                    variant="secondary"
+                    onClick={() => setIsModalVisible(false)}
+                  >
                     {t('departments.cancel')}
-                  </Button>
-                  <Button
-                    type="primary"
+                  </EnhancedButton>
+                  <EnhancedButton
+                    variant="primary"
                     htmlType="submit"
                     loading={createDepartmentMutation.isPending || updateDepartmentMutation.isPending}
                   >
                     {editingDepartment ? t('departments.update') : t('departments.create')}
-                  </Button>
+                  </EnhancedButton>
                 </div>
               </Form.Item>
             </Form>
-          </Modal>
+          </EnhancedModal>
         </div>
       </DashboardLayout>
     </ProtectedRoute>

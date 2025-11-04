@@ -1,8 +1,13 @@
 import helmet from 'helmet';
+
 import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
+
 import slowDown from 'express-slow-down';
+
 import validator from 'express-validator';
+
 import mongoSanitize from 'express-mongo-sanitize';
+
 import hpp from 'hpp';
 
 /**
@@ -36,7 +41,9 @@ export const securityHeaders = helmet({
 // 2. Rate Limiting for Login Attempts (Brute Force Protection)
 export const loginRateLimit = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
-  max: parseInt(process.env.RATE_LIMIT_MAX) || 5, // 5 attempts per window
+  max: process.env.NODE_ENV === 'production' 
+    ? parseInt(process.env.RATE_LIMIT_MAX) || 5 // 5 attempts in production
+    : parseInt(process.env.RATE_LIMIT_MAX) || 100, // 100 attempts in development
   message: {
     error: 'Too many login attempts. Please try again later.',
     retryAfter: Math.ceil((parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 900000) / 60000) + ' minutes'
@@ -50,7 +57,7 @@ export const loginRateLimit = rateLimit({
 // 3. General API Rate Limiting
 export const apiRateLimit = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // 100 requests per window per IP
+  max: process.env.NODE_ENV === 'production' ? 100 : 1000, // 1000 in dev, 100 in production
   message: {
     error: 'Too many requests from this IP. Please try again later.',
     retryAfter: '15 minutes'

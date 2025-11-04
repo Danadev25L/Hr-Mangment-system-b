@@ -50,11 +50,12 @@ export const getAllEmployeesWithAttendance = async (req, res) => {
       email: users.email,
       phone: users.phone,
       jobTitle: users.jobTitle,
-      department: users.department,
+      department: departments.departmentName,
       departmentId: users.departmentId,
       role: users.role
     })
     .from(users)
+    .leftJoin(departments, eq(users.departmentId, departments.id))
     .where(and(...userFilters))
     .orderBy(users.fullName);
 
@@ -71,13 +72,65 @@ export const getAllEmployeesWithAttendance = async (req, res) => {
 
     // Get attendance for each user on the target date
     const userIds = filteredUsers.map(u => u.id);
-    const attendanceData = await db.select()
+    let attendanceData = await db.select()
       .from(attendanceRecords)
       .where(and(
         inArray(attendanceRecords.userId, userIds),
         gte(attendanceRecords.date, targetDate),
         lte(attendanceRecords.date, new Date(targetDate.getTime() + 24 * 60 * 60 * 1000))
       ));
+
+    // Auto-mark as present for past dates (if date is before today and no record exists)
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    const isPastDate = targetDate < now;
+
+    if (isPastDate && userIds.length > 0) {
+      // Find users without attendance records
+      const usersWithoutAttendance = filteredUsers.filter(user => 
+        !attendanceData.find(a => a.userId === user.id)
+      );
+
+      // Create default attendance records for users without records
+      if (usersWithoutAttendance.length > 0) {
+        const defaultCheckInTime = new Date(targetDate);
+        defaultCheckInTime.setHours(8, 0, 0, 0); // Default 8:00 AM check-in
+        
+        const defaultCheckOutTime = new Date(targetDate);
+        defaultCheckOutTime.setHours(17, 0, 0, 0); // Default 5:00 PM check-out
+
+        const workingMinutes = 9 * 60; // 9 hours = 540 minutes
+
+        const newRecords = [];
+        for (const user of usersWithoutAttendance) {
+          const [newRecord] = await db.insert(attendanceRecords)
+            .values({
+              userId: user.id,
+              date: targetDate,
+              checkIn: defaultCheckInTime,
+              checkOut: defaultCheckOutTime,
+              workingHours: workingMinutes,
+              status: 'present',
+              isLate: false,
+              lateMinutes: 0,
+              isEarlyDeparture: false,
+              earlyDepartureMinutes: 0,
+              overtimeMinutes: 0,
+              breakDuration: 0,
+              location: 'Auto-marked',
+              notes: 'Automatically marked as present for past date',
+              createdAt: new Date(),
+              updatedAt: new Date()
+            })
+            .returning();
+          
+          newRecords.push(newRecord);
+        }
+
+        // Add newly created records to attendanceData
+        attendanceData = [...attendanceData, ...newRecords];
+      }
+    }
 
     // Get current shifts for users - Simplified to avoid SQL errors
     let shiftsData = [];
@@ -214,7 +267,44 @@ export const getEmployeeAttendanceDetails = async (req, res) => {
           eq(attendanceSummary.month, parseInt(month)),
           eq(attendanceSummary.year, parseInt(year))
         ));
-      summary = monthlySummary || null;
+      
+      // If no summary exists in the table, calculate it from attendance records
+      if (monthlySummary) {
+        summary = monthlySummary;
+      } else if (records.length > 0) {
+        // Calculate summary from attendance records
+        const absentDays = records.filter(r => r.status === 'absent').length;
+        const lateDays = records.filter(r => r.lateMinutes && r.lateMinutes > 0).length;
+        const leaveDays = records.filter(r => r.status === 'on-leave' || r.status === 'permission').length;
+        const presentDays = records.filter(r => r.status === 'present').length;
+        
+        // Calculate total working hours (convert from hours to minutes if needed)
+        const totalWorkingHours = records.reduce((sum, r) => {
+          if (r.hoursWorked) {
+            // If hoursWorked is a number, add it directly
+            return sum + (typeof r.hoursWorked === 'number' ? r.hoursWorked : parseFloat(r.hoursWorked) || 0);
+          }
+          return sum;
+        }, 0);
+        
+        const totalWorkingDays = records.length;
+        const attendancePercentage = totalWorkingDays > 0 
+          ? ((presentDays / totalWorkingDays) * 100).toFixed(2) 
+          : 0;
+        
+        summary = {
+          userId: parseInt(employeeId),
+          month: parseInt(month),
+          year: parseInt(year),
+          totalWorkingDays,
+          presentDays,
+          absentDays,
+          lateDays,
+          leaveDays,
+          totalWorkingHours: Math.round(totalWorkingHours * 60), // Convert to minutes
+          attendancePercentage: parseFloat(attendancePercentage)
+        };
+      }
     }
 
     res.json({
@@ -244,7 +334,7 @@ export const getEmployeeAttendanceDetails = async (req, res) => {
 // Mark attendance for employee (check-in)
 export const markEmployeeCheckIn = async (req, res) => {
   try {
-    const { employeeId, checkInTime, location, latitude, longitude, notes } = req.body;
+    const { employeeId, checkInTime, expectedCheckInTime, location, latitude, longitude, notes } = req.body;
 
     if (!employeeId) {
       return res.status(400).json({ message: "Employee ID is required" });
@@ -271,38 +361,51 @@ export const markEmployeeCheckIn = async (req, res) => {
       });
     }
 
-    // Get employee's shift
-    const todayStr = today.toISOString().split('T')[0];
-    const [shiftAssignment] = await db.select({
-      shiftId: employeeShifts.shiftId,
-      startTime: workShifts.startTime,
-      endTime: workShifts.endTime,
-      gracePeriodMinutes: workShifts.gracePeriodMinutes
-    })
-    .from(employeeShifts)
-    .leftJoin(workShifts, eq(employeeShifts.shiftId, workShifts.id))
-    .where(and(
-      eq(employeeShifts.userId, userId),
-      eq(employeeShifts.isActive, true),
-      lte(employeeShifts.effectiveFrom, todayStr)
-    ))
-    .limit(1);
-
-    // Calculate if late
+    // Calculate if late - PRIORITY: use expectedCheckInTime from frontend, fallback to shift time
     let isLate = false;
     let lateMinutes = 0;
+    let expectedTime = null;
     
-    if (shiftAssignment && shiftAssignment.startTime) {
-      const [hours, minutes] = shiftAssignment.startTime.split(':');
-      const shiftStart = new Date(checkIn);
-      shiftStart.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+    // First, try to use the expected check-in time from the frontend (default check-in time)
+    if (expectedCheckInTime) {
+      expectedTime = new Date(expectedCheckInTime);
+      const diffMs = checkIn - expectedTime;
+      const diffMinutes = Math.floor(diffMs / 60000);
       
-      const gracePeriod = shiftAssignment.gracePeriodMinutes || 15;
-      const graceTime = new Date(shiftStart.getTime() + gracePeriod * 60000);
-      
-      if (checkIn > graceTime) {
+      if (diffMinutes > 0) { // Late if check-in is after expected time
         isLate = true;
-        lateMinutes = Math.floor((checkIn - shiftStart) / 60000);
+        lateMinutes = diffMinutes;
+      }
+    } else {
+      // Fallback: Get employee's shift
+      const todayStr = today.toISOString().split('T')[0];
+      const [shiftAssignment] = await db.select({
+        shiftId: employeeShifts.shiftId,
+        startTime: workShifts.startTime,
+        endTime: workShifts.endTime,
+        gracePeriodMinutes: workShifts.gracePeriodMinutes
+      })
+      .from(employeeShifts)
+      .leftJoin(workShifts, eq(employeeShifts.shiftId, workShifts.id))
+      .where(and(
+        eq(employeeShifts.userId, userId),
+        eq(employeeShifts.isActive, true),
+        lte(employeeShifts.effectiveFrom, todayStr)
+      ))
+      .limit(1);
+      
+      if (shiftAssignment && shiftAssignment.startTime) {
+        const [hours, minutes] = shiftAssignment.startTime.split(':');
+        const shiftStart = new Date(checkIn);
+        shiftStart.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+        
+        const gracePeriod = shiftAssignment.gracePeriodMinutes || 15;
+        const graceTime = new Date(shiftStart.getTime() + gracePeriod * 60000);
+        
+        if (checkIn > graceTime) {
+          isLate = true;
+          lateMinutes = Math.floor((checkIn - shiftStart) / 60000);
+        }
       }
     }
 
@@ -437,7 +540,7 @@ export const markEmployeeCheckIn = async (req, res) => {
 // Mark checkout for employee
 export const markEmployeeCheckOut = async (req, res) => {
   try {
-    const { employeeId, checkOutTime, location, latitude, longitude, notes } = req.body;
+    const { employeeId, checkOutTime, expectedCheckOutTime, location, latitude, longitude, notes } = req.body;
 
     if (!employeeId) {
       return res.status(400).json({ message: "Employee ID is required" });
@@ -469,56 +572,70 @@ export const markEmployeeCheckOut = async (req, res) => {
       });
     }
 
-    // Get employee's shift for overtime calculation - Simplified to avoid SQL errors
-    const todayStr = today.toISOString().split('T')[0];
-    let shiftAssignment = null;
-    try {
-      const [assignment] = await db.select({
-        endTime: workShifts.endTime,
-        earlyDepartureThreshold: workShifts.earlyDepartureThreshold,
-        minimumWorkHours: workShifts.minimumWorkHours
-      })
-      .from(employeeShifts)
-      .leftJoin(workShifts, eq(employeeShifts.shiftId, workShifts.id))
-      .where(and(
-        eq(employeeShifts.userId, userId),
-        eq(employeeShifts.isActive, true),
-        lte(employeeShifts.effectiveFrom, todayStr)
-      ))
-      .limit(1);
-      
-      shiftAssignment = assignment;
-    } catch (shiftError) {
-      console.log('Could not fetch shift data for check-out:', shiftError.message);
-      shiftAssignment = null;
-    }
-
     // Calculate working hours
     const checkInTime = new Date(record.checkIn);
     const workingMinutes = Math.floor((checkOut - checkInTime) / 60000);
     
-    // Calculate early departure
+    // Calculate early departure and overtime - PRIORITY: use expectedCheckOutTime from frontend
     let isEarlyDeparture = false;
     let earlyDepartureMinutes = 0;
     let overtimeMinutes = 0;
     
-    if (shiftAssignment && shiftAssignment.endTime) {
-      const [hours, minutes] = shiftAssignment.endTime.split(':');
-      const shiftEnd = new Date(checkOut);
-      shiftEnd.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+    if (expectedCheckOutTime) {
+      // Use the expected check-out time from frontend (default check-out time)
+      const expectedTime = new Date(expectedCheckOutTime);
+      const diffMs = expectedTime - checkOut;
+      const diffMinutes = Math.floor(diffMs / 60000);
       
-      const threshold = shiftAssignment.earlyDepartureThreshold || 15;
-      const earlyThreshold = new Date(shiftEnd.getTime() - threshold * 60000);
-      
-      if (checkOut < earlyThreshold) {
+      if (diffMinutes > 0) { // Early if check-out is before expected time
         isEarlyDeparture = true;
-        earlyDepartureMinutes = Math.floor((shiftEnd - checkOut) / 60000);
-      } else if (checkOut > shiftEnd) {
-        const overtimeThreshold = shiftAssignment.overtimeStartAfterMinutes || 30;
-        const minutesAfterShift = Math.floor((checkOut - shiftEnd) / 60000);
+        earlyDepartureMinutes = diffMinutes;
+      } else if (diffMinutes < 0) { // Overtime if check-out is after expected time
+        overtimeMinutes = Math.abs(diffMinutes);
+      }
+    } else {
+      // Fallback: Get employee's shift for overtime calculation
+      const todayStr = today.toISOString().split('T')[0];
+      let shiftAssignment = null;
+      try {
+        const [assignment] = await db.select({
+          endTime: workShifts.endTime,
+          earlyDepartureThreshold: workShifts.earlyDepartureThreshold,
+          minimumWorkHours: workShifts.minimumWorkHours
+        })
+        .from(employeeShifts)
+        .leftJoin(workShifts, eq(employeeShifts.shiftId, workShifts.id))
+        .where(and(
+          eq(employeeShifts.userId, userId),
+          eq(employeeShifts.isActive, true),
+          lte(employeeShifts.effectiveFrom, todayStr)
+        ))
+        .limit(1);
         
-        if (minutesAfterShift > overtimeThreshold) {
-          overtimeMinutes = minutesAfterShift;
+        shiftAssignment = assignment;
+      } catch (shiftError) {
+        console.log('Could not fetch shift data for check-out:', shiftError.message);
+        shiftAssignment = null;
+      }
+      
+      if (shiftAssignment && shiftAssignment.endTime) {
+        const [hours, minutes] = shiftAssignment.endTime.split(':');
+        const shiftEnd = new Date(checkOut);
+        shiftEnd.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+        
+        const threshold = shiftAssignment.earlyDepartureThreshold || 15;
+        const earlyThreshold = new Date(shiftEnd.getTime() - threshold * 60000);
+        
+        if (checkOut < earlyThreshold) {
+          isEarlyDeparture = true;
+          earlyDepartureMinutes = Math.floor((shiftEnd - checkOut) / 60000);
+        } else if (checkOut > shiftEnd) {
+          const overtimeThreshold = shiftAssignment.overtimeStartAfterMinutes || 30;
+          const minutesAfterShift = Math.floor((checkOut - shiftEnd) / 60000);
+          
+          if (minutesAfterShift > overtimeThreshold) {
+            overtimeMinutes = minutesAfterShift;
+          }
         }
       }
     }
@@ -527,9 +644,6 @@ export const markEmployeeCheckOut = async (req, res) => {
     let status = 'present';
     if (record.isLate) status = 'late';
     if (isEarlyDeparture) status = 'early_departure';
-    if (shiftAssignment && workingMinutes < (shiftAssignment.minimumWorkHours || 480) / 2) {
-      status = 'half_day';
-    }
 
     const updateData = {
       checkOut,

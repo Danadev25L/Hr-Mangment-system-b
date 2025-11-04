@@ -472,17 +472,6 @@ export const approveApplication = async (req, res) => {
       approvedAt: new Date()
     };
     
-    // Create a holiday record for approved application
-    await db.insert(daysHoliday).values({
-      userId: application.userId,
-      reason: application.reason,
-      startDate: application.startDate,
-      endDate: application.endDate,
-      status: 'approved',
-      approvedBy: adminId,
-      approvedAt: new Date()
-    });
-    
     // Update the application
     const result = await db.update(applications)
       .set(updateData)

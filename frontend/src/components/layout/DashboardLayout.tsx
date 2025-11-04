@@ -39,6 +39,7 @@ import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import LocaleSwitcher from '@/components/LocaleSwitcher'
+import { NotificationDropdown } from '@/components/notifications/NotificationDropdown'
 import { createLocalizedPath, getCurrentLocale } from '@/lib/localized-routes'
 
 const { Header, Sider, Content } = Layout
@@ -200,6 +201,25 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, role
             icon: <PlusOutlined />,
             label: t('navigation.addHoliday'),
             href: createLocalizedPath(locale, '/admin/holidays/add'),
+          },
+        ],
+      },
+      {
+        key: 'salary',
+        icon: <DollarOutlined />,
+        label: t('navigation.salaryManagement'),
+        children: [
+          {
+            key: 'salary-list',
+            icon: <FileTextOutlined />,
+            label: t('navigation.salaryList'),
+            href: createLocalizedPath(locale, '/admin/salary'),
+          },
+          {
+            key: 'salary-adjustments',
+            icon: <PlusOutlined />,
+            label: t('navigation.salaryAdjustments'),
+            href: createLocalizedPath(locale, '/admin/salary/adjustments'),
           },
         ],
       },
@@ -474,7 +494,34 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, role
     },
   ]
 
-  const selectedKeys = [pathname.split('/').pop() || 'dashboard']
+  // Find selected menu key based on current pathname
+  const getSelectedKeys = (): string[] => {
+    const findMatchingKey = (items: MenuItem[]): string | null => {
+      for (const item of items) {
+        if (!item || !('key' in item)) continue
+        
+        // Check if this item has a direct href match
+        if ('href' in item && item.href && pathname === item.href) {
+          return String(item.key)
+        }
+        
+        // Check children
+        if ('children' in item && item.children) {
+          for (const child of item.children) {
+            if (child && 'href' in child && child.href && pathname === child.href) {
+              return String(child.key)
+            }
+          }
+        }
+      }
+      return null
+    }
+    
+    const matchedKey = findMatchingKey(currentMenuItems)
+    return matchedKey ? [matchedKey] : ['dashboard']
+  }
+
+  const selectedKeys = getSelectedKeys()
 
   const sidebarContent = (
     <div className="h-full flex flex-col bg-white dark:bg-gray-900">
@@ -736,15 +783,8 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, role
           </div>
 
           <div className="flex items-center space-x-2">
-            {/* Notification Badge */}
-            <Badge count={5} size="small">
-              <Button
-                type="text"
-                icon={<BellOutlined />}
-                className="flex items-center justify-center w-9 h-9 rounded !text-gray-600 dark:!text-gray-400 hover:!text-gray-900 dark:hover:!text-white hover:bg-gray-100 dark:hover:bg-gray-800"
-                onClick={() => router.push(`/${validRoleKey}/notifications`)}
-              />
-            </Badge>
+            {/* Notification Dropdown */}
+            <NotificationDropdown locale={locale} role={validRoleKey as 'admin' | 'manager' | 'employee'} />
 
             <LocaleSwitcher />
 

@@ -1,51 +1,50 @@
 'use client'
 
-import { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
-  Table,
-  Button,
-  Space,
-  Input,
+  Modal,
+  message,
   Select,
   DatePicker,
-  message,
-  Modal,
-  Tag,
-  Card,
   Dropdown,
-  Menu,
-  Row,
-  Col,
-  Statistic,
 } from 'antd'
 import {
   PlusOutlined,
-  SearchOutlined,
-  FilterOutlined,
   ExportOutlined,
   PrinterOutlined,
   FileExcelOutlined,
   FilePdfOutlined,
-  EyeOutlined,
-  EditOutlined,
-  DeleteOutlined,
-  DollarOutlined,
-  CheckCircleOutlined,
-  CloseCircleOutlined,
-  ClockCircleOutlined,
-  MoreOutlined,
   ReloadOutlined,
+  ClearOutlined,
+  DollarOutlined,
 } from '@ant-design/icons'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import dayjs from 'dayjs'
 import * as XLSX from 'xlsx'
 import jsPDF from 'jspdf'
 import 'jspdf-autotable'
 import apiClient from '@/lib/api'
 import { useTranslations } from 'next-intl'
+import { useLocale } from 'next-intl'
+import {
+  EnhancedTable,
+  SearchInput,
+  StatCard,
+  PageHeader,
+  FilterBar,
+  FilterSelect,
+  FilterDateRange,
+  EnhancedButton,
+  EnhancedModal,
+} from '@/components/ui'
+import { ExpensesIllustration } from '@/components/ui/illustrations'
+import { ExpenseStats } from './ExpenseStats'
+import { ExpenseTable } from './ExpenseTable'
+import type { MenuProps } from 'antd'
 
 const { RangePicker } = DatePicker
+const { Option } = Select
 
 interface ExpenseListPageProps {
   role: 'admin' | 'manager'
@@ -53,7 +52,7 @@ interface ExpenseListPageProps {
   description?: string
 }
 
-interface Expense {
+export interface Expense {
   id: number
   userId: number
   userName: string
@@ -69,7 +68,10 @@ interface Expense {
 export default function ExpenseListPage({ role, title, description }: ExpenseListPageProps) {
   const t = useTranslations()
   const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
   const queryClient = useQueryClient()
+  const locale = useLocale()
 
   // Set default title and description if not provided
   const pageTitle = title || (role === 'admin' ? t('expenses.allExpenses') : t('expenses.teamExpenses'))
@@ -77,15 +79,20 @@ export default function ExpenseListPage({ role, title, description }: ExpenseLis
     ? t('expenses.subtitle') 
     : t('expenses.subtitleManager'))
   
-  const [searchText, setSearchText] = useState('')
+  // Initialize from URL params
+  const [searchText, setSearchText] = useState(searchParams.get('search') || '')
   const [filters, setFilters] = useState({
-    status: 'all',
-    department: 'all',
+    status: searchParams.get('status') || undefined,
+    department: role === 'admin' ? searchParams.get('department') || undefined : undefined,
   })
-  const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs] | null>(null)
+  const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs] | null>(
+    searchParams.get('startDate') && searchParams.get('endDate')
+      ? [dayjs(searchParams.get('startDate')), dayjs(searchParams.get('endDate'))]
+      : null
+  )
   const [pagination, setPagination] = useState({
-    current: 1,
-    pageSize: 10,
+    current: parseInt(searchParams.get('page') || '1'),
+    pageSize: parseInt(searchParams.get('limit') || '10'),
   })
 
   // Fetch departments for admin
@@ -95,14 +102,36 @@ export default function ExpenseListPage({ role, title, description }: ExpenseLis
     enabled: role === 'admin',
   })
 
+  // Update URL when filters change
+  useEffect(() => {
+    const params = new URLSearchParams()
+    if (searchText) params.set('search', searchText)
+    if (filters.status) params.set('status', filters.status)
+    if (filters.department) params.set('department', filters.department)
+    if (dateRange?.[0]) params.set('startDate', dateRange[0].toISOString())
+    if (dateRange?.[1]) params.set('endDate', dateRange[1].toISOString())
+    params.set('page', pagination.current.toString())
+    params.set('limit', pagination.pageSize.toString())
+    
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false })
+  }, [searchText, filters, dateRange, pagination, pathname, router])
+
   // Fetch expenses
   const { data: expensesData, isLoading, refetch } = useQuery({
-    queryKey: ['expenses', role, pagination.current, pagination.pageSize, searchText, filters, dateRange],
+    queryKey: [
+      'expenses',
+      role,
+      pagination.current,
+      pagination.pageSize,
+      searchText,
+      filters,
+      dateRange
+    ],
     queryFn: () =>
       apiClient.getExpenses(pagination.current, pagination.pageSize, {
         search: searchText,
-        status: filters.status !== 'all' ? filters.status : undefined,
-        department: filters.department !== 'all' ? filters.department : undefined,
+        status: filters.status,
+        department: filters.department,
         startDate: dateRange?.[0]?.toISOString(),
         endDate: dateRange?.[1]?.toISOString(),
       }),
@@ -127,6 +156,8 @@ export default function ExpenseListPage({ role, title, description }: ExpenseLis
         message.success(t('expenses.approveSuccess'))
       } else if (status === 'rejected') {
         message.success(t('expenses.rejectSuccess'))
+      } else if (status === 'paid') {
+        message.success('Expense marked as paid successfully')
       }
       queryClient.invalidateQueries({ queryKey: ['expenses'] })
     },
@@ -135,24 +166,11 @@ export default function ExpenseListPage({ role, title, description }: ExpenseLis
         message.error(error.response?.data?.message || t('expenses.approveError'))
       } else if (status === 'rejected') {
         message.error(error.response?.data?.message || t('expenses.rejectError'))
+      } else {
+        message.error(error.response?.data?.message || 'Failed to update expense')
       }
     },
   })
-
-  const handleSearch = (value: string) => {
-    setSearchText(value)
-    setPagination({ ...pagination, current: 1 })
-  }
-
-  const handleFilterChange = (key: string, value: string) => {
-    setFilters({ ...filters, [key]: value })
-    setPagination({ ...pagination, current: 1 })
-  }
-
-  const handleDateRangeChange = (dates: any) => {
-    setDateRange(dates)
-    setPagination({ ...pagination, current: 1 })
-  }
 
   const handleDeleteExpense = (expense: Expense) => {
     Modal.confirm({
@@ -160,7 +178,7 @@ export default function ExpenseListPage({ role, title, description }: ExpenseLis
       content: t('expenses.deleteConfirm'),
       okText: t('common.delete'),
       okType: 'danger',
-      cancelText: 'No',
+      cancelText: t('common.cancel'),
       onOk: () => deleteExpenseMutation.mutate(expense.id),
     })
   }
@@ -198,7 +216,8 @@ export default function ExpenseListPage({ role, title, description }: ExpenseLis
     })
   }
 
-  const exportToExcel = () => {
+  // Export handlers
+  const handleExportExcel = () => {
     const data = expensesData?.data || []
     const worksheet = XLSX.utils.json_to_sheet(
       data.map((expense: Expense) => ({
@@ -217,7 +236,7 @@ export default function ExpenseListPage({ role, title, description }: ExpenseLis
     message.success('Expenses exported to Excel successfully')
   }
 
-  const exportToPDF = () => {
+  const handleExportPDF = () => {
     const doc = new jsPDF()
     const data = expensesData?.data || []
 
@@ -250,157 +269,51 @@ export default function ExpenseListPage({ role, title, description }: ExpenseLis
     message.success('Print dialog opened')
   }
 
-  const getStatusTag = (status: string) => {
-    const statusConfig = {
-      pending: { color: 'warning', icon: <ClockCircleOutlined />, text: t('expenses.pending') },
-      approved: { color: 'success', icon: <CheckCircleOutlined />, text: t('expenses.approved') },
-      rejected: { color: 'error', icon: <CloseCircleOutlined />, text: t('expenses.rejected') },
-      paid: { color: 'processing', icon: <DollarOutlined />, text: t('expenses.approved') },
-    }
-    const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.pending
-    return (
-      <Tag color={config.color} icon={config.icon}>
-        {config.text.toUpperCase()}
-      </Tag>
-    )
-  }
-
-  const columns = [
-    {
-      title: t('expenses.submittedBy'),
-      dataIndex: 'userName',
-      key: 'userName',
-      width: 150,
-    },
-    ...(role === 'admin'
-      ? [
-          {
-            title: t('expenses.department'),
-            dataIndex: 'departmentName',
-            key: 'departmentName',
-            width: 150,
-            render: (text: string) => text || t('expenses.department'),
-          },
-        ]
-      : []),
-    {
-      title: t('expenses.expenseTitle'),
-      dataIndex: 'reason',
-      key: 'reason',
-      ellipsis: true,
-    },
-    {
-      title: t('expenses.amount'),
-      dataIndex: 'amount',
-      key: 'amount',
-      width: 120,
-      render: (amount: number) => (
-        <span className="font-semibold text-green-600">${amount.toFixed(2)}</span>
-      ),
-    },
-    {
-      title: t('expenses.status'),
-      dataIndex: 'status',
-      key: 'status',
-      width: 120,
-      render: (status: string) => getStatusTag(status),
-    },
-    {
-      title: t('expenses.date'),
-      dataIndex: 'date',
-      key: 'date',
-      width: 120,
-      render: (date: string) => dayjs(date).format('MMM DD, YYYY'),
-    },
-    {
-      title: t('expenses.actions'),
-      key: 'actions',
-      width: 100,
-      render: (_: any, record: Expense) => {
-        const menuItems = [
-          {
-            key: 'view',
-            icon: <EyeOutlined />,
-            label: t('expenses.viewDetails'),
-            onClick: () => router.push(`${basePath}/${record.id}`),
-          },
-          {
-            key: 'edit',
-            icon: <EditOutlined />,
-            label: t('common.edit'),
-            onClick: () => router.push(`${basePath}/${record.id}/edit`),
-          },
-          ...(role === 'admin' && record.status === 'pending'
-            ? [
-                { type: 'divider' as const },
-                {
-                  key: 'approve',
-                  icon: <CheckCircleOutlined />,
-                  label: t('expenses.approve'),
-                  onClick: () => handleApprove(record),
-                },
-                {
-                  key: 'reject',
-                  icon: <CloseCircleOutlined />,
-                  label: 'Reject',
-                  onClick: () => handleReject(record),
-                },
-              ]
-            : []),
-          ...(role === 'admin' && record.status === 'approved'
-            ? [
-                { type: 'divider' as const },
-                {
-                  key: 'paid',
-                  icon: <DollarOutlined />,
-                  label: 'Mark as Paid',
-                  onClick: () => handleMarkPaid(record),
-                },
-              ]
-            : []),
-          { type: 'divider' as const },
-          {
-            key: 'delete',
-            danger: true,
-            icon: <DeleteOutlined />,
-            label: 'Delete',
-            onClick: () => handleDeleteExpense(record),
-          },
-        ]
-
-        return (
-          <Dropdown menu={{ items: menuItems }} trigger={['click']}>
-            <Button type="text" icon={<MoreOutlined />} />
-          </Dropdown>
-        )
-      },
-    },
-  ]
-
-  const exportMenuItems = [
+  const exportMenuItems: MenuProps['items'] = [
     {
       key: 'excel',
       icon: <FileExcelOutlined />,
       label: 'Export to Excel',
-      onClick: exportToExcel,
+      onClick: handleExportExcel,
     },
     {
       key: 'pdf',
       icon: <FilePdfOutlined />,
       label: 'Export to PDF',
-      onClick: exportToPDF,
+      onClick: handleExportPDF,
+    },
+    {
+      type: 'divider',
     },
     {
       key: 'print',
       icon: <PrinterOutlined />,
-      label: 'Print',
+      label: 'Print List',
       onClick: handlePrint,
     },
   ]
 
+  const handleResetFilters = () => {
+    setSearchText('')
+    setFilters({
+      status: undefined,
+      department: undefined,
+    })
+    setDateRange(null)
+    setPagination({ current: 1, pageSize: 10 })
+    message.success('Filters reset successfully')
+  }
+
+  const handleTableChange = (newPagination: any) => {
+    setPagination({
+      current: newPagination.current || 1,
+      pageSize: newPagination.pageSize || 10,
+    })
+  }
+
   // Calculate statistics
   const expenses = expensesData?.data || []
-  const totalExpenses = expenses.length
+  const totalExpenses = expensesData?.pagination?.total || 0
   const pendingCount = expenses.filter((e: Expense) => e.status === 'pending').length
   const approvedCount = expenses.filter((e: Expense) => e.status === 'approved').length
   const totalAmount = expenses.reduce((sum: number, e: Expense) => sum + Number(e.amount), 0)
@@ -410,143 +323,133 @@ export default function ExpenseListPage({ role, title, description }: ExpenseLis
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{pageTitle}</h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{pageDescription}</p>
-        </div>
-        <div className="flex items-center space-x-2">
-          <Button icon={<ReloadOutlined />} onClick={() => refetch()}>
-            Refresh
-          </Button>
-          <Dropdown menu={{ items: exportMenuItems }} trigger={['click']}>
-            <Button icon={<ExportOutlined />}>Export</Button>
-          </Dropdown>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => router.push(`${basePath}/add`)}
-          >
-            Add Expense
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title={pageTitle}
+        description={pageDescription}
+        icon={<ExpensesIllustration className="w-20 h-20" />}
+        gradient="green"
+        action={
+          <div className="flex items-center gap-3">
+            <Dropdown menu={{ items: exportMenuItems }} placement="bottomRight">
+              <EnhancedButton
+                variant="secondary"
+                icon={<ExportOutlined />}
+              >
+                Export
+              </EnhancedButton>
+            </Dropdown>
+            <EnhancedButton
+              variant="primary"
+              icon={<PlusOutlined />}
+              onClick={() => router.push(`/${locale}${basePath}/add`)}
+            >
+              Add Expense
+            </EnhancedButton>
+          </div>
+        }
+      />
 
       {/* Stats */}
-      <Row gutter={16}>
-        <Col xs={12} sm={8} md={6}>
-          <Card>
-            <Statistic
-              title="Total Expenses"
-              value={totalExpenses}
-              prefix={<DollarOutlined />}
-              valueStyle={{ color: '#1890ff' }}
-            />
-          </Card>
-        </Col>
-        <Col xs={12} sm={8} md={6}>
-          <Card>
-            <Statistic
-              title="Pending"
-              value={pendingCount}
-              prefix={<ClockCircleOutlined />}
-              valueStyle={{ color: '#faad14' }}
-            />
-          </Card>
-        </Col>
-        <Col xs={12} sm={8} md={6}>
-          <Card>
-            <Statistic
-              title="Approved"
-              value={approvedCount}
-              prefix={<CheckCircleOutlined />}
-              valueStyle={{ color: '#52c41a' }}
-            />
-          </Card>
-        </Col>
-        <Col xs={12} sm={8} md={6}>
-          <Card>
-            <Statistic
-              title="Total Amount"
-              value={totalAmount}
-              prefix="$"
-              precision={2}
-              valueStyle={{ color: '#3f8600' }}
-            />
-          </Card>
-        </Col>
-      </Row>
+      <ExpenseStats
+        totalExpenses={totalExpenses}
+        pendingCount={pendingCount}
+        approvedCount={approvedCount}
+        totalAmount={totalAmount}
+      />
 
-      {/* Filters and Table Card */}
-      <Card>
-        {/* Filters */}
-        <div className="mb-4 flex flex-wrap gap-3">
-          <Input
-            placeholder="Search by reason or name..."
-            prefix={<SearchOutlined />}
-            value={searchText}
-            onChange={(e) => handleSearch(e.target.value)}
-            className="w-64"
-            allowClear
-          />
+      {/* Search */}
+      <SearchInput
+        placeholder="Search by reason, name, or amount..."
+        value={searchText}
+        onChange={(e) => {
+          setSearchText(e.target.value)
+          setPagination({ ...pagination, current: 1 })
+        }}
+      />
 
-          <Select
-            value={filters.status}
-            onChange={(value) => handleFilterChange('status', value)}
-            className="w-40"
-            suffixIcon={<FilterOutlined />}
-          >
-            <Select.Option value="all">All Status</Select.Option>
-            <Select.Option value="pending">Pending</Select.Option>
-            <Select.Option value="approved">Approved</Select.Option>
-            <Select.Option value="rejected">Rejected</Select.Option>
-            <Select.Option value="paid">Paid</Select.Option>
-          </Select>
-
-          {role === 'admin' && (
-            <Select
-              value={filters.department}
-              onChange={(value) => handleFilterChange('department', value)}
-              className="w-48"
-              suffixIcon={<FilterOutlined />}
-            >
-              <Select.Option value="all">All Departments</Select.Option>
-              <Select.Option value="0">Company-wide</Select.Option>
-              {departmentsData?.map((dept: any) => (
-                <Select.Option key={dept.id} value={dept.id}>
-                  {dept.departmentName}
-                </Select.Option>
-              ))}
-            </Select>
-          )}
-
-          <RangePicker
-            value={dateRange}
-            onChange={handleDateRangeChange}
-            format="YYYY-MM-DD"
-            placeholder={['Start Date', 'End Date']}
-          />
-        </div>
-
-        {/* Table */}
-        <Table
-          columns={columns}
-          dataSource={expensesData?.data || []}
-          rowKey="id"
-          loading={isLoading}
-          pagination={{
-            current: pagination.current,
-            pageSize: pagination.pageSize,
-            total: expensesData?.pagination?.total || 0,
-            showSizeChanger: true,
-            showTotal: (total) => `Total ${total} expenses`,
-            onChange: (page, pageSize) => {
-              setPagination({ current: page, pageSize: pageSize || 10 })
-            },
+      {/* Filters */}
+      <FilterBar>
+        <FilterSelect
+          placeholder="Status"
+          options={[
+            { label: 'Pending', value: 'pending' },
+            { label: 'Approved', value: 'approved' },
+            { label: 'Rejected', value: 'rejected' },
+            { label: 'Paid', value: 'paid' },
+          ]}
+          value={filters.status}
+          onChange={(value) => {
+            setFilters({ ...filters, status: value as string })
+            setPagination({ ...pagination, current: 1 })
           }}
-          scroll={{ x: 1000 }}
         />
-      </Card>
+
+        {role === 'admin' && (
+          <FilterSelect
+            placeholder="Department"
+            options={[
+              { label: 'Company-wide', value: '0' },
+              ...(Array.isArray(departmentsData)
+                ? departmentsData.map((dept: any) => ({
+                    label: dept.departmentName,
+                    value: dept.id.toString(),
+                  }))
+                : []),
+            ]}
+            value={filters.department}
+            onChange={(value) => {
+              setFilters({ ...filters, department: value as string })
+              setPagination({ ...pagination, current: 1 })
+            }}
+          />
+        )}
+
+        <FilterDateRange
+          value={dateRange as any}
+          onChange={(dates) => {
+            setDateRange(dates as [dayjs.Dayjs, dayjs.Dayjs] | null)
+            setPagination({ ...pagination, current: 1 })
+          }}
+          placeholder={['Start Date', 'End Date']}
+        />
+
+        <div className="ml-auto flex gap-2">
+          <EnhancedButton
+            variant="ghost"
+            icon={<ReloadOutlined />}
+            onClick={() => refetch()}
+            loading={isLoading}
+          >
+            Refresh
+          </EnhancedButton>
+          <EnhancedButton
+            variant="secondary"
+            icon={<ClearOutlined />}
+            onClick={handleResetFilters}
+          >
+            Reset
+          </EnhancedButton>
+        </div>
+      </FilterBar>
+
+      {/* Table */}
+      <ExpenseTable
+        data={expensesData?.data || []}
+        loading={isLoading}
+        pagination={{
+          current: pagination.current,
+          pageSize: pagination.pageSize,
+          total: expensesData?.pagination?.total || 0,
+        }}
+        onTableChange={handleTableChange}
+        onView={(expense: Expense) => router.push(`/${locale}${basePath}/${expense.id}`)}
+        onEdit={(expense: Expense) => router.push(`/${locale}${basePath}/${expense.id}/edit`)}
+        onDelete={handleDeleteExpense}
+        onApprove={handleApprove}
+        onReject={handleReject}
+        onMarkPaid={handleMarkPaid}
+        role={role}
+      />
     </div>
   )
 }

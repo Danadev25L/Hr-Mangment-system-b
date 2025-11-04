@@ -13,6 +13,8 @@ import {
   Empty,
   Typography,
   Divider,
+  Row,
+  Col,
 } from 'antd'
 import {
   ArrowLeftOutlined,
@@ -23,7 +25,12 @@ import {
   UserOutlined,
   BankOutlined,
   CheckCircleOutlined,
+  NotificationOutlined,
+  FileTextOutlined,
+  InfoCircleOutlined,
+  TeamOutlined,
 } from '@ant-design/icons'
+import { EnhancedCard, EnhancedButton, AvatarWithInitials, StatusBadge } from '@/components/ui'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/lib/api'
 import { useRouter } from 'next/navigation'
@@ -114,16 +121,17 @@ export function AnnouncementViewPage({ role, id }: AnnouncementViewPageProps) {
         items={[
           {
             title: (
-              <span className="flex items-center cursor-pointer" onClick={() => router.push(dashboardPath)}>
-                <HomeOutlined className="mr-1" />
-                Dashboard
+              <span className="flex items-center gap-2 cursor-pointer" onClick={() => router.push(dashboardPath)}>
+                <HomeOutlined />
+                <span>Dashboard</span>
               </span>
             ),
           },
           {
             title: (
-              <span className="cursor-pointer" onClick={() => router.push(listPath)}>
-                Announcements
+              <span className="flex items-center gap-2 cursor-pointer" onClick={() => router.push(listPath)}>
+                <NotificationOutlined />
+                <span>Announcements</span>
               </span>
             ),
           },
@@ -134,133 +142,177 @@ export function AnnouncementViewPage({ role, id }: AnnouncementViewPageProps) {
       />
 
       {/* Page Header */}
-      <Card>
-        <div className="flex justify-between items-start">
-          <div className="flex items-start space-x-3">
-            <Button
-              icon={<ArrowLeftOutlined />}
-              onClick={() => router.push(listPath)}
-            />
-            <div>
-              <div className="flex items-center space-x-3">
-                <Title level={2} className="m-0">
-                  {announcementData.title}
-                </Title>
-                {announcementData.isActive !== undefined && (
-                  <Tag color={announcementData.isActive ? 'green' : 'red'}>
-                    {announcementData.isActive ? 'Active' : 'Inactive'}
-                  </Tag>
-                )}
-                {role === 'employee' && announcementData.isRead && (
-                  <Tag color="green" icon={<CheckCircleOutlined />}>
-                    Read
-                  </Tag>
-                )}
+      <EnhancedCard>
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+          <div className="flex-1">
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-3">
+              {announcementData.title}
+            </h1>
+            <div className="flex flex-wrap items-center gap-3 mb-2">
+              <div className="flex items-center gap-2 text-lg text-gray-700 dark:text-gray-300">
+                <CalendarOutlined className="text-blue-500" />
+                <span className="font-medium">{dayjs(announcementData.date).format('MMMM DD, YYYY')}</span>
               </div>
-              <Text type="secondary">
-                <CalendarOutlined className="mr-2" />
-                {dayjs(announcementData.date).format('MMMM DD, YYYY')}
-              </Text>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {announcementData.isActive !== undefined && (
+                <StatusBadge status={announcementData.isActive ? 'active' : 'inactive'} />
+              )}
+              {role === 'employee' && announcementData.isRead && (
+                <Tag color="green" icon={<CheckCircleOutlined />} className="rounded-lg">
+                  Read
+                </Tag>
+              )}
+              {!announcementData.department && announcementData.departmentId === null && (
+                <Tag color="blue" icon={<TeamOutlined />} className="rounded-lg">
+                  Company-wide
+                </Tag>
+              )}
             </div>
           </div>
-
-          {(role === 'admin' || role === 'manager') && (
-            <Space>
-              <Button
-                type="primary"
-                icon={<EditOutlined />}
-                onClick={() => router.push(`${listPath}/${id}/edit`)}
-              >
-                Edit
-              </Button>
-              <Button
-                danger
-                icon={<DeleteOutlined />}
-                onClick={handleDelete}
-                loading={deleteAnnouncementMutation.isPending}
-              >
-                Delete
-              </Button>
-            </Space>
-          )}
+          <div className="flex gap-2">
+            <EnhancedButton
+              variant="ghost"
+              icon={<ArrowLeftOutlined />}
+              onClick={() => router.push(listPath)}
+            >
+              Back
+            </EnhancedButton>
+            {(role === 'admin' || role === 'manager') && (
+              <>
+                <EnhancedButton
+                  variant="primary"
+                  icon={<EditOutlined />}
+                  onClick={() => router.push(`${listPath}/${id}/edit`)}
+                >
+                  Edit
+                </EnhancedButton>
+                <EnhancedButton
+                  variant="danger"
+                  icon={<DeleteOutlined />}
+                  onClick={handleDelete}
+                  loading={deleteAnnouncementMutation.isPending}
+                >
+                  Delete
+                </EnhancedButton>
+              </>
+            )}
+          </div>
         </div>
-      </Card>
+      </EnhancedCard>
 
       {/* Announcement Details */}
-      <Card title="Announcement Details">
-        <Descriptions column={1} bordered>
-          <Descriptions.Item label="Title">
-            {announcementData.title}
-          </Descriptions.Item>
+      <Row gutter={[24, 24]}>
+        <Col xs={24} lg={16}>
+          <EnhancedCard>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                <FileTextOutlined className="text-white text-lg" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Announcement Content</h3>
+            </div>
+            <div className="space-y-4">
+              <div className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                <NotificationOutlined className="text-blue-500 mt-1" />
+                <div className="flex-1">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Title</p>
+                  <p className="font-medium text-gray-900 dark:text-gray-100">{announcementData.title}</p>
+                </div>
+              </div>
 
-          <Descriptions.Item label="Description">
-            <Paragraph style={{ whiteSpace: 'pre-wrap', marginBottom: 0 }}>
-              {announcementData.description}
-            </Paragraph>
-          </Descriptions.Item>
+              <div className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                <FileTextOutlined className="text-purple-500 mt-1" />
+                <div className="flex-1">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Description</p>
+                  <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{announcementData.description}</p>
+                </div>
+              </div>
 
-          <Descriptions.Item label="Date">
-            {dayjs(announcementData.date).format('MMMM DD, YYYY')}
-          </Descriptions.Item>
+              <div className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                <CalendarOutlined className="text-green-500 mt-1" />
+                <div className="flex-1">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Announcement Date</p>
+                  <p className="font-medium text-gray-900 dark:text-gray-100">{dayjs(announcementData.date).format('MMMM DD, YYYY')}</p>
+                </div>
+              </div>
+            </div>
+          </EnhancedCard>
+        </Col>
 
-          {announcementData.department && (
-            <Descriptions.Item label="Department">
-              <BankOutlined className="mr-2" />
-              {announcementData.department.departmentName || 'N/A'}
-            </Descriptions.Item>
-          )}
+        <Col xs={24} lg={8}>
+          <EnhancedCard>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-teal-600 rounded-lg flex items-center justify-center">
+                <InfoCircleOutlined className="text-white text-lg" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Details</h3>
+            </div>
+            <div className="space-y-4">
+              {announcementData.department && (
+                <div className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                  <BankOutlined className="text-orange-500 mt-1" />
+                  <div className="flex-1">
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Department</p>
+                    <p className="font-medium text-gray-900 dark:text-gray-100">{announcementData.department.departmentName || 'N/A'}</p>
+                  </div>
+                </div>
+              )}
 
-          {!announcementData.department && announcementData.departmentId === null && (
-            <Descriptions.Item label="Scope">
-              <Tag color="blue">Company-wide</Tag>
-            </Descriptions.Item>
-          )}
+              <div className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                <UserOutlined className="text-blue-500 mt-1" />
+                <div className="flex-1">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Created By</p>
+                  <div className="flex items-center gap-2 mt-2">
+                    <AvatarWithInitials name={announcementData.creator?.fullName || 'Unknown'} size="md" />
+                    <span className="font-medium text-gray-900 dark:text-gray-100">{announcementData.creator?.fullName || 'Unknown'}</span>
+                  </div>
+                </div>
+              </div>
 
-          <Descriptions.Item label="Created By">
-            <UserOutlined className="mr-2" />
-            {announcementData.creator?.fullName || 'Unknown'}
-          </Descriptions.Item>
-
-          {announcementData.isActive !== undefined && (
-            <Descriptions.Item label="Status">
-              <Tag color={announcementData.isActive ? 'green' : 'red'}>
-                {announcementData.isActive ? 'Active' : 'Inactive'}
-              </Tag>
-            </Descriptions.Item>
-          )}
-
-          <Descriptions.Item label="Created At">
-            {dayjs(announcementData.createdAt).format('MMMM DD, YYYY HH:mm')}
-          </Descriptions.Item>
-        </Descriptions>
-      </Card>
+              <div className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                <CalendarOutlined className="text-indigo-500 mt-1" />
+                <div className="flex-1">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Created At</p>
+                  <p className="font-medium text-gray-900 dark:text-gray-100">{dayjs(announcementData.createdAt).format('MMMM DD, YYYY HH:mm')}</p>
+                </div>
+              </div>
+            </div>
+          </EnhancedCard>
+        </Col>
+      </Row>
 
       {/* Recipients (admin and manager only) */}
       {(role === 'admin' || role === 'manager') && announcement.recipients && announcement.recipients.length > 0 && (
-        <Card title="Recipients">
-          <div className="space-y-2">
+        <EnhancedCard>
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 bg-gradient-to-br from-pink-500 to-rose-600 rounded-lg flex items-center justify-center">
+              <TeamOutlined className="text-white text-lg" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Recipients ({announcement.recipients.length})</h3>
+          </div>
+          <div className="space-y-3">
             {announcement.recipients.map((recipient: any) => (
-              <div key={recipient.userId} className="flex justify-between items-center p-2 border-b">
-                <div>
-                  <UserOutlined className="mr-2" />
-                  <Text strong>{recipient.user?.fullName || 'Unknown'}</Text>
-                  <Text type="secondary" className="ml-2">
-                    ({recipient.user?.role || 'N/A'})
-                  </Text>
+              <div key={recipient.userId} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <AvatarWithInitials name={recipient.user?.fullName || 'Unknown'} size="md" />
+                  <div>
+                    <p className="font-medium text-gray-900 dark:text-gray-100">{recipient.user?.fullName || 'Unknown'}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">{recipient.user?.role || 'N/A'}</p>
+                  </div>
                 </div>
                 <div>
                   {recipient.isRead ? (
-                    <Tag color="green" icon={<CheckCircleOutlined />}>
-                      Read at {dayjs(recipient.readAt).format('MMM DD, YYYY HH:mm')}
+                    <Tag color="green" icon={<CheckCircleOutlined />} className="rounded-lg">
+                      Read at {dayjs(recipient.readAt).format('MMM DD, HH:mm')}
                     </Tag>
                   ) : (
-                    <Tag color="orange">Unread</Tag>
+                    <Tag color="orange" className="rounded-lg">Unread</Tag>
                   )}
                 </div>
               </div>
             ))}
           </div>
-        </Card>
+        </EnhancedCard>
       )}
     </div>
   )

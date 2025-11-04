@@ -7,6 +7,11 @@ import {
     daysHoliday,
     departments
 } from '../../../db/schema.js';
+import {
+  notifyApplicationApproved,
+  notifyApplicationRejected,
+  notifyApplicationUpdated
+} from '../../../services/notification.enhanced.service.js';
 
 /**
  * Manager Application Controller
@@ -388,13 +393,17 @@ export const approveApplication = async (req, res) => {
       .where(eq(applications.id, applicationId))
       .returning();
     
-    // Create notification for the applicant
-    await db.insert(notifications).values({
-      userId: application.userId,
-      title: '✅ Leave Application Approved',
-      message: `Great news! Your ${application.applicationType || 'leave'} application "${application.title || 'Leave Request'}" from ${application.startDate?.toDateString()} to ${application.endDate?.toDateString()} has been approved by your department manager ${manager.fullName}. You can now take your planned leave.`,
-      type: 'success'
-    });
+    // Notify the applicant using enhanced notification service
+    try {
+      await notifyApplicationApproved(
+        application.userId,
+        applicationId,
+        application.title || 'Leave Request',
+        managerId
+      );
+    } catch (notifError) {
+      console.error('Error sending notification:', notifError);
+    }
     
     res.json({
       message: "Application approved successfully.",
@@ -462,13 +471,18 @@ export const rejectApplication = async (req, res) => {
       .where(eq(applications.id, applicationId))
       .returning();
     
-    // Create notification for the applicant
-    await db.insert(notifications).values({
-      userId: application.userId,
-      title: '❌ Leave Application Rejected',
-      message: `Your ${application.applicationType} application "${application.title || 'Leave Request'}" from ${application.startDate?.toDateString()} to ${application.endDate?.toDateString()} has been rejected by your department manager ${manager.fullName}. Reason: ${rejectionReason}. Please contact your manager if you have questions.`,
-      type: 'error'
-    });
+    // Notify the applicant using enhanced notification service
+    try {
+      await notifyApplicationRejected(
+        application.userId,
+        applicationId,
+        application.title || 'Leave Request',
+        managerId,
+        rejectionReason
+      );
+    } catch (notifError) {
+      console.error('Error sending notification:', notifError);
+    }
     
     res.json({
       message: "Application rejected successfully.",

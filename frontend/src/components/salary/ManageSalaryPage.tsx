@@ -159,16 +159,14 @@ export default function ManageSalaryPage({ role }: ManageSalaryProps) {
     }
   })
 
-  // Add overtime mutation (placeholder - needs backend implementation)
+  // Add overtime mutation
   const overtimeMutation = useMutation({
     mutationFn: async (values: any) => {
-      // Calculate total amount from hours * rate
-      const totalAmount = values.hours * values.rate
-      // Use addBonus endpoint as placeholder for overtime
+      // Use addBonus endpoint for overtime with direct amount
       return apiClient.addBonus({
         employeeId: values.employeeId,
-        amount: totalAmount,
-        reason: `Overtime: ${values.description} (${values.hours}hrs @ $${values.rate}/hr)`,
+        amount: values.amount,
+        reason: `Overtime: ${values.description}`,
         month: selectedMonth,
         year: selectedYear
       })
@@ -613,29 +611,15 @@ export default function ManageSalaryPage({ role }: ManageSalaryProps) {
                     />
                   </Form.Item>
                   <Form.Item
-                    label="Hours"
-                    name="hours"
-                    rules={[{ required: true, message: 'Please enter hours' }]}
-                  >
-                    <InputNumber
-                      style={{ width: '100%' }}
-                      min={0}
-                      step={0.5}
-                      placeholder="Enter overtime hours"
-                      size="large"
-                      suffix="hours"
-                    />
-                  </Form.Item>
-                  <Form.Item
-                    label="Rate per Hour"
-                    name="rate"
-                    rules={[{ required: true, message: 'Please enter rate' }]}
+                    label="Amount"
+                    name="amount"
+                    rules={[{ required: true, message: 'Please enter amount' }]}
                   >
                     <InputNumber
                       prefix="$"
                       style={{ width: '100%' }}
                       min={0}
-                      placeholder="Enter rate per hour"
+                      placeholder="Enter overtime payment amount"
                       size="large"
                     />
                   </Form.Item>

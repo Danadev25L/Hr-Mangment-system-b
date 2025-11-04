@@ -1,6 +1,11 @@
 import { eq, sql, and } from 'drizzle-orm';
 import { db } from '../../../db/index.js';
 import { expenses, departments, users, notifications } from '../../../db/schema.js';
+import {
+  notifyExpenseApproved,
+  notifyExpenseRejected,
+  getAllAdminIds
+} from '../../../services/notification.enhanced.service.js';
 
 /**
  * Manager Expense Controller
@@ -526,17 +531,30 @@ export const updateExpenseStatus = async (req, res) => {
       .returning();
     
     if (result.length > 0) {
-      // Create notification for the expense submitter
+      // Notify the expense submitter using enhanced notification service
       const expenseData = result[0];
       
       try {
-        await db.insert(notifications).values({
-          userId: expenseData.userId,
-          title: `Expense ${status.charAt(0).toUpperCase() + status.slice(1)}`,
-          message: `Your expense request for $${expenseData.amount} (${expenseData.reason}) has been ${status} by your department manager.${adminNote ? ` Manager note: ${adminNote}` : ''}`,
-          type: status === 'approved' ? 'success' : status === 'rejected' ? 'error' : 'info'
-        });
+        if (status === 'approved') {
+          await notifyExpenseApproved(
+            expenseData.userId,
+            expenseId,
+            expenseData.reason || 'Expense',
+            expenseData.amount,
+            managerId
+          );
+        } else if (status === 'rejected') {
+          await notifyExpenseRejected(
+            expenseData.userId,
+            expenseId,
+            expenseData.reason || 'Expense',
+            expenseData.amount,
+            managerId,
+            adminNote || 'No reason provided'
+          );
+        }
       } catch (notifError) {
+        console.error('Error sending notification:', notifError);
         // Don't fail the expense update if notification fails
       }
 

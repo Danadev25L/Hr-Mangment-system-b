@@ -33,6 +33,7 @@ import {
 } from '@ant-design/icons'
 import { DashboardLayout } from '@/components/layout/DashboardLayout'
 import { ProtectedRoute } from '@/components/layout/ProtectedRoute'
+import { AvatarWithInitials } from '@/components/ui'
 import { useQuery } from '@tanstack/react-query'
 import { formatDate } from '@/lib/utils'
 import type { ColumnsType } from 'antd/es/table'
@@ -184,16 +185,10 @@ export default function TeamPage() {
       key: 'member',
       render: (_, record) => (
         <div className="flex items-center space-x-3">
-          <Avatar
-            src={record.avatar}
-            icon={<UserOutlined />}
-            className="bg-primary-100 text-primary-600"
-          >
-            {record.name.split(' ').map(n => n[0]).join('')}
-          </Avatar>
+          <AvatarWithInitials name={record.name} size="lg" />
           <div>
-            <p className="font-medium text-gray-900">{record.name}</p>
-            <p className="text-sm text-gray-500">{record.role}</p>
+            <p className="font-medium text-gray-900 dark:text-gray-100">{record.name}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">{record.role}</p>
           </div>
         </div>
       ),

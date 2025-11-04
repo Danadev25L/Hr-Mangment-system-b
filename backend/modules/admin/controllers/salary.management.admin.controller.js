@@ -400,19 +400,24 @@ export const getAllMonthlySalaries = async (req, res) => {
     const queryMonth = parseInt(month);
     const queryYear = parseInt(year);
     
-    // Get ALL active employees
+    console.log('📊 Getting salaries for:', { queryMonth, queryYear, status });
+    
+    // Get ALL active employees with department names
     let employeeQuery = db.select({
       id: users.id,
       fullName: users.fullName,
       employeeCode: users.employeeCode,
-      department: users.department,
+      department: departments.departmentName,
       departmentId: users.departmentId,
       baseSalary: users.baseSalary
     })
     .from(users)
+    .leftJoin(departments, eq(users.departmentId, departments.id))
     .where(eq(users.active, true));
     
     let employees = await employeeQuery;
+    
+    console.log('👥 Found employees:', employees.length);
     
     // Filter by department for managers
     if (userData.role === 'ROLE_MANAGER' && userData.departmentId) {
@@ -442,12 +447,54 @@ export const getAllMonthlySalaries = async (req, res) => {
       salaryMap[s.employeeId] = s;
     });
     
+    // Get all salary adjustments for the specified month/year
+    let adjustments = [];
+    if (queryMonth && queryYear) {
+      adjustments = await db.select()
+        .from(salaryAdjustments)
+        .where(and(
+          eq(salaryAdjustments.month, queryMonth),
+          eq(salaryAdjustments.year, queryYear)
+        ));
+    }
+    
+    console.log('💰 Found adjustments:', adjustments.length);
+    
+    // Group adjustments by employee and type
+    const adjustmentsByEmployee = {};
+    adjustments.forEach(adj => {
+      if (!adjustmentsByEmployee[adj.employeeId]) {
+        adjustmentsByEmployee[adj.employeeId] = {
+          bonus: [],
+          deduction: [],
+          overtime: [],
+          correction: [],
+          penalty: []
+        };
+      }
+      if (adjustmentsByEmployee[adj.employeeId][adj.adjustmentType]) {
+        adjustmentsByEmployee[adj.employeeId][adj.adjustmentType].push(adj);
+      }
+    });
+    
     // Merge employees with their calculated salaries (or default values)
     const salaries = employees.map(emp => {
       const calculatedSalary = salaryMap[emp.id];
+      const empAdjustments = adjustmentsByEmployee[emp.id] || { bonus: [], deduction: [], overtime: [], correction: [], penalty: [] };
+      
+      // Calculate totals from adjustments
+      const totalBonuses = empAdjustments.bonus.reduce((sum, b) => sum + parseFloat(b.amount || 0), 0);
+      const totalDeductions = empAdjustments.deduction.reduce((sum, d) => sum + parseFloat(d.amount || 0), 0) 
+                            + empAdjustments.penalty.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+      const overtimePay = empAdjustments.overtime.reduce((sum, o) => sum + parseFloat(o.amount || 0), 0);
+      const corrections = empAdjustments.correction.reduce((sum, c) => sum + parseFloat(c.amount || 0), 0);
+      
+      const baseSalary = parseFloat(emp.baseSalary || 0);
+      const grossSalary = baseSalary + totalBonuses + overtimePay + corrections;
+      const netSalary = grossSalary - totalDeductions;
       
       if (calculatedSalary) {
-        // Employee has a calculated salary record
+        // Employee has a calculated salary record - update with real-time adjustment totals
         return {
           id: calculatedSalary.id,
           employeeId: emp.id,
@@ -457,24 +504,23 @@ export const getAllMonthlySalaries = async (req, res) => {
           departmentId: emp.departmentId,
           month: calculatedSalary.month,
           year: calculatedSalary.year,
-          baseSalary: calculatedSalary.baseSalary,
-          totalBonuses: calculatedSalary.totalBonuses,
-          totalAllowances: calculatedSalary.totalAllowances,
-          overtimePay: calculatedSalary.overtimePay,
-          totalDeductions: calculatedSalary.totalDeductions,
-          absenceDeductions: calculatedSalary.absenceDeductions,
-          latencyDeductions: calculatedSalary.latencyDeductions,
-          taxDeduction: calculatedSalary.taxDeduction,
-          grossSalary: calculatedSalary.grossSalary,
-          netSalary: calculatedSalary.netSalary,
+          baseSalary: emp.baseSalary,
+          totalBonuses: totalBonuses.toFixed(2),
+          totalAllowances: '0.00',
+          overtimePay: overtimePay.toFixed(2),
+          totalDeductions: totalDeductions.toFixed(2),
+          absenceDeductions: calculatedSalary.absenceDeductions || '0.00',
+          latencyDeductions: calculatedSalary.latencyDeductions || '0.00',
+          taxDeduction: calculatedSalary.taxDeduction || '0.00',
+          grossSalary: grossSalary.toFixed(2),
+          netSalary: netSalary.toFixed(2),
           status: calculatedSalary.status,
           calculatedAt: calculatedSalary.calculatedAt,
           approvedAt: calculatedSalary.approvedAt,
           paidAt: calculatedSalary.paidAt
         };
       } else {
-        // Employee doesn't have calculated salary - show base salary
-        const baseSalary = parseFloat(emp.baseSalary || 0);
+        // Employee doesn't have calculated salary - calculate from adjustments
         return {
           id: null,
           employeeId: emp.id,
@@ -485,15 +531,15 @@ export const getAllMonthlySalaries = async (req, res) => {
           month: queryMonth,
           year: queryYear,
           baseSalary: baseSalary.toFixed(2),
-          totalBonuses: '0.00',
+          totalBonuses: totalBonuses.toFixed(2),
           totalAllowances: '0.00',
-          overtimePay: '0.00',
-          totalDeductions: '0.00',
+          overtimePay: overtimePay.toFixed(2),
+          totalDeductions: totalDeductions.toFixed(2),
           absenceDeductions: '0.00',
           latencyDeductions: '0.00',
           taxDeduction: '0.00',
-          grossSalary: baseSalary.toFixed(2),
-          netSalary: baseSalary.toFixed(2),
+          grossSalary: grossSalary.toFixed(2),
+          netSalary: netSalary.toFixed(2),
           status: 'draft',
           calculatedAt: null,
           approvedAt: null,
@@ -636,8 +682,7 @@ export const addBonus = async (req, res) => {
         reason,
         month: parseInt(month),
         year: parseInt(year),
-        createdBy: userData.id,
-        isApplied: false
+        createdBy: userData.id
       })
       .returning();
     
@@ -677,8 +722,7 @@ export const addDeduction = async (req, res) => {
         reason,
         month: parseInt(month),
         year: parseInt(year),
-        createdBy: userData.id,
-        isApplied: false
+        createdBy: userData.id
       })
       .returning();
     
@@ -692,6 +736,46 @@ export const addDeduction = async (req, res) => {
     
     res.json({
       message: 'Deduction added successfully',
+      adjustment
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Add overtime to employee
+export const addOvertime = async (req, res) => {
+  try {
+    const { employeeId, amount, reason, month, year } = req.body;
+    
+    if (!employeeId || !amount || !reason || !month || !year) {
+      return res.status(400).json({ message: 'All fields are required' });
+    }
+    
+    const userData = JSON.parse(req.headers.user || '{}');
+    
+    const [adjustment] = await db.insert(salaryAdjustments)
+      .values({
+        employeeId: parseInt(employeeId),
+        adjustmentType: 'overtime',
+        amount: String(amount),
+        reason,
+        month: parseInt(month),
+        year: parseInt(year),
+        createdBy: userData.id
+      })
+      .returning();
+    
+    // Send notification
+    await db.insert(notifications).values({
+      userId: parseInt(employeeId),
+      title: '⏰ Overtime Added',
+      message: `Overtime payment of $${amount} has been added to your salary for ${month}/${year}. ${reason}`,
+      type: 'salary'
+    });
+    
+    res.json({
+      message: 'Overtime added successfully',
       adjustment
     });
   } catch (error) {

@@ -1,0 +1,5 @@
+export { EmployeesIllustration } from './EmployeesIllustration'
+export { DepartmentsIllustration } from './DepartmentsIllustration'
+export { HolidaysIllustration } from './HolidaysIllustration'
+export { ExpensesIllustration } from './ExpensesIllustration'
+export { AttendanceIllustration } from './AttendanceIllustration'

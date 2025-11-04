@@ -2,11 +2,11 @@
 
 import { DashboardLayout } from '@/components/layout/DashboardLayout'
 import { AnnouncementViewPage } from '@/components/announcements/AnnouncementViewPage'
-import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
+import { ProtectedRoute } from '@/components/layout/ProtectedRoute'
 
 export default function EmployeeAnnouncementViewPage({ params }: { params: { id: string } }) {
   return (
-    <ProtectedRoute allowedRoles={['ROLE_EMPLOYEE']}>
+    <ProtectedRoute requiredRole="ROLE_EMPLOYEE">
       <DashboardLayout role="employee">
         <AnnouncementViewPage role="employee" id={params.id} />
       </DashboardLayout>

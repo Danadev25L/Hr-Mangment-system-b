@@ -113,7 +113,7 @@ export function HolidayEditPage({ id }: HolidayEditPageProps) {
         items={[
           {
             title: (
-              <span className="flex items-center cursor-pointer" onClick={() => router.push(dashboardPath)}>
+              <span className="flex items-center cursor-pointer hover:text-green-600 transition-colors" onClick={() => router.push(dashboardPath)}>
                 <HomeOutlined className="mr-1" />
                 Dashboard
               </span>
@@ -121,7 +121,8 @@ export function HolidayEditPage({ id }: HolidayEditPageProps) {
           },
           {
             title: (
-              <span className="cursor-pointer" onClick={() => router.push(listPath)}>
+              <span className="flex items-center cursor-pointer hover:text-green-600 transition-colors" onClick={() => router.push(listPath)}>
+                <CalendarOutlined className="mr-1" />
                 Holidays
               </span>
             ),
@@ -133,18 +134,32 @@ export function HolidayEditPage({ id }: HolidayEditPageProps) {
       />
 
       {/* Page Header */}
-      <Card>
-        <div className="flex items-center space-x-3">
-          <Button
-            icon={<ArrowLeftOutlined />}
-            onClick={() => router.push(listPath)}
-          />
-          <h1 className="text-2xl font-semibold m-0">Edit Holiday</h1>
+      <Card className="shadow-lg">
+        <div className="bg-gradient-to-r from-green-500 to-emerald-600 p-6 -m-6 mb-6 rounded-t-lg">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
+                <CalendarOutlined className="text-white text-2xl" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-white m-0">Edit Holiday</h1>
+                <p className="text-white/80 mt-1 mb-0">Update holiday information and details</p>
+              </div>
+            </div>
+            <Button
+              size="large"
+              icon={<ArrowLeftOutlined />}
+              onClick={() => router.push(listPath)}
+              className="bg-white/20 backdrop-blur-sm border-white/30 text-white hover:bg-white/30"
+            >
+              Back
+            </Button>
+          </div>
         </div>
       </Card>
 
       {/* Form Card */}
-      <Card>
+      <Card className="shadow-md">
         <Form
           form={form}
           layout="vertical"
@@ -212,14 +227,15 @@ export function HolidayEditPage({ id }: HolidayEditPageProps) {
           </Form.Item>
 
           {/* Form Actions */}
-          <Form.Item>
-            <Space>
+          <Form.Item className="mb-0">
+            <Space size="middle">
               <Button
                 type="primary"
                 htmlType="submit"
                 icon={<SaveOutlined />}
                 loading={updateHolidayMutation.isPending}
                 size="large"
+                className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 border-0 shadow-lg"
               >
                 Update Holiday
               </Button>

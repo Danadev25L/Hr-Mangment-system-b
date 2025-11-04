@@ -12,6 +12,8 @@ import {
   Empty,
   Descriptions,
   Typography,
+  Row,
+  Col,
 } from 'antd'
 import {
   ArrowLeftOutlined,
@@ -20,6 +22,11 @@ import {
   DeleteOutlined,
   CalendarOutlined,
   CheckCircleOutlined,
+  GiftOutlined,
+  ClockCircleOutlined,
+  InfoCircleOutlined,
+  SyncOutlined,
+  FileTextOutlined,
 } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/lib/api'
@@ -100,7 +107,7 @@ export function HolidayViewPage({ role, id }: HolidayViewPageProps) {
         items={[
           {
             title: (
-              <span className="flex items-center cursor-pointer" onClick={() => router.push(dashboardPath)}>
+              <span className="flex items-center cursor-pointer hover:text-green-600 transition-colors" onClick={() => router.push(dashboardPath)}>
                 <HomeOutlined className="mr-1" />
                 Dashboard
               </span>
@@ -108,7 +115,8 @@ export function HolidayViewPage({ role, id }: HolidayViewPageProps) {
           },
           {
             title: (
-              <span className="cursor-pointer" onClick={() => router.push(listPath)}>
+              <span className="flex items-center cursor-pointer hover:text-green-600 transition-colors" onClick={() => router.push(listPath)}>
+                <CalendarOutlined className="mr-1" />
                 Holidays
               </span>
             ),
@@ -120,126 +128,196 @@ export function HolidayViewPage({ role, id }: HolidayViewPageProps) {
       />
 
       {/* Page Header */}
-      <Card>
-        <div className="flex justify-between items-start">
-          <div className="flex items-start space-x-3">
-            <Button
-              icon={<ArrowLeftOutlined />}
-              onClick={() => router.push(listPath)}
-            />
-            <div>
-              <div className="flex items-center space-x-3">
-                <Title level={2} className="m-0">
+      <Card className="shadow-lg">
+        <div className="bg-gradient-to-r from-green-500 to-emerald-600 p-8 -m-6 mb-6 rounded-t-lg">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
+                <CalendarOutlined className="text-white text-3xl" />
+              </div>
+              <div>
+                <Title level={2} className="!text-white !mb-2">
                   {holidayData.name || 'Unnamed Holiday'}
                 </Title>
-                {isToday && (
-                  <Tag color="green" icon={<CheckCircleOutlined />}>
-                    Today
+                <div className="flex flex-wrap items-center gap-3 mb-2">
+                  <span className="text-white/90 text-base flex items-center gap-2">
+                    <CalendarOutlined />
+                    {holidayDate.format('dddd, MMMM DD, YYYY')}
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {isToday && (
+                    <Tag color="green" icon={<CheckCircleOutlined />} className="border-0">
+                      Today
+                    </Tag>
+                  )}
+                  {!isPast && !isToday && (
+                    <Tag color="blue" icon={<ClockCircleOutlined />} className="border-0">
+                      In {daysUntil} {daysUntil === 1 ? 'day' : 'days'}
+                    </Tag>
+                  )}
+                  {isPast && (
+                    <Tag color="default" className="border-0">
+                      Past Event
+                    </Tag>
+                  )}
+                  <Tag 
+                    color={holidayData.isRecurring ? 'blue' : 'default'} 
+                    icon={holidayData.isRecurring ? <SyncOutlined /> : undefined}
+                    className="border-0"
+                  >
+                    {holidayData.isRecurring ? 'Recurring' : 'One-time'}
                   </Tag>
-                )}
-                {!isPast && !isToday && (
-                  <Tag color="blue">
-                    In {daysUntil} {daysUntil === 1 ? 'day' : 'days'}
-                  </Tag>
-                )}
-                {isPast && <Tag color="default">Past</Tag>}
-                <Tag color={holidayData.isRecurring ? 'blue' : 'default'}>
-                  {holidayData.isRecurring ? 'Recurring' : 'One-time'}
-                </Tag>
+                </div>
               </div>
-              <Text type="secondary">
-                <CalendarOutlined className="mr-2" />
-                {holidayDate.format('dddd, MMMM DD, YYYY')}
-              </Text>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                size="large"
+                icon={<ArrowLeftOutlined />}
+                onClick={() => router.push(listPath)}
+                className="bg-white/20 backdrop-blur-sm border-white/30 text-white hover:bg-white/30"
+              >
+                Back
+              </Button>
+              {role === 'admin' && (
+                <>
+                  <Button
+                    type="primary"
+                    size="large"
+                    icon={<EditOutlined />}
+                    onClick={() => router.push(`${listPath}/${id}/edit`)}
+                    className="bg-white text-green-600 border-0 hover:bg-white/90"
+                  >
+                    Edit
+                  </Button>
+                  <Button
+                    danger
+                    size="large"
+                    icon={<DeleteOutlined />}
+                    onClick={handleDelete}
+                    loading={deleteHolidayMutation.isPending}
+                  >
+                    Delete
+                  </Button>
+                </>
+              )}
             </div>
           </div>
-
-          {role === 'admin' && (
-            <Space>
-              <Button
-                type="primary"
-                icon={<EditOutlined />}
-                onClick={() => router.push(`${listPath}/${id}/edit`)}
-              >
-                Edit
-              </Button>
-              <Button
-                danger
-                icon={<DeleteOutlined />}
-                onClick={handleDelete}
-                loading={deleteHolidayMutation.isPending}
-              >
-                Delete
-              </Button>
-            </Space>
-          )}
         </div>
       </Card>
 
       {/* Holiday Details */}
-      <Card title="Holiday Information">
-        <Descriptions column={1} bordered>
-          <Descriptions.Item label="Holiday Name">
-            {holidayData.name || 'Unnamed Holiday'}
-          </Descriptions.Item>
+      <Row gutter={[24, 24]}>
+        <Col xs={24} lg={16}>
+          <Card className="shadow-md">
+            <Title level={4} className="mb-4 flex items-center gap-2">
+              <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center">
+                <CalendarOutlined className="text-white" />
+              </div>
+              Holiday Information
+            </Title>
+            <Descriptions
+              bordered
+              column={1}
+              size="middle"
+              labelStyle={{ 
+                fontWeight: 600, 
+                backgroundColor: '#f9fafb',
+                width: '200px'
+              }}
+              contentStyle={{ backgroundColor: 'white' }}
+            >
+              <Descriptions.Item label="Holiday Name">
+                <Text strong className="text-base">{holidayData.name || 'Unnamed Holiday'}</Text>
+              </Descriptions.Item>
+              <Descriptions.Item label="Date">
+                <Space>
+                  <CalendarOutlined className="text-green-600" />
+                  <Text className="text-base">{holidayDate.format('dddd, MMMM DD, YYYY')}</Text>
+                </Space>
+              </Descriptions.Item>
+              <Descriptions.Item label="Type">
+                <Tag 
+                  color={holidayData.isRecurring ? 'blue' : 'default'} 
+                  icon={holidayData.isRecurring ? <SyncOutlined /> : undefined}
+                  className="text-sm"
+                >
+                  {holidayData.isRecurring ? 'Recurring (Annual)' : 'One-time Event'}
+                </Tag>
+              </Descriptions.Item>
+              <Descriptions.Item label="Status">
+                <Space wrap>
+                  {isToday && (
+                    <Tag color="green" icon={<CheckCircleOutlined />} className="text-sm">
+                      Today
+                    </Tag>
+                  )}
+                  {!isPast && !isToday && (
+                    <Tag color="blue" icon={<ClockCircleOutlined />} className="text-sm">
+                      Upcoming - In {daysUntil} {daysUntil === 1 ? 'day' : 'days'}
+                    </Tag>
+                  )}
+                  {isPast && (
+                    <Tag color="default" className="text-sm">
+                      Past - {Math.abs(daysUntil)} {Math.abs(daysUntil) === 1 ? 'day' : 'days'} ago
+                    </Tag>
+                  )}
+                </Space>
+              </Descriptions.Item>
+              <Descriptions.Item label="Description">
+                <Paragraph className="mb-0 whitespace-pre-wrap">
+                  {holidayData.description || <Text type="secondary">No description provided</Text>}
+                </Paragraph>
+              </Descriptions.Item>
+            </Descriptions>
+          </Card>
+        </Col>
 
-          <Descriptions.Item label="Date">
-            <Space>
-              <CalendarOutlined />
-              {holidayDate.format('dddd, MMMM DD, YYYY')}
-            </Space>
-          </Descriptions.Item>
-
-          <Descriptions.Item label="Description">
-            <Paragraph style={{ whiteSpace: 'pre-wrap', marginBottom: 0 }}>
-              {holidayData.description || 'No description provided'}
-            </Paragraph>
-          </Descriptions.Item>
-
-          <Descriptions.Item label="Type">
-            <Tag color={holidayData.isRecurring ? 'blue' : 'default'}>
-              {holidayData.isRecurring ? 'Recurring (Annual)' : 'One-time Event'}
-            </Tag>
-          </Descriptions.Item>
-
-          <Descriptions.Item label="Status">
-            {isToday && (
-              <Tag color="green" icon={<CheckCircleOutlined />}>
-                Today
-              </Tag>
-            )}
-            {!isPast && !isToday && (
-              <Tag color="blue">
-                Upcoming ({daysUntil} {daysUntil === 1 ? 'day' : 'days'} from now)
-              </Tag>
-            )}
-            {isPast && (
-              <Tag color="default">
-                Past ({Math.abs(daysUntil)} {Math.abs(daysUntil) === 1 ? 'day' : 'days'} ago)
-              </Tag>
-            )}
-          </Descriptions.Item>
-
-          <Descriptions.Item label="Created At">
-            {dayjs(holidayData.createdAt).format('MMMM DD, YYYY HH:mm')}
-          </Descriptions.Item>
-
-          {holidayData.updatedAt && (
-            <Descriptions.Item label="Last Updated">
-              {dayjs(holidayData.updatedAt).format('MMMM DD, YYYY HH:mm')}
-            </Descriptions.Item>
-          )}
-        </Descriptions>
-      </Card>
+        <Col xs={24} lg={8}>
+          <Card className="shadow-md">
+            <Title level={4} className="mb-4 flex items-center gap-2">
+              <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
+                <InfoCircleOutlined className="text-white" />
+              </div>
+              Additional Details
+            </Title>
+            <Descriptions
+              bordered
+              column={1}
+              size="middle"
+              labelStyle={{ 
+                fontWeight: 600, 
+                backgroundColor: '#f9fafb'
+              }}
+              contentStyle={{ backgroundColor: 'white' }}
+            >
+              <Descriptions.Item label="Created At">
+                <Text className="text-sm">{dayjs(holidayData.createdAt).format('MMM DD, YYYY HH:mm')}</Text>
+              </Descriptions.Item>
+              {holidayData.updatedAt && (
+                <Descriptions.Item label="Last Updated">
+                  <Text className="text-sm">{dayjs(holidayData.updatedAt).format('MMM DD, YYYY HH:mm')}</Text>
+                </Descriptions.Item>
+              )}
+            </Descriptions>
+          </Card>
+        </Col>
+      </Row>
 
       {/* Additional Information */}
       {holidayData.isRecurring && (
-        <Card>
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <Text type="secondary">
-              <CalendarOutlined className="mr-2" />
-              This is a recurring holiday that occurs annually on {holidayDate.format('MMMM DD')}.
-            </Text>
+        <Card className="shadow-md bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-blue-500">
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center flex-shrink-0">
+              <SyncOutlined className="text-white text-xl" />
+            </div>
+            <div>
+              <Title level={5} className="!mb-2 text-blue-900">Recurring Holiday</Title>
+              <Text className="text-blue-800">
+                This holiday occurs annually on <Text strong>{holidayDate.format('MMMM DD')}</Text>. It will automatically appear in the calendar every year.
+              </Text>
+            </div>
           </div>
         </Card>
       )}

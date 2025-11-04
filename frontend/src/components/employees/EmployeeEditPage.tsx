@@ -25,11 +25,24 @@ import {
   TeamOutlined,
   EditOutlined,
   LockOutlined,
+  CalendarOutlined,
+  PhoneOutlined,
+  MailOutlined,
+  IdcardOutlined,
+  DollarOutlined,
+  EnvironmentOutlined,
+  GlobalOutlined,
+  HeartOutlined,
+  ManOutlined,
+  WomanOutlined,
 } from '@ant-design/icons'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/lib/api'
 import { useRouter, useParams } from 'next/navigation'
 import dayjs from 'dayjs'
+import { useLocale } from 'next-intl'
+import { EnhancedCard, EnhancedButton } from '@/components/ui'
+import { EmployeesIllustration } from '@/components/ui/illustrations'
 
 const { Option } = Select
 const { Title, Text } = {
@@ -48,14 +61,15 @@ interface EmployeeEditPageProps {
 export function EmployeeEditPage({ role }: EmployeeEditPageProps) {
   const router = useRouter()
   const params = useParams()
+  const locale = useLocale()
   const id = params.id as string
   const [form] = Form.useForm()
   const queryClient = useQueryClient()
   const [selectedRole, setSelectedRole] = useState<string>('')
 
   const basePath = role === 'admin' ? '/admin' : '/manager'
-  const listPath = `${basePath}/employees`
-  const dashboardPath = `${basePath}/dashboard`
+  const listPath = `/${locale}${basePath}/employees`
+  const dashboardPath = `/${locale}${basePath}/dashboard`
   const canEditRoleAndDepartment = role === 'admin'
 
   const { data: departmentsData } = useQuery({
@@ -192,43 +206,51 @@ export function EmployeeEditPage({ role }: EmployeeEditPageProps) {
         items={[
           {
             title: (
-              <Space>
+              <span className="flex items-center gap-2 cursor-pointer" onClick={() => router.push(dashboardPath)}>
                 <HomeOutlined />
                 <span>Dashboard</span>
-              </Space>
+              </span>
             ),
-            href: dashboardPath,
           },
           {
             title: (
-              <Space>
+              <span className="flex items-center gap-2 cursor-pointer" onClick={() => router.push(listPath)}>
                 <TeamOutlined />
                 <span>{role === 'admin' ? 'Employees' : 'My Team'}</span>
-              </Space>
+              </span>
             ),
-            href: listPath,
           },
           {
-            title: (
-              <Space>
-                <EditOutlined />
-                <span>Edit Employee</span>
-              </Space>
-            ),
+            title: 'Edit Employee',
           },
         ]}
       />
 
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <Title>Edit Employee</Title>
-          <Text>Update the employee details below</Text>
+      <EnhancedCard>
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+          <div className="flex items-center gap-6">
+            <div className="hidden md:block">
+              <EmployeesIllustration className="w-20 h-20" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+                Edit Employee
+              </h1>
+              <p className="text-gray-600 dark:text-gray-400">
+                Update the employee details below
+              </p>
+            </div>
+          </div>
+          <EnhancedButton
+            variant="ghost"
+            icon={<ArrowLeftOutlined />}
+            onClick={() => router.push(listPath)}
+          >
+            Back to {role === 'admin' ? 'Employees' : 'Team'}
+          </EnhancedButton>
         </div>
-        <Button icon={<ArrowLeftOutlined />} onClick={() => router.push(listPath)}>
-          Back to {role === 'admin' ? 'Employees' : 'Team'}
-        </Button>
-      </div>
+      </EnhancedCard>
 
       {/* Manager Alert */}
       {!canEditRoleAndDepartment && (
@@ -242,16 +264,16 @@ export function EmployeeEditPage({ role }: EmployeeEditPageProps) {
       )}
 
       {/* Form */}
-      <Card className="dark:bg-gray-800 dark:border-gray-700">
-        <Form form={form} layout="vertical" onFinish={handleSubmit}>
-          {/* Basic Information */}
-          <Row gutter={[24, 16]}>
-            <Col xs={24} md={12}>
-              <Card
-                title="Account Information"
-                size="small"
-                className="mb-4 dark:bg-gray-700 dark:border-gray-600"
-              >
+      <Form form={form} layout="vertical" onFinish={handleSubmit}>
+        <Row gutter={[24, 24]}>
+          <Col xs={24} lg={12}>
+            <EnhancedCard>
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                  <UserOutlined className="text-white text-lg" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Account Information</h3>
+              </div>
                 <Form.Item
                   name="fullName"
                   label="Full Name"
@@ -279,7 +301,7 @@ export function EmployeeEditPage({ role }: EmployeeEditPageProps) {
                     { type: 'email', message: 'Please enter a valid email' },
                   ]}
                 >
-                  <Input prefix={<UserOutlined />} placeholder="Enter email address" />
+                  <Input prefix={<MailOutlined />} placeholder="Enter email address" />
                 </Form.Item>
 
                 <Form.Item
@@ -297,6 +319,7 @@ export function EmployeeEditPage({ role }: EmployeeEditPageProps) {
                   ]}
                 >
                   <Input.Password
+                    prefix={<LockOutlined />}
                     placeholder="Enter new password (min 8 chars: Aa1@)"
                     title="Password must contain: 8+ characters, uppercase, lowercase, number, and special character"
                   />
@@ -304,21 +327,24 @@ export function EmployeeEditPage({ role }: EmployeeEditPageProps) {
 
                 <Form.Item name="employeeCode" label="Employee Code">
                   <Input
+                    prefix={<IdcardOutlined />}
                     placeholder="Auto-generated"
                     readOnly
                     disabled
-                    style={{ backgroundColor: '#f5f5f5', cursor: 'not-allowed' }}
+                    className="bg-gray-100 dark:bg-gray-700 cursor-not-allowed"
                   />
                 </Form.Item>
-              </Card>
+              </EnhancedCard>
             </Col>
 
-            <Col xs={24} md={12}>
-              <Card
-                title="Employment Details"
-                size="small"
-                className="mb-4 dark:bg-gray-700 dark:border-gray-600"
-              >
+            <Col xs={24} lg={12}>
+              <EnhancedCard>
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-teal-600 rounded-lg flex items-center justify-center">
+                    <TeamOutlined className="text-white text-lg" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Employment Details</h3>
+                </div>
                 {/* Role field - only for admin */}
                 {canEditRoleAndDepartment && (
                   <Form.Item
@@ -335,7 +361,7 @@ export function EmployeeEditPage({ role }: EmployeeEditPageProps) {
                 )}
 
                 <Form.Item name="jobTitle" label="Job Title">
-                  <Input placeholder="Enter job title" />
+                  <Input prefix={<UserOutlined />} placeholder="Enter job title" />
                 </Form.Item>
 
                 <Form.Item
@@ -366,7 +392,8 @@ export function EmployeeEditPage({ role }: EmployeeEditPageProps) {
 
                 <Form.Item name="baseSalary" label="Base Salary">
                   <InputNumber
-                    style={{ width: '100%' }}
+                    prefix={<DollarOutlined />}
+                    className="w-full"
                     placeholder="Enter base salary"
                     formatter={(value) => `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
                     parser={(value) => value!.replace(/\$\s?|(,*)/g, '')}
@@ -389,18 +416,20 @@ export function EmployeeEditPage({ role }: EmployeeEditPageProps) {
                     <Option value="Hybrid">Hybrid</Option>
                   </Select>
                 </Form.Item>
-              </Card>
+              </EnhancedCard>
             </Col>
           </Row>
 
           {/* Employment Dates */}
-          <Row gutter={[24, 16]}>
-            <Col xs={24} md={12}>
-              <Card
-                title="Employment Dates"
-                size="small"
-                className="mb-4 dark:bg-gray-700 dark:border-gray-600"
-              >
+          <Row gutter={[24, 24]}>
+            <Col xs={24} lg={12}>
+              <EnhancedCard>
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-600 rounded-lg flex items-center justify-center">
+                    <CalendarOutlined className="text-white text-lg" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Employment Dates</h3>
+                </div>
                 <Form.Item
                   name="startDate"
                   label="Start Date"
@@ -410,46 +439,51 @@ export function EmployeeEditPage({ role }: EmployeeEditPageProps) {
                 </Form.Item>
 
                 <Form.Item name="endDate" label="End Date (Optional)">
-                  <DatePicker style={{ width: '100%' }} placeholder="Select end date" />
+                  <DatePicker className="w-full" placeholder="Select end date" />
                 </Form.Item>
-              </Card>
+              </EnhancedCard>
             </Col>
 
-            <Col xs={24} md={12}>
-              <Card
-                title="Contact Information"
-                size="small"
-                className="mb-4 dark:bg-gray-700 dark:border-gray-600"
-              >
+            <Col xs={24} lg={12}>
+              <EnhancedCard>
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-10 h-10 bg-gradient-to-br from-pink-500 to-rose-600 rounded-lg flex items-center justify-center">
+                    <PhoneOutlined className="text-white text-lg" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Contact Information</h3>
+                </div>
                 <Form.Item name="phone" label="Phone Number">
-                  <Input placeholder="Enter phone number" />
+                  <Input prefix={<PhoneOutlined />} placeholder="Enter phone number" />
                 </Form.Item>
 
                 <Form.Item name="address" label="Address">
-                  <Input placeholder="Enter address" />
+                  <Input prefix={<EnvironmentOutlined />} placeholder="Enter address" />
                 </Form.Item>
 
                 <Form.Item name="city" label="City">
-                  <Input placeholder="Enter city" />
+                  <Input prefix={<EnvironmentOutlined />} placeholder="Enter city" />
                 </Form.Item>
 
                 <Form.Item name="country" label="Country">
-                  <Input placeholder="Enter country" />
+                  <Input prefix={<GlobalOutlined />} placeholder="Enter country" />
                 </Form.Item>
-              </Card>
+              </EnhancedCard>
             </Col>
           </Row>
 
           {/* Personal Information */}
-          <Row gutter={[24, 16]}>
-            <Col xs={24} md={12}>
-              <Card
-                title="Personal Information"
-                size="small"
-                className="mb-4 dark:bg-gray-700 dark:border-gray-600"
-              >
+          <Row gutter={[24, 24]}>
+            <Col xs={24} lg={12}>
+              <EnhancedCard>
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center">
+                    <IdcardOutlined className="text-white text-lg" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Personal Information</h3>
+                </div>
+
                 <Form.Item name="dateOfBirth" label="Date of Birth">
-                  <DatePicker style={{ width: '100%' }} placeholder="Select date of birth" />
+                  <DatePicker className="w-full" placeholder="Select date of birth" suffixIcon={<CalendarOutlined />} />
                 </Form.Item>
 
                 <Form.Item name="gender" label="Gender">
@@ -462,46 +496,52 @@ export function EmployeeEditPage({ role }: EmployeeEditPageProps) {
                 </Form.Item>
 
                 <Form.Item name="maritalStatus" label="Marital Status">
-                  <Select placeholder="Select marital status">
+                  <Select placeholder="Select marital status" suffixIcon={<HeartOutlined />}>
                     <Option value="Single">Single</Option>
                     <Option value="Married">Married</Option>
                     <Option value="Divorced">Divorced</Option>
                     <Option value="Widowed">Widowed</Option>
                   </Select>
                 </Form.Item>
-              </Card>
+              </EnhancedCard>
             </Col>
 
-            <Col xs={24} md={12}>
-              <Card
-                title="Emergency Contact"
-                size="small"
-                className="mb-4 dark:bg-gray-700 dark:border-gray-600"
-              >
+            <Col xs={24} lg={12}>
+              <EnhancedCard>
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-10 h-10 bg-gradient-to-br from-yellow-500 to-amber-600 rounded-lg flex items-center justify-center">
+                    <PhoneOutlined className="text-white text-lg" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Emergency Contact</h3>
+                </div>
+
                 <Form.Item name="emergencyContact" label="Emergency Contact Name">
-                  <Input placeholder="Enter emergency contact name" />
+                  <Input prefix={<UserOutlined />} placeholder="Enter emergency contact name" />
                 </Form.Item>
 
                 <Form.Item name="emergencyPhone" label="Emergency Contact Phone">
-                  <Input placeholder="Enter emergency contact phone" />
+                  <Input prefix={<PhoneOutlined />} placeholder="Enter emergency contact phone" />
                 </Form.Item>
-              </Card>
+              </EnhancedCard>
             </Col>
           </Row>
 
-          <div className="flex justify-end gap-4">
-            <Button onClick={() => router.push(listPath)}>Cancel</Button>
-            <Button
-              type="primary"
-              htmlType="submit"
-              icon={<SaveOutlined />}
-              loading={updateEmployeeMutation.isPending}
-            >
-              Update Employee
-            </Button>
-          </div>
+          <EnhancedCard>
+            <div className="flex justify-end gap-4">
+              <EnhancedButton variant="ghost" onClick={() => router.push(listPath)}>
+                Cancel
+              </EnhancedButton>
+              <EnhancedButton
+                variant="primary"
+                htmlType="submit"
+                icon={<SaveOutlined />}
+                loading={updateEmployeeMutation.isPending}
+              >
+                Update Employee
+              </EnhancedButton>
+            </div>
+          </EnhancedCard>
         </Form>
-      </Card>
     </div>
   )
 }

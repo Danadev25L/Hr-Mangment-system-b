@@ -1,7 +1,14 @@
 'use client'
 
-import ManageSalaryPage from '@/components/salary/ManageSalaryPage'
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 
 export default function AdminManageSalaryPage() {
-  return <ManageSalaryPage role="ROLE_ADMIN" />
+  const router = useRouter()
+  
+  useEffect(() => {
+    router.replace('/admin/salary/adjustments')
+  }, [router])
+  
+  return null
 }

@@ -10,7 +10,7 @@ import {
   Tag,
   Modal,
   Form,
-  message,
+  App,
   Popconfirm,
   Avatar,
   Progress,
@@ -48,6 +48,7 @@ const { Search} = Input
 
 export default function DepartmentsPage() {
   const t = useTranslations()
+  const { message } = App.useApp()
   const [searchText, setSearchText] = useState('')
   const [isModalVisible, setIsModalVisible] = useState(false)
   const [editingDepartment, setEditingDepartment] = useState<Department | null>(null)
@@ -99,7 +100,61 @@ export default function DepartmentsPage() {
       queryClient.invalidateQueries({ queryKey: ['departments'] })
     },
     onError: (error: any) => {
-      message.error(error.response?.data?.message || t('departments.deleteError'))
+      console.error('Delete department error:', error)
+      
+      // Extract detailed error information from response
+      const errorData = error.response?.data
+      const errorMessage = errorData?.message || t('departments.deleteError')
+      const actionSteps = errorData?.actionRequired || []
+      
+      // Build user-friendly error content
+      const errorContent = (
+        <div className="space-y-4">
+          <div>
+            <p className="text-lg text-gray-800 dark:text-gray-200 font-medium">
+              {errorMessage}
+            </p>
+          </div>
+          
+          {actionSteps.length > 0 && (
+            <div className="bg-amber-50 dark:bg-amber-900/20 p-4 rounded-lg border-l-4 border-amber-400">
+              <h4 className="text-amber-800 dark:text-amber-400 font-semibold mb-3 flex items-center gap-2">
+                <span className="text-xl">⚠️</span>
+                Required Actions:
+              </h4>
+              <ol className="space-y-2 ml-6 list-decimal">
+                {actionSteps.map((step: string, index: number) => (
+                  <li key={index} className="text-amber-900 dark:text-amber-300">
+                    {step}
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
+          
+          <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-700">
+            <p className="text-sm text-blue-700 dark:text-blue-400">
+              💡 <strong>Tip:</strong> Make sure all employees, jobs, and expenses are reassigned 
+              or removed before deleting a department.
+            </p>
+          </div>
+        </div>
+      )
+      
+      // Show error modal with action steps
+      Modal.error({
+        title: (
+          <span className="text-xl flex items-center gap-2">
+            <span>🚫</span> Cannot Delete Department
+          </span>
+        ),
+        content: errorContent,
+        width: 650,
+        okText: 'I Understand',
+        okButtonProps: {
+          size: 'large'
+        }
+      })
     },
   })
 

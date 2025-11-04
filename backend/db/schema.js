@@ -1251,3 +1251,24 @@ export const latencyDeductionsRelations = relations(latencyDeductions, ({ one })
     references: [monthlySalaries.id]
   })
 }));
+
+// Calendar Events table schema
+export const calendarEvents = pgTable('calendar_events', {
+  id: serial('id').primaryKey(),
+  title: varchar('title', { length: 255 }).notNull(),
+  type: varchar('type', { length: 50 }).notNull(), // meeting, deadline, holiday, birthday, training, review
+  date: date('date').notNull(),
+  time: time('time'),
+  description: text('description'),
+  createdBy: integer('created_by').references(() => users.id),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull()
+});
+
+// Calendar Events Relations
+export const calendarEventsRelations = relations(calendarEvents, ({ one }) => ({
+  creator: one(users, {
+    fields: [calendarEvents.createdBy],
+    references: [users.id]
+  })
+}));

@@ -183,3 +183,81 @@ body {
   -webkit-backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.3);
 }
+
+/* Custom Calendar Styles */
+.custom-calendar .ant-picker-calendar-header {
+  padding: 16px 0;
+}
+
+.custom-calendar .ant-picker-calendar-date {
+  border: 1px solid #f0f0f0;
+  transition: all 0.3s;
+}
+
+.custom-calendar .ant-picker-cell-in-view.ant-picker-cell-selected .ant-picker-calendar-date {
+  background: #1890ff;
+  border-color: #1890ff;
+}
+
+.custom-calendar .ant-picker-calendar-date:hover {
+  background: #e6f7ff;
+  border-color: #91d5ff;
+  cursor: pointer;
+}
+
+.custom-calendar .ant-picker-calendar-date-content {
+  height: 80px;
+  padding: 4px;
+  overflow-y: auto;
+}
+
+.custom-calendar .events {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.dark .custom-calendar .ant-picker-calendar-date {
+  border-color: #374151;
+  background: #1f2937;
+}
+
+.dark .custom-calendar .ant-picker-calendar-date:hover {
+  background: #374151;
+  border-color: #4b5563;
+}
+
+.dark .custom-calendar .ant-picker-cell-in-view.ant-picker-cell-selected .ant-picker-calendar-date {
+  background: #1890ff;
+  border-color: #1890ff;
+}
+
+/* Dark mode table styles */
+.dark-table .ant-table {
+  background: transparent !important;
+  color: #e5e7eb !important;
+}
+
+.dark-table .ant-table-thead > tr > th {
+  background: #374151 !important;
+  color: #f9fafb !important;
+  border-bottom: 1px solid #4b5563 !important;
+}
+
+.dark-table .ant-table-tbody > tr > td {
+  border-bottom: 1px solid #374151 !important;
+  color: #e5e7eb !important;
+}
+
+.dark-table .ant-table-tbody > tr:hover > td {
+  background: #374151 !important;
+}
+
+.dark-table .ant-table-placeholder {
+  background: transparent !important;
+  color: #9ca3af !important;
+}
+
+.dark-table .ant-empty-description {
+  color: #9ca3af !important;
+}

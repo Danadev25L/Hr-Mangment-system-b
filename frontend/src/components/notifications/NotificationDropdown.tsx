@@ -43,7 +43,7 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ loca
   const { data: notifications, isLoading } = useQuery({
     queryKey: ['notifications', 'recent'],
     queryFn: async () => {
-      const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/shared/notifications`, {
+      const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/shared/notifications`, {
         headers: { Authorization: `Bearer ${token}` }
       })
       return response.data.notifications || []
@@ -56,7 +56,7 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ loca
   const { data: unreadData } = useQuery({
     queryKey: ['notifications', 'unread-count'],
     queryFn: async () => {
-      const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/shared/notifications/unread-count`, {
+      const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/shared/notifications/unread-count`, {
         headers: { Authorization: `Bearer ${token}` }
       })
       return response.data
@@ -69,7 +69,7 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ loca
   const markAsReadMutation = useMutation({
     mutationFn: async (notificationId: number) => {
       await axios.put(
-        `${process.env.NEXT_PUBLIC_API_URL}/shared/notifications/${notificationId}/read`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/shared/notifications/${notificationId}/read`,
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       )
@@ -83,7 +83,7 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ loca
   const markAllAsReadMutation = useMutation({
     mutationFn: async () => {
       await axios.put(
-        `${process.env.NEXT_PUBLIC_API_URL}/shared/notifications/read-all`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/shared/notifications/read-all`,
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       )
@@ -97,7 +97,7 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ loca
   const deleteNotificationMutation = useMutation({
     mutationFn: async (notificationId: number) => {
       await axios.delete(
-        `${process.env.NEXT_PUBLIC_API_URL}/shared/notifications/${notificationId}`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/shared/notifications/${notificationId}`,
         { headers: { Authorization: `Bearer ${token}` } }
       )
     },
@@ -280,7 +280,7 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ loca
 
   return (
     <Dropdown
-      dropdownRender={() => dropdownContent}
+      popupRender={() => dropdownContent}
       trigger={['click']}
       open={open}
       onOpenChange={setOpen}

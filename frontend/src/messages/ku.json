@@ -18,7 +18,15 @@
     "error": "هەڵە",
     "viewAll": "بینینی هەموو",
     "menu": "لیست",
-    "notifications": "ئاگادارکردنەوەکان"
+    "notifications": "ئاگادارکردنەوەکان",
+    "close": "داخستن",
+    "week": "هەفتە",
+    "month": "مانگ",
+    "year": "ساڵ",
+    "increase": "زیادبوون",
+    "decrease": "کەمبوونەوە",
+    "allActive": "هەموو چالاکن",
+    "needsReview": "پێویستی بە پێداچوونەوەیە"
   },
   "navigation": {
     "home": "سەرەکی",
@@ -292,15 +300,30 @@
     "quickActions": "کردارە خێراکان",
     "announcements": "ڕاگەیاندنەکان",
     "reports": "ڕاپۆرتەکان",
+    "welcome": "بەخێربێیتەوە",
+    "calendar": "ڕۆژژمێری ڕووداوەکان",
+    "upcomingEvents": "ڕووداوە داهاتووەکان",
+    "analytics": "شیکاری و ڕاپۆرتەکان",
+    "employeeGrowth": "گەشەکردنی کارمەندان",
+    "departments": "بەشەکان",
+    "weeklyAttendance": "ئامادەبوونی هەفتانە",
+    "expenses": "ڕەوتی خەرجی",
+    "viewReports": "بینینی ڕاپۆرتەکان",
+    "topPerformers": "باشترین کارمەندان",
     "userGrowthTrend": "ڕێژەی گەشەکردنی بەکارهێنەران",
     "departmentDistribution": "دابەشبوونی بەشەکان",
     "admin": {
+      "title": "داشبۆردی بەڕێوەبەر",
       "totalEmployees": "کۆی گشتی کارمەندان",
       "activeEmployees": "کارمەندە چالاکەکان",
       "pendingApplications": "داواکاریە چاوەڕوانەکان",
       "todayAttendance": "ئامادەبوونی ئەمڕۆ",
       "pendingExpenses": "خەرجیە چاوەڕوانەکان",
+      "monthlyExpenses": "خەرجیی مانگانە",
+      "activeDepartments": "بەشە چالاکەکان",
       "departmentCount": "بەشەکان",
+      "addNewEmployee": "زیادکردنی کارمەندی نوێ",
+      "reviewApplications": "پێداچوونەوە بە داواکاریەکان",
       "manageEmployees": "بەڕێوەبردنی کارمەندان",
       "viewApplications": "بینینی داواکاریەکان",
       "sendAnnouncement": "ناردنی ڕاگەیاندن",
@@ -323,6 +346,19 @@
       "checkOut": "تۆمارکردنی ڕۆیشتن",
       "requestLeave": "داواکردنی مۆڵەت",
       "submitExpense": "ناردنی خەرجی"
+    },
+    "attendance": {
+      "todayPresent": "ئامادەبوونی ئەمڕۆ",
+      "lateArrivals": "دواکەوتوو"
     }
+  },
+  "calendar": {
+    "eventsOn": "ڕووداوەکان لە",
+    "meeting": "کۆبوونەوە",
+    "deadline": "کاتی کۆتایی",
+    "holiday": "پشوو",
+    "birthday": "ڕۆژی لەدایکبوون",
+    "training": "ڕاهێنان",
+    "review": "پێداچوونەوە"
   }
 }

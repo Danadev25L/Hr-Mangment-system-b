@@ -58,7 +58,7 @@ export const NotificationsPage: React.FC = () => {
   const { data: notificationsData, isLoading, refetch } = useQuery({
     queryKey: ['notifications', 'all', page, pageSize, filterType, filterStatus, searchQuery],
     queryFn: async () => {
-      const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/shared/notifications`, {
+      const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/shared/notifications`, {
         headers: { Authorization: `Bearer ${token}` }
       })
       return response.data.notifications || []
@@ -70,7 +70,7 @@ export const NotificationsPage: React.FC = () => {
   const { data: unreadData } = useQuery({
     queryKey: ['notifications', 'unread-count'],
     queryFn: async () => {
-      const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/shared/notifications/unread-count`, {
+      const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/shared/notifications/unread-count`, {
         headers: { Authorization: `Bearer ${token}` }
       })
       return response.data
@@ -82,7 +82,7 @@ export const NotificationsPage: React.FC = () => {
   const markAsReadMutation = useMutation({
     mutationFn: async (notificationId: number) => {
       await axios.put(
-        `${process.env.NEXT_PUBLIC_API_URL}/shared/notifications/${notificationId}/read`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/shared/notifications/${notificationId}/read`,
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       )
@@ -97,7 +97,7 @@ export const NotificationsPage: React.FC = () => {
   const markAllAsReadMutation = useMutation({
     mutationFn: async () => {
       await axios.put(
-        `${process.env.NEXT_PUBLIC_API_URL}/shared/notifications/read-all`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/shared/notifications/read-all`,
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       )
@@ -112,7 +112,7 @@ export const NotificationsPage: React.FC = () => {
   const deleteNotificationMutation = useMutation({
     mutationFn: async (notificationId: number) => {
       await axios.delete(
-        `${process.env.NEXT_PUBLIC_API_URL}/shared/notifications/${notificationId}`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/shared/notifications/${notificationId}`,
         { headers: { Authorization: `Bearer ${token}` } }
       )
     },

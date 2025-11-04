@@ -3,6 +3,7 @@ import * as sharedNotificationController from '../controllers/notification.share
 import * as sharedPersonalEventController from '../controllers/personalEvent.shared.controller.js';
 import * as sharedProfileController from '../controllers/profile.shared.controller.js';
 import * as sharedDepartmentController from '../controllers/department.shared.controller.js';
+import calendarRoutes from './calendar.routes.js';
 
 const router = express.Router();
 
@@ -29,5 +30,8 @@ router.get('/personal-events', sharedPersonalEventController.getUserPersonalEven
 router.get('/personal-events/:id', sharedPersonalEventController.getPersonalEvent);
 router.put('/personal-events/:id', sharedPersonalEventController.updatePersonalEvent);
 router.delete('/personal-events/:id', sharedPersonalEventController.deletePersonalEvent);
+
+// Calendar Routes (available to all authenticated users)
+router.use('/calendar', calendarRoutes);
 
 export default router;

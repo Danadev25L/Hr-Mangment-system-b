@@ -18,7 +18,15 @@
     "error": "خطأ",
     "viewAll": "عرض الكل",
     "menu": "القائمة",
-    "notifications": "الإشعارات"
+    "notifications": "الإشعارات",
+    "close": "إغلاق",
+    "week": "أسبوع",
+    "month": "شهر",
+    "year": "سنة",
+    "increase": "زيادة",
+    "decrease": "انخفاض",
+    "allActive": "الكل نشط",
+    "needsReview": "يحتاج للمراجعة"
   },
   "navigation": {
     "home": "الرئيسية",
@@ -296,15 +304,30 @@
     "quickActions": "إجراءات سريعة",
     "announcements": "الإعلانات",
     "reports": "التقارير",
+    "welcome": "مرحباً بعودتك",
+    "calendar": "تقويم الأحداث",
+    "upcomingEvents": "الأحداث القادمة",
+    "analytics": "التحليلات والتقارير",
+    "employeeGrowth": "نمو الموظفين",
+    "departments": "الأقسام",
+    "weeklyAttendance": "الحضور الأسبوعي",
+    "expenses": "اتجاهات المصروفات",
+    "viewReports": "عرض التقارير",
+    "topPerformers": "أفضل الأداء",
     "userGrowthTrend": "اتجاه نمو المستخدمين",
     "departmentDistribution": "توزيع الأقسام",
     "admin": {
+      "title": "لوحة تحكم المدير",
       "totalEmployees": "إجمالي الموظفين",
       "activeEmployees": "الموظفون النشطون",
       "pendingApplications": "الطلبات المعلقة",
       "todayAttendance": "حضور اليوم",
       "pendingExpenses": "المصروفات المعلقة",
+      "monthlyExpenses": "المصروفات الشهرية",
+      "activeDepartments": "الأقسام النشطة",
       "departmentCount": "الأقسام",
+      "addNewEmployee": "إضافة موظف جديد",
+      "reviewApplications": "مراجعة الطلبات",
       "manageEmployees": "إدارة الموظفين",
       "viewApplications": "عرض الطلبات",
       "sendAnnouncement": "إرسال إعلان",
@@ -327,6 +350,19 @@
       "checkOut": "تسجيل الخروج",
       "requestLeave": "طلب إجازة",
       "submitExpense": "تقديم مصروف"
+    },
+    "attendance": {
+      "todayPresent": "الحاضرون اليوم",
+      "lateArrivals": "المتأخرون"
     }
+  },
+  "calendar": {
+    "eventsOn": "الأحداث في",
+    "meeting": "اجتماع",
+    "deadline": "موعد نهائي",
+    "holiday": "عطلة",
+    "birthday": "عيد ميلاد",
+    "training": "تدريب",
+    "review": "مراجعة"
   }
 }

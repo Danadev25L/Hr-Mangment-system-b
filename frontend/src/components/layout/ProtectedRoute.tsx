@@ -1,9 +1,10 @@
 'use client'
 
 import React, { useEffect, ReactNode } from 'react'
-import { useRouter } from 'next/navigation'
-import { Spin } from 'antd'
+import { useRouter, usePathname } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
+import { createLocalizedPath, getCurrentLocale } from '@/lib/localized-routes'
+import { CustomSpinner } from '@/components/ui'
 
 interface ProtectedRouteProps {
   children: ReactNode
@@ -18,11 +19,13 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 }) => {
   const { isAuthenticated, isLoading, user, hasPermission } = useAuth()
   const router = useRouter()
+  const pathname = usePathname()
+  const locale = getCurrentLocale(pathname)
 
   useEffect(() => {
     if (!isLoading) {
       if (!isAuthenticated) {
-        router.push(fallbackPath)
+        router.push(createLocalizedPath(locale, fallbackPath))
         return
       }
 
@@ -30,16 +33,16 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
         // Redirect to appropriate dashboard based on user role
         switch (user?.role) {
           case 'ROLE_ADMIN':
-            router.push('/admin/dashboard')
+            router.push(createLocalizedPath(locale, '/admin/dashboard'))
             break
           case 'ROLE_MANAGER':
-            router.push('/manager/dashboard')
+            router.push(createLocalizedPath(locale, '/manager/dashboard'))
             break
           case 'ROLE_EMPLOYEE':
-            router.push('/employee/dashboard')
+            router.push(createLocalizedPath(locale, '/employee/dashboard'))
             break
           default:
-            router.push('/login')
+            router.push(createLocalizedPath(locale, '/login'))
         }
       }
     }
@@ -48,7 +51,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <Spin size="large" />
+        <CustomSpinner size="large" text="Loading..." />
       </div>
     )
   }

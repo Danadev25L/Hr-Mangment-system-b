@@ -1,10 +1,10 @@
 'use client'
 
 import React from 'react'
-import { useRouter, useParams } from 'next/navigation'
+import { useParams } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import apiClient from '@/lib/api'
-import { Card, Spin, Avatar, Descriptions, Tag, Button, Space, Breadcrumb, Row, Col } from 'antd'
+import { Card, Avatar, Descriptions, Tag, Button, Space, Breadcrumb, Row, Col } from 'antd'
 import {
   UserOutlined,
   EditOutlined,
@@ -31,15 +31,17 @@ import {
   RoleBadge,
   EnhancedCard,
   EnhancedButton,
+  CustomSpinner,
 } from '@/components/ui'
+import { useLocale } from 'next-intl'
 
 interface EmployeeViewPageProps {
   role: 'admin' | 'manager'
 }
 
 export function EmployeeViewPage({ role }: EmployeeViewPageProps) {
-  const router = useRouter()
   const params = useParams()
+  const locale = useLocale()
   const id = params.id as string
 
   const { data: user, isLoading } = useQuery({
@@ -49,14 +51,21 @@ export function EmployeeViewPage({ role }: EmployeeViewPageProps) {
   })
 
   const basePath = role === 'admin' ? '/admin' : '/manager'
-  const listPath = `${basePath}/employees`
-  const editPath = `${basePath}/employees/${id}/edit`
-  const dashboardPath = `${basePath}/dashboard`
+  const listPath = `/${locale}${basePath}/employees`
+  const editPath = `/${locale}${basePath}/employees/${id}/edit`
+  const dashboardPath = `/${locale}${basePath}/dashboard`
+
+  // Navigate with locale support
+  const handleNavigation = (path: string) => {
+    if (typeof window !== 'undefined') {
+      window.location.href = path
+    }
+  }
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Spin size="large" />
+        <CustomSpinner size="large" text="Loading employee details..." />
       </div>
     )
   }
@@ -136,14 +145,14 @@ export function EmployeeViewPage({ role }: EmployeeViewPageProps) {
             <EnhancedButton
               variant="ghost"
               icon={<ArrowLeftOutlined />}
-              onClick={() => router.push(listPath)}
+              onClick={() => handleNavigation(listPath)}
             >
               Back
             </EnhancedButton>
             <EnhancedButton
               variant="primary"
               icon={<EditOutlined />}
-              onClick={() => router.push(editPath)}
+              onClick={() => handleNavigation(editPath)}
             >
               Edit
             </EnhancedButton>
@@ -340,40 +349,103 @@ export function EmployeeViewPage({ role }: EmployeeViewPageProps) {
       </Row>
 
       {/* Professional Information */}
-      <Row gutter={[24, 16]}>
-        <Col xs={24}>
-          <Card title="Professional Information" className="dark:bg-gray-800 dark:border-gray-700">
-            <Descriptions bordered column={2}>
-              <Descriptions.Item label="Skills & Competencies" span={2}>
-                {userData.skills || 'Not specified'}
-              </Descriptions.Item>
-              <Descriptions.Item label="Professional Experience" span={2}>
-                {userData.experience || 'Not specified'}
-              </Descriptions.Item>
-              <Descriptions.Item label="Created At">
-                {userData.createdAt ? formatDate(userData.createdAt) : 'Not available'}
-              </Descriptions.Item>
-              <Descriptions.Item label="Last Login">
-                {userData.lastLogin ? formatDate(userData.lastLogin) : 'Never logged in'}
-              </Descriptions.Item>
-            </Descriptions>
-          </Card>
+      <Row gutter={[24, 24]}>
+        <Col xs={24} lg={12}>
+          <EnhancedCard>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-blue-600 rounded-lg flex items-center justify-center">
+                <TrophyOutlined className="text-white text-lg" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                Professional Information
+              </h3>
+            </div>
+            <div className="space-y-4">
+              <div className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                <TrophyOutlined className="text-indigo-500 mt-1" />
+                <div className="flex-1">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Skills & Competencies</p>
+                  <p className="font-medium text-gray-900 dark:text-gray-100">
+                    {userData.skills || 'Not specified'}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                <BankOutlined className="text-blue-500 mt-1" />
+                <div className="flex-1">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Professional Experience</p>
+                  <p className="font-medium text-gray-900 dark:text-gray-100">
+                    {userData.experience || 'Not specified'}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                <CalendarOutlined className="text-green-500 mt-1" />
+                <div className="flex-1">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Account Created</p>
+                  <p className="font-medium text-gray-900 dark:text-gray-100">
+                    {userData.createdAt ? formatDate(userData.createdAt) : 'Not available'}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                <ClockCircleOutlined className="text-purple-500 mt-1" />
+                <div className="flex-1">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Last Login</p>
+                  <p className="font-medium text-gray-900 dark:text-gray-100">
+                    {userData.lastLogin ? formatDate(userData.lastLogin) : 'Never logged in'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </EnhancedCard>
         </Col>
-      </Row>
 
-      {/* Last Update Information */}
-      <Row gutter={[24, 16]}>
-        <Col xs={24}>
-          <Card title="Last Update Information" className="dark:bg-gray-800 dark:border-gray-700">
-            <Descriptions bordered column={2}>
-              <Descriptions.Item label="Last Updated At">
-                {userData.updatedAt ? formatDate(userData.updatedAt) : 'Not available'}
-              </Descriptions.Item>
-              <Descriptions.Item label="Updated By">
-                {userData.updatedByName || 'System'}
-              </Descriptions.Item>
-            </Descriptions>
-          </Card>
+        {/* Last Update Information */}
+        <Col xs={24} lg={12}>
+          <EnhancedCard>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-gradient-to-br from-gray-500 to-gray-700 rounded-lg flex items-center justify-center">
+                <ClockCircleOutlined className="text-white text-lg" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                Last Update Information
+              </h3>
+            </div>
+            <div className="space-y-4">
+              <div className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                <CalendarOutlined className="text-gray-500 mt-1" />
+                <div className="flex-1">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Last Updated At</p>
+                  <p className="font-medium text-gray-900 dark:text-gray-100">
+                    {userData.updatedAt ? formatDate(userData.updatedAt) : 'Not available'}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                <UserOutlined className="text-gray-500 mt-1" />
+                <div className="flex-1">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Updated By</p>
+                  <p className="font-medium text-gray-900 dark:text-gray-100">
+                    {userData.updatedByName || 'System'}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-2">
+                    Profile Status
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <div className={`w-2 h-2 rounded-full ${userData.active ? 'bg-green-500' : 'bg-red-500'}`} />
+                    <span className="text-sm text-gray-700 dark:text-gray-300">
+                      {userData.active ? 'Active Profile' : 'Inactive Profile'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </EnhancedCard>
         </Col>
       </Row>
     </div>

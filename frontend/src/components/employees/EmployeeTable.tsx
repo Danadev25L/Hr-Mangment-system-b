@@ -14,7 +14,7 @@ import {
   CalendarOutlined,
   BankOutlined,
 } from '@ant-design/icons'
-import { EnhancedTable, AvatarWithInitials, StatusBadge, RoleBadge } from '@/components/ui'
+import { EnhancedTable, AvatarWithInitials, StatusBadge, RoleBadge, CustomSpinner } from '@/components/ui'
 import { formatDate, getInitials, getRoleColor, getRoleLabel } from '@/lib/utils'
 import type { ColumnsType } from 'antd/es/table'
 import type { User } from '@/types'
@@ -228,7 +228,10 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
       columns={columns}
       dataSource={data}
       rowKey="id"
-      loading={loading}
+      loading={{
+        spinning: loading,
+        indicator: <CustomSpinner text="Loading employees..." />,
+      }}
       pagination={{
         current: pagination.current,
         pageSize: pagination.pageSize,

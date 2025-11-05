@@ -6,7 +6,6 @@ import { useQuery } from '@tanstack/react-query'
 import apiClient from '@/lib/api'
 import { 
   Card, 
-  Spin, 
   Descriptions, 
   Tag, 
   Button, 
@@ -39,6 +38,7 @@ import dayjs from 'dayjs'
 import {
   EnhancedCard,
   EnhancedButton,
+  CustomSpinner,
   StatusBadge,
 } from '@/components/ui'
 
@@ -65,7 +65,7 @@ export function ExpenseViewPage({ role }: ExpenseViewPageProps) {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Spin size="large" />
+        <CustomSpinner size="large" text="Loading expense details..." />
       </div>
     )
   }

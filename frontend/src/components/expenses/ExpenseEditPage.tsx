@@ -14,7 +14,6 @@ import {
   Space,
   DatePicker,
   Select,
-  Spin,
 } from 'antd'
 import {
   DollarOutlined,
@@ -31,7 +30,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/lib/api'
 import { useRouter, useParams } from 'next/navigation'
 import dayjs from 'dayjs'
-import { EnhancedCard, EnhancedButton } from '@/components/ui'
+import { EnhancedCard, EnhancedButton, CustomSpinner } from '@/components/ui'
 import { ExpensesIllustration } from '@/components/ui/illustrations'
 
 const { TextArea } = Input
@@ -105,7 +104,7 @@ export function ExpenseEditPage({ role }: ExpenseEditPageProps) {
   if (isLoadingExpense) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Spin size="large" />
+        <CustomSpinner size="large" text="Loading expense..." />
       </div>
     )
   }

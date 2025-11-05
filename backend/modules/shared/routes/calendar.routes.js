@@ -1,5 +1,5 @@
 import express from 'express';
-import { withAnyRole, withAdminOrManager } from '../../../withAuth.js';
+import { withAnyRole, withRoleAdminOrManager } from '../../../withAuth.js';
 import * as calendarController from '../controllers/calendar.controller.js';
 
 const router = express.Router();
@@ -9,8 +9,8 @@ router.get('/', withAnyRole, calendarController.getCalendarEvents);
 router.get('/today', withAnyRole, calendarController.getTodayEvents);
 router.get('/holidays', withAnyRole, calendarController.getUpcomingHolidays);
 router.get('/:id', withAnyRole, calendarController.getCalendarEvent);
-router.post('/', withAdminOrManager, calendarController.createCalendarEvent);
-router.put('/:id', withAdminOrManager, calendarController.updateCalendarEvent);
-router.delete('/:id', withAdminOrManager, calendarController.deleteCalendarEvent);
+router.post('/', withRoleAdminOrManager, calendarController.createCalendarEvent);
+router.put('/:id', withRoleAdminOrManager, calendarController.updateCalendarEvent);
+router.delete('/:id', withRoleAdminOrManager, calendarController.deleteCalendarEvent);
 
 export default router;

@@ -120,7 +120,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           document.cookie = 'userRole=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
         }
       } else {
-        dispatch({ type: 'AUTH_FAILURE', payload: 'No authentication token' })
+        // User not logged in - this is normal, don't show error
+        dispatch({ type: 'AUTH_FAILURE', payload: '' })
       }
     }
 

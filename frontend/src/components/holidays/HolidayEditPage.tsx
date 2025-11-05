@@ -11,7 +11,6 @@ import {
   Space,
   Breadcrumb,
   message,
-  Spin,
   Empty,
 } from 'antd'
 import {
@@ -24,6 +23,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/lib/api'
 import { useRouter } from 'next/navigation'
 import dayjs from 'dayjs'
+import { CustomSpinner } from '@/components/ui'
 
 const { TextArea } = Input
 
@@ -88,7 +88,7 @@ export function HolidayEditPage({ id }: HolidayEditPageProps) {
   if (holidayLoading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <Spin size="large" />
+        <CustomSpinner size="large" text="Loading holiday..." />
       </div>
     )
   }

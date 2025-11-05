@@ -59,31 +59,31 @@ export const exportToCSV = (data: User[], filename: string = 'employees') => {
 // Export to Excel
 export const exportToExcel = (data: User[], filename: string = 'employees') => {
   try {
-    // Prepare data for Excel
+    // Prepare data for Excel - display "null" for empty fields
     const excelData = data.map(emp => ({
-      'Employee Code': emp.employeeCode || '',
-      'Full Name': emp.fullName || '',
-      'Username': emp.username || '',
-      'Email': emp.email || '',
-      'Job Title': emp.jobTitle || '',
-      'Role': emp.role || '',
-      'Department': typeof emp.department === 'object' ? emp.department?.departmentName : emp.department || '',
-      'Employment Type': emp.employmentType || '',
-      'Work Location': emp.workLocation || '',
-      'Base Salary': emp.baseSalary || '',
-      'Phone': emp.phone || '',
-      'Address': emp.address || '',
-      'City': emp.city || '',
-      'Country': emp.country || '',
-      'Date of Birth': emp.dateOfBirth || '',
-      'Gender': emp.gender || '',
-      'Marital Status': emp.maritalStatus || '',
-      'Emergency Contact': emp.emergencyContact || '',
-      'Emergency Phone': emp.emergencyPhone || '',
-      'Start Date': emp.startDate || '',
-      'End Date': emp.endDate || '',
+      'Employee Code': emp.employeeCode || 'null',
+      'Full Name': emp.fullName || 'null',
+      'Username': emp.username || 'null',
+      'Email': emp.email || 'null',
+      'Job Title': emp.jobTitle || 'null',
+      'Role': emp.role || 'null',
+      'Department': typeof emp.department === 'object' ? (emp.department?.departmentName || 'null') : (emp.department || 'null'),
+      'Employment Type': emp.employmentType || 'null',
+      'Work Location': emp.workLocation || 'null',
+      'Base Salary': emp.baseSalary || 'null',
+      'Phone': emp.phone || 'null',
+      'Address': emp.address || 'null',
+      'City': emp.city || 'null',
+      'Country': emp.country || 'null',
+      'Date of Birth': emp.dateOfBirth || 'null',
+      'Gender': emp.gender || 'null',
+      'Marital Status': emp.maritalStatus || 'null',
+      'Emergency Contact': emp.emergencyContact || 'null',
+      'Emergency Phone': emp.emergencyPhone || 'null',
+      'Start Date': emp.startDate || 'null',
+      'End Date': emp.endDate || 'null',
       'Status': emp.active ? 'Active' : 'Inactive',
-      'Created At': emp.createdAt ? new Date(emp.createdAt).toLocaleDateString() : '',
+      'Created At': emp.createdAt ? new Date(emp.createdAt).toLocaleDateString() : 'null',
     }))
 
     // Create workbook and worksheet
@@ -113,47 +113,100 @@ export const exportToExcel = (data: User[], filename: string = 'employees') => {
 // Export to PDF
 export const exportToPDF = (data: User[], filename: string = 'employees', title: string = 'Employee List') => {
   try {
-    const doc = new jsPDF('landscape')
+    // Use portrait orientation with A4 size
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4'
+    })
+    
+    // Add company logo (if exists in public folder)
+    // You can replace this path with your actual logo path
+    try {
+      // Note: In production, you should load the logo properly
+      // For now, we'll add a placeholder for the company name
+      doc.setFontSize(16)
+      doc.setTextColor(66, 139, 202)
+      doc.text('HR Management System', 105, 15, { align: 'center' })
+      doc.setTextColor(0, 0, 0)
+    } catch (logoError) {
+      console.warn('Logo not found, using text header')
+    }
     
     // Add title
-    doc.setFontSize(18)
-    doc.text(title, 14, 15)
+    doc.setFontSize(14)
+    doc.setFont('helvetica', 'bold')
+    doc.text(title, 105, 25, { align: 'center' })
     
-    // Add date
-    doc.setFontSize(10)
-    doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 22)
+    // Add date and metadata
+    doc.setFontSize(9)
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(100, 100, 100)
+    doc.text(`Generated: ${new Date().toLocaleString()}`, 105, 32, { align: 'center' })
+    doc.text(`Total Employees: ${data.length}`, 105, 37, { align: 'center' })
+    doc.setTextColor(0, 0, 0)
     
-    // Prepare table data
+    // Prepare table data - display "null" for empty fields
     const tableData = data.map(emp => [
-      emp.employeeCode || '',
-      emp.fullName || '',
-      emp.email || '',
-      emp.jobTitle || '',
-      typeof emp.department === 'object' ? emp.department?.departmentName : emp.department || '',
-      emp.employmentType || '',
-      emp.baseSalary ? `$${emp.baseSalary.toLocaleString()}` : '',
-      emp.phone || '',
+      emp.employeeCode || 'null',
+      emp.fullName || 'null',
+      emp.email || 'null',
+      emp.jobTitle || 'null',
+      typeof emp.department === 'object' ? (emp.department?.departmentName || 'null') : (emp.department || 'null'),
+      emp.baseSalary ? `$${emp.baseSalary.toLocaleString()}` : 'null',
+      emp.phone || 'null',
       emp.active ? 'Active' : 'Inactive',
     ])
 
-    // Generate table
+    // Generate table with professional formatting
     autoTable(doc, {
-      head: [['Code', 'Name', 'Email', 'Job Title', 'Department', 'Type', 'Salary', 'Phone', 'Status']],
+      head: [['Code', 'Name', 'Email', 'Job Title', 'Department', 'Salary', 'Phone', 'Status']],
       body: tableData,
-      startY: 28,
+      startY: 45,
       styles: {
-        fontSize: 8,
+        fontSize: 7,
         cellPadding: 2,
+        lineColor: [200, 200, 200],
+        lineWidth: 0.1,
+        overflow: 'linebreak',
+        cellWidth: 'wrap'
       },
       headStyles: {
         fillColor: [66, 139, 202],
-        textColor: 255,
+        textColor: [255, 255, 255],
         fontStyle: 'bold',
+        halign: 'center',
+        fontSize: 8,
       },
       alternateRowStyles: {
-        fillColor: [245, 245, 245],
+        fillColor: [245, 247, 250],
       },
-      margin: { top: 28 },
+      columnStyles: {
+        0: { cellWidth: 18 },  // Code
+        1: { cellWidth: 28 },  // Name
+        2: { cellWidth: 35 },  // Email
+        3: { cellWidth: 25 },  // Job Title
+        4: { cellWidth: 25 },  // Department
+        5: { cellWidth: 20, halign: 'right' },  // Salary
+        6: { cellWidth: 22 },  // Phone
+        7: { cellWidth: 17, halign: 'center' },  // Status
+      },
+      margin: { left: 5, right: 5 },
+      tableWidth: 'auto',
+      didDrawPage: (data) => {
+        // Add footer with page number
+        const pageCount = doc.getNumberOfPages()
+        const pageSize = doc.internal.pageSize
+        const pageHeight = pageSize.height ? pageSize.height : pageSize.getHeight()
+        doc.setFontSize(8)
+        doc.setTextColor(150, 150, 150)
+        doc.text(
+          `Page ${data.pageNumber} of ${pageCount}`,
+          pageSize.width / 2,
+          pageHeight - 10,
+          { align: 'center' }
+        )
+      },
     })
 
     // Save PDF

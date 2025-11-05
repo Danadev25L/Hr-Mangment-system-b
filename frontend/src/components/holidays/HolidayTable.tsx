@@ -11,6 +11,7 @@ import {
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import type { MenuProps } from 'antd'
+import { CustomSpinner } from '@/components/ui'
 
 export interface Holiday {
   id: number
@@ -177,7 +178,10 @@ export function HolidayTable({
       columns={columns}
       dataSource={data}
       rowKey="id"
-      loading={loading}
+      loading={{
+        spinning: loading,
+        indicator: <CustomSpinner text="Loading holidays..." />,
+      }}
       pagination={{
         pageSize: 10,
         showSizeChanger: true,

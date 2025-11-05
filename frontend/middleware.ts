@@ -51,10 +51,22 @@ export default function middleware(request: NextRequest) {
       ? preferredLocale 
       : routing.defaultLocale;
 
-    // If user has token, redirect to their dashboard, otherwise to login
-    const redirectPath = token ? `/${locale}/employee/dashboard` : `/${locale}/login`;
+    // If user has token, redirect to their dashboard based on role, otherwise to login
+    let redirectPath = `/${locale}/login`;
+    
+    if (token) {
+      const userRole = request.cookies.get('userRole')?.value;
+      
+      if (userRole === 'ROLE_ADMIN') {
+        redirectPath = `/${locale}/admin/dashboard`;
+      } else if (userRole === 'ROLE_MANAGER') {
+        redirectPath = `/${locale}/manager/dashboard`;
+      } else {
+        redirectPath = `/${locale}/employee/dashboard`;
+      }
+    }
+    
     const redirectUrl = new URL(redirectPath, request.url);
-
     return NextResponse.redirect(redirectUrl);
   }
 
@@ -66,8 +78,19 @@ export default function middleware(request: NextRequest) {
 
   // If user has a token and is trying to access login page, redirect to role-specific dashboard
   if (token && pathWithoutLocale === '/login') {
-    // Default to employee dashboard - will be redirected based on role in localStorage
-    const dashboardUrl = new URL(`/${currentLocale}/employee/dashboard`, request.url);
+    // Get user role from cookie
+    const userRole = request.cookies.get('userRole')?.value;
+    let dashboardPath = '/employee/dashboard'; // default
+    
+    if (userRole === 'ROLE_ADMIN') {
+      dashboardPath = '/admin/dashboard';
+    } else if (userRole === 'ROLE_MANAGER') {
+      dashboardPath = '/manager/dashboard';
+    } else if (userRole === 'ROLE_EMPLOYEE') {
+      dashboardPath = '/employee/dashboard';
+    }
+    
+    const dashboardUrl = new URL(`/${currentLocale}${dashboardPath}`, request.url);
     return NextResponse.redirect(dashboardUrl);
   }
 

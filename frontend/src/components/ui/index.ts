@@ -3,6 +3,7 @@ export { Button } from './Button'
 export { Card, CardHeader, CardContent, CardFooter } from './Card'
 export { Loading, PageLoading, TableLoading } from './Loading'
 export { ErrorBoundary } from './ErrorBoundary'
+export { CustomSpinner, customLoadingIndicator } from './CustomSpinner'
 
 // Enhanced UI Components
 export { EnhancedTable } from './EnhancedTable'

@@ -1,8 +1,8 @@
 import React from 'react'
-import { Spin, SpinProps } from 'antd'
 import { cn } from '@/lib/utils'
+import { CustomSpinner } from './CustomSpinner'
 
-interface LoadingProps extends SpinProps {
+interface LoadingProps {
   size?: 'sm' | 'md' | 'lg'
   text?: string
   className?: string
@@ -12,7 +12,6 @@ export const Loading: React.FC<LoadingProps> = ({
   size = 'md',
   text,
   className,
-  ...props
 }) => {
   const getSize = () => {
     switch (size) {
@@ -27,15 +26,14 @@ export const Loading: React.FC<LoadingProps> = ({
 
   return (
     <div className={cn('flex flex-col items-center justify-center p-8', className)}>
-      <Spin size={getSize()} {...props} />
-      {text && <p className="mt-4 text-gray-500 text-sm">{text}</p>}
+      <CustomSpinner size={getSize() as 'small' | 'default' | 'large'} text={text} />
     </div>
   )
 }
 
 export const PageLoading: React.FC<{ text?: string }> = ({ text = 'Loading...' }) => (
   <div className="min-h-screen flex items-center justify-center">
-    <Loading size="lg" text={text} />
+    <CustomSpinner size="large" text={text} />
   </div>
 )
 

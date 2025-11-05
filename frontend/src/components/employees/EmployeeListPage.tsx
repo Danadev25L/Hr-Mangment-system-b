@@ -54,7 +54,6 @@ import {
   PageHeader,
   FilterBar,
   FilterSelect,
-  FilterDateRange,
   EnhancedButton,
   EnhancedModal,
 } from '@/components/ui'
@@ -64,7 +63,6 @@ import { EmployeeFilters } from './EmployeeFilters'
 import { EmployeeTable } from './EmployeeTable'
 
 const { Option } = Select
-const { RangePicker } = DatePicker
 
 interface EmployeeListPageProps {
   role: 'admin' | 'manager'
@@ -73,7 +71,6 @@ interface EmployeeListPageProps {
 }
 
 export function EmployeeListPage({ role, title, description }: EmployeeListPageProps) {
-  const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const queryClient = useQueryClient()
@@ -86,15 +83,17 @@ export function EmployeeListPage({ role, title, description }: EmployeeListPageP
     status: searchParams.get('status') || undefined,
     department: role === 'admin' ? searchParams.get('department') || undefined : undefined,
   })
-  const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs] | null>(
-    searchParams.get('startDate') && searchParams.get('endDate')
-      ? [dayjs(searchParams.get('startDate')), dayjs(searchParams.get('endDate'))]
-      : null
-  )
   const [pagination, setPagination] = useState({ 
     current: parseInt(searchParams.get('page') || '1'),
     pageSize: parseInt(searchParams.get('limit') || '10')
   })
+
+  // Navigate with locale support
+  const handleNavigation = (path: string) => {
+    if (typeof window !== 'undefined') {
+      window.location.href = path
+    }
+  }
 
   // Fetch departments for admin
   const { data: departmentsData } = useQuery({
@@ -110,13 +109,14 @@ export function EmployeeListPage({ role, title, description }: EmployeeListPageP
     if (filters.role) params.set('role', filters.role)
     if (filters.status) params.set('status', filters.status)
     if (filters.department) params.set('department', filters.department)
-    if (dateRange?.[0]) params.set('startDate', dateRange[0].toISOString())
-    if (dateRange?.[1]) params.set('endDate', dateRange[1].toISOString())
     params.set('page', pagination.current.toString())
     params.set('limit', pagination.pageSize.toString())
     
-    router.replace(`${pathname}?${params.toString()}`, { scroll: false })
-  }, [searchText, filters, dateRange, pagination, pathname, router])
+    const newUrl = `${pathname}?${params.toString()}`
+    if (typeof window !== 'undefined') {
+      window.history.replaceState({}, '', newUrl)
+    }
+  }, [searchText, filters, pagination, pathname])
 
   // Fetch employees based on role
   const { data: usersData, isLoading, refetch } = useQuery({
@@ -125,8 +125,7 @@ export function EmployeeListPage({ role, title, description }: EmployeeListPageP
       pagination.current,
       pagination.pageSize,
       searchText,
-      filters,
-      dateRange
+      filters
     ],
     queryFn: () => {
       if (role === 'admin') {
@@ -137,9 +136,7 @@ export function EmployeeListPage({ role, title, description }: EmployeeListPageP
             search: searchText,
             role: filters.role,
             status: filters.status,
-            department: filters.department,
-            startDate: dateRange?.[0]?.toISOString(),
-            endDate: dateRange?.[1]?.toISOString(),
+            department: filters.department
           }
         )
       } else {
@@ -148,9 +145,7 @@ export function EmployeeListPage({ role, title, description }: EmployeeListPageP
           limit: pagination.pageSize,
           search: searchText,
           role: filters.role,
-          status: filters.status,
-          startDate: dateRange?.[0]?.toISOString(),
-          endDate: dateRange?.[1]?.toISOString(),
+          status: filters.status
         })
       }
     },
@@ -250,7 +245,6 @@ export function EmployeeListPage({ role, title, description }: EmployeeListPageP
       status: undefined,
       department: undefined,
     })
-    setDateRange(null)
     setPagination({ current: 1, pageSize: 10 })
     message.success('Filters reset successfully')
   }
@@ -282,7 +276,7 @@ export function EmployeeListPage({ role, title, description }: EmployeeListPageP
             <EnhancedButton
               variant="primary"
               icon={<PlusOutlined />}
-              onClick={() => router.push(`/${locale}${basePath}/add`)}
+              onClick={() => handleNavigation(`/${locale}${basePath}/add`)}
             >
               Add Employee
             </EnhancedButton>
@@ -355,15 +349,6 @@ export function EmployeeListPage({ role, title, description }: EmployeeListPageP
           />
         )}
         
-        <FilterDateRange
-          value={dateRange as any}
-          onChange={(dates) => {
-            setDateRange(dates as [dayjs.Dayjs, dayjs.Dayjs] | null)
-            setPagination({ ...pagination, current: 1 })
-          }}
-          placeholder={['Start Date', 'End Date']}
-        />
-        
         <div className="ml-auto flex gap-2">
           <EnhancedButton
             variant="ghost"
@@ -393,8 +378,8 @@ export function EmployeeListPage({ role, title, description }: EmployeeListPageP
           total: usersData?.pagination?.total || 0,
         }}
         onTableChange={handleTableChange}
-        onView={(employee) => router.push(`/${locale}${basePath}/${employee.id}`)}
-        onEdit={(employee) => router.push(`/${locale}${basePath}/${employee.id}/edit`)}
+        onView={(employee) => handleNavigation(`/${locale}${basePath}/${employee.id}`)}
+        onEdit={(employee) => handleNavigation(`/${locale}${basePath}/${employee.id}/edit`)}
         onDelete={handleDeleteEmployee}
         role={role}
       />

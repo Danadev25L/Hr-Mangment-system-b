@@ -168,6 +168,12 @@ export const createUser = async (req, res) => {
             console.log(`⚠️ Admin ${adminUser.username} is creating another admin account: ${req.body.username}`);
         }
 
+        // Validation: Admin should not have a department
+        if (roleToUse === 'ROLE_ADMIN' && req.body.departmentId) {
+            console.log(`⚠️ Attempting to assign department to admin - this will be ignored`);
+            req.body.departmentId = null; // Force null for admins
+        }
+
         // Validation: Check if department already has a manager (if creating a manager)
         if (roleToUse === 'ROLE_MANAGER' && req.body.departmentId) {
             console.log(`🔍 Checking for existing manager in department ${req.body.departmentId}...`);
@@ -280,6 +286,14 @@ export const getAllUsers = async (req, res) => {
         const endDateFilter = req.query.endDate;
         const offset = (page - 1) * limit;
         
+        // DEBUG: Log search parameters
+        console.log('🔍 SEARCH DEBUG - Admin Users:', {
+            search,
+            page,
+            limit,
+            userRole
+        });
+        
         let allUsers;
         
         // If manager, only show employees in their department
@@ -301,7 +315,14 @@ export const getAllUsers = async (req, res) => {
 
             if (search) {
                 whereConditions.push(
-                    sql`(users.fullName ILIKE ${'%' + search + '%'} OR users.username ILIKE ${'%' + search + '%'} OR users.employeeCode ILIKE ${'%' + search + '%'} OR users.jobTitle ILIKE ${'%' + search + '%'})`
+                    or(
+                        sql`${users.fullName} ILIKE ${'%' + search + '%'}`,
+                        sql`${users.username} ILIKE ${'%' + search + '%'}`,
+                        sql`${users.employeeCode} ILIKE ${'%' + search + '%'}`,
+                        sql`${users.jobTitle} ILIKE ${'%' + search + '%'}`,
+                        sql`${personalInformation.firstName} ILIKE ${'%' + search + '%'}`,
+                        sql`${personalInformation.lastName} ILIKE ${'%' + search + '%'}`
+                    )
                 );
             }
 
@@ -373,7 +394,14 @@ export const getAllUsers = async (req, res) => {
 
             if (search) {
                 whereConditions.push(
-                    sql`(users.fullName ILIKE ${'%' + search + '%'} OR users.username ILIKE ${'%' + search + '%'} OR users.employeeCode ILIKE ${'%' + search + '%'} OR users.jobTitle ILIKE ${'%' + search + '%'})`
+                    or(
+                        sql`${users.fullName} ILIKE ${'%' + search + '%'}`,
+                        sql`${users.username} ILIKE ${'%' + search + '%'}`,
+                        sql`${users.employeeCode} ILIKE ${'%' + search + '%'}`,
+                        sql`${users.jobTitle} ILIKE ${'%' + search + '%'}`,
+                        sql`${personalInformation.firstName} ILIKE ${'%' + search + '%'}`,
+                        sql`${personalInformation.lastName} ILIKE ${'%' + search + '%'}`
+                    )
                 );
             }
 
@@ -470,7 +498,14 @@ export const getAllUsers = async (req, res) => {
             let countWhereConditions = [eq(users.departmentId, manager.departmentId)];
             if (search) {
                 countWhereConditions.push(
-                    sql`(users.fullName ILIKE ${'%' + search + '%'} OR users.username ILIKE ${'%' + search + '%'} OR users.employeeCode ILIKE ${'%' + search + '%'} OR users.jobTitle ILIKE ${'%' + search + '%'})`
+                    or(
+                        sql`${users.fullName} ILIKE ${'%' + search + '%'}`,
+                        sql`${users.username} ILIKE ${'%' + search + '%'}`,
+                        sql`${users.employeeCode} ILIKE ${'%' + search + '%'}`,
+                        sql`${users.jobTitle} ILIKE ${'%' + search + '%'}`,
+                        sql`${personalInformation.firstName} ILIKE ${'%' + search + '%'}`,
+                        sql`${personalInformation.lastName} ILIKE ${'%' + search + '%'}`
+                    )
                 );
             }
             if (roleFilter) {
@@ -488,12 +523,20 @@ export const getAllUsers = async (req, res) => {
             }
             totalCountQuery = db.select({ count: drizzleCount() })
                 .from(users)
+                .leftJoin(personalInformation, eq(users.id, personalInformation.userId))
                 .where(and(...countWhereConditions));
         } else {
             let countWhereConditions = [];
             if (search) {
                 countWhereConditions.push(
-                    sql`(users.fullName ILIKE ${'%' + search + '%'} OR users.username ILIKE ${'%' + search + '%'} OR users.employeeCode ILIKE ${'%' + search + '%'} OR users.jobTitle ILIKE ${'%' + search + '%'})`
+                    or(
+                        sql`${users.fullName} ILIKE ${'%' + search + '%'}`,
+                        sql`${users.username} ILIKE ${'%' + search + '%'}`,
+                        sql`${users.employeeCode} ILIKE ${'%' + search + '%'}`,
+                        sql`${users.jobTitle} ILIKE ${'%' + search + '%'}`,
+                        sql`${personalInformation.firstName} ILIKE ${'%' + search + '%'}`,
+                        sql`${personalInformation.lastName} ILIKE ${'%' + search + '%'}`
+                    )
                 );
             }
             if (roleFilter) {
@@ -514,6 +557,7 @@ export const getAllUsers = async (req, res) => {
             }
             totalCountQuery = db.select({ count: drizzleCount() })
                 .from(users)
+                .leftJoin(personalInformation, eq(users.id, personalInformation.userId))
                 .where(countWhereConditions.length > 0 ? and(...countWhereConditions) : sql`1=1`);
         }
 

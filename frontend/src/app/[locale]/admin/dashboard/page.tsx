@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
-import { Typography, Select, Spin, Space } from 'antd'
+import { Typography, Select, Space } from 'antd'
 import dayjs from 'dayjs'
 import { useTranslations } from 'next-intl'
 import { useQuery } from '@tanstack/react-query'
@@ -14,6 +14,7 @@ import { DashboardTables } from '@/components/dashboard/admin/DashboardTables'
 import { DashboardActivity } from '@/components/dashboard/admin/DashboardActivity'
 import { QuickActions } from '@/components/dashboard/admin/QuickActions'
 import { DashboardIllustration } from '@/components/dashboard/admin/DashboardIllustration'
+import { CustomSpinner } from '@/components/ui'
 import { DashboardCalendar } from '@/components/dashboard/admin/DashboardCalendar'
 
 const { Title, Text } = Typography
@@ -118,7 +119,7 @@ export default function AdminDashboard() {
     return (
       <DashboardLayout role="ROLE_ADMIN">
         <div className="flex items-center justify-center min-h-screen">
-          <Spin size="large" />
+          <CustomSpinner size="large" text="Loading dashboard..." />
         </div>
       </DashboardLayout>
     )

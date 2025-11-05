@@ -15,7 +15,7 @@ import {
   ClockCircleOutlined,
   BankOutlined,
 } from '@ant-design/icons'
-import { EnhancedTable, AvatarWithInitials } from '@/components/ui'
+import { EnhancedTable, AvatarWithInitials, CustomSpinner } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
 import type { ColumnsType } from 'antd/es/table'
 import type { Expense } from './ExpenseListPage'
@@ -284,7 +284,10 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
       columns={columns}
       dataSource={data}
       rowKey="id"
-      loading={loading}
+      loading={{
+        spinning: loading,
+        indicator: <CustomSpinner text="Loading expenses..." />,
+      }}
       pagination={{
         current: pagination.current,
         pageSize: pagination.pageSize,

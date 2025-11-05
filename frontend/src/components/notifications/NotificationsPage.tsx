@@ -7,7 +7,6 @@ import {
   Badge,
   Button,
   Empty,
-  Spin,
   Tag,
   Pagination,
   Space,
@@ -28,6 +27,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import axios from 'axios'
 import { useTranslations } from 'next-intl'
 import { formatDistanceToNow } from 'date-fns'
+import { CustomSpinner } from '@/components/ui'
 
 interface Notification {
   id: number
@@ -267,7 +267,7 @@ export const NotificationsPage: React.FC = () => {
       <Card className="!border-0 shadow-lg">
         {isLoading ? (
           <div className="flex items-center justify-center py-20">
-            <Spin size="large" />
+            <CustomSpinner size="large" text="Loading notifications..." />
           </div>
         ) : filteredNotifications.length === 0 ? (
           <Empty

@@ -1,8 +1,9 @@
 'use client'
 
 import React, { useState, ReactNode, useEffect } from 'react'
-import { Layout, Menu, Avatar, Dropdown, Button, Badge, Drawer, Tooltip } from 'antd'
+import { Layout, Menu, Avatar, Dropdown, Button, Badge, Tooltip } from 'antd'
 import type { MenuProps } from 'antd'
+import Image from 'next/image'
 import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
@@ -41,6 +42,7 @@ import { ThemeToggle } from '@/components/ThemeToggle'
 import LocaleSwitcher from '@/components/LocaleSwitcher'
 import { NotificationDropdown } from '@/components/notifications/NotificationDropdown'
 import { createLocalizedPath, getCurrentLocale } from '@/lib/localized-routes'
+import verticalLogo from '@/public/colored Vertical.png'
 
 const { Header, Sider, Content } = Layout
 
@@ -52,7 +54,7 @@ interface DashboardLayoutProps {
 type MenuItem = Required<MenuProps>['items'][number]
 
 export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, role }) => {
-  const [collapsed, setCollapsed] = useState(false)
+  const [collapsed, setCollapsed] = useState(true) // Default to collapsed
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false)
   const [openSubmenuKeys, setOpenSubmenuKeys] = useState<string[]>([])
   const { user, logout } = useAuth()
@@ -467,7 +469,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, role
 
   const handleLogout = async () => {
     await logout()
-    router.push('/login')
+    router.push(createLocalizedPath(locale, '/login'))
   }
 
   const userMenuItems = [
@@ -475,13 +477,13 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, role
       key: 'profile',
       icon: <UserOutlined />,
       label: t('common.profile'),
-      onClick: () => router.push(`/${validRoleKey}/profile`),
+      onClick: () => router.push(createLocalizedPath(locale, `/${validRoleKey}/profile`)),
     },
     {
       key: 'settings',
       icon: <SettingOutlined />,
       label: t('common.settings'),
-      onClick: () => router.push(`/${validRoleKey}/settings`),
+      onClick: () => router.push(createLocalizedPath(locale, `/${validRoleKey}/settings`)),
     },
     {
       type: 'divider',
@@ -531,20 +533,26 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, role
         collapsed ? "py-5 px-4" : "py-6 px-6"
       )}>
         {!collapsed ? (
-          <div className="flex items-center space-x-3">
-            <div className="w-9 h-9 rounded bg-gray-900 dark:bg-white flex items-center justify-center">
-              <span className="text-white dark:text-gray-900 font-semibold text-base">HR</span>
-            </div>
-            <div>
-              <h2 className="text-base font-semibold text-gray-900 dark:text-white tracking-tight">HRS System</h2>
-              <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">
-                {validRoleKey} Portal
-              </p>
-            </div>
+          <div className="flex items-center justify-center">
+            <Image 
+              src={verticalLogo}
+              alt="HR Management System" 
+              width={120}
+              height={56}
+              className="h-14 w-auto object-contain"
+              priority
+            />
           </div>
         ) : (
-          <div className="w-9 h-9 rounded bg-gray-900 dark:bg-white flex items-center justify-center mx-auto">
-            <span className="text-white dark:text-gray-900 font-semibold text-base">HR</span>
+          <div className="flex items-center justify-center">
+            <Image 
+              src={verticalLogo}
+              alt="HR" 
+              width={80}
+              height={40}
+              className="h-10 w-auto object-contain"
+              priority
+            />
           </div>
         )}
       </div>
@@ -562,12 +570,12 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, role
             <UserOutlined className="text-base text-gray-600 dark:text-gray-400" />
           </div>
           {!collapsed && (
-            <div className="ml-3 flex-1 min-w-0">
+            <div className="ml-3 rtl:ml-0 rtl:mr-3 flex-1 min-w-0">
               <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
                 {user?.firstName} {user?.lastName}
               </p>
               <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">
-                {validRoleKey}
+                {validRoleKey === 'admin' ? t('common.adminPortal') : validRoleKey === 'manager' ? t('common.managerPortal') : t('common.employeePortal')}
               </p>
             </div>
           )}
@@ -642,19 +650,19 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, role
                       )}
                     >
                       <span className={cn(
-                        "mr-3 text-base",
+                        "mr-3 rtl:mr-0 rtl:ml-3 text-base",
                         isSelected ? "text-white" : "text-gray-500 dark:text-gray-400"
                       )}>
                         {'icon' in item ? item.icon : null}
                       </span>
-                      <span className="flex-1 text-left">
+                      <span className="flex-1 text-left rtl:text-right">
                         {'label' in item ? item.label : ''}
                       </span>
                       {hasChildren && (
                         <svg
                           className={cn(
                             "w-3.5 h-3.5 transition-transform duration-200",
-                            isOpen ? "rotate-90" : "rotate-0",
+                            isOpen ? "rotate-90 rtl:-rotate-90" : "rotate-0",
                             isSelected ? "text-white" : "text-gray-400 dark:text-gray-500"
                           )}
                           fill="none"
@@ -669,7 +677,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, role
 
                     {/* Submenu */}
                     {hasChildren && isOpen && (
-                      <div className="mt-1 ml-4 pl-6 border-l-2 border-gray-200 dark:border-gray-700 space-y-1 py-1">
+                      <div className="mt-1 ml-4 rtl:ml-0 rtl:mr-4 pl-6 rtl:pl-0 rtl:pr-6 border-l-2 rtl:border-l-0 rtl:border-r-2 border-gray-200 dark:border-gray-700 space-y-1 py-1">
                         {item.children?.map((child) => {
                           if (!child || !('key' in child)) return null
                           const childKey = String(child.key)
@@ -688,12 +696,12 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, role
                               )}
                             >
                               <span className={cn(
-                                "mr-3 text-sm", 
+                                "mr-3 rtl:mr-0 rtl:ml-3 text-sm", 
                                 isChildSelected ? "text-white" : "text-gray-400 dark:text-gray-500"
                               )}>
                                 {'icon' in child ? child.icon : null}
                               </span>
-                              <span className="flex-1 text-left">
+                              <span className="flex-1 text-left rtl:text-right">
                                 {'label' in child ? child.label : ''}
                               </span>
                             </button>
@@ -738,59 +746,43 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, role
         {sidebarContent}
       </Sider>
 
-      {/* Mobile Drawer */}
-      <Drawer
-        title={t('common.menu')}
-        placement="left"
-        onClose={() => setMobileDrawerOpen(false)}
-        open={mobileDrawerOpen}
-        className="md:hidden"
-        styles={{
-          body: { padding: 0, backgroundColor: 'transparent' },
-          header: { 
-            backgroundColor: 'transparent',
-            borderBottom: '1px solid',
-            borderBottomColor: 'rgb(229, 231, 235)'
-          }
-        }}
-        rootClassName="[&_.ant-drawer-header]:dark:border-gray-700 [&_.ant-drawer-content]:dark:bg-gray-900 [&_.ant-drawer-content]:bg-white"
-      >
-        {sidebarContent}
-      </Drawer>
-
       <Layout className="bg-gray-50 dark:bg-gray-900">
         <Header 
-          className="sticky top-0 z-10 px-6 flex items-center justify-between bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 h-16"
+          className="sticky top-0 z-10 px-4 md:px-6 flex items-center justify-between bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 h-16 shadow-sm"
         >
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-3 rtl:space-x-reverse">
+            {/* Enhanced Collapse button */}
             <Button
               type="text"
               icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
               onClick={() => setCollapsed(!collapsed)}
-              className="hidden md:flex !text-gray-600 dark:!text-gray-400 hover:!text-gray-900 dark:hover:!text-white"
+              className="!text-gray-600 dark:!text-gray-400 hover:!text-gray-900 dark:hover:!text-white hover:!bg-gray-100 dark:hover:!bg-gray-800 !rounded-lg !w-10 !h-10 flex items-center justify-center transition-all"
+              size="large"
             />
-            <Button
-              type="text"
-              icon={<MenuUnfoldOutlined />}
-              onClick={() => setMobileDrawerOpen(true)}
-              className="flex md:hidden !text-gray-600 dark:!text-gray-400 hover:!text-gray-900 dark:hover:!text-white"
-            />
-            <div className="flex items-center space-x-2.5">
-              <h1 className="text-lg font-semibold text-gray-900 dark:text-white">
-                {t('common.dashboard')}
+            <div className="hidden sm:flex items-center space-x-2 rtl:space-x-reverse">
+              <h1 className="text-base md:text-lg font-semibold text-gray-900 dark:text-white">
+                {t('common.appName')}
               </h1>
             </div>
           </div>
 
-          <div className="flex items-center space-x-2">
-            {/* Notification Dropdown */}
-            <NotificationDropdown locale={locale} role={validRoleKey as 'admin' | 'manager' | 'employee'} />
+          <div className="flex items-center space-x-1.5 md:space-x-2 rtl:space-x-reverse">
+            {/* Enhanced Notification Dropdown */}
+            <div className="hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
+              <NotificationDropdown locale={locale} role={validRoleKey as 'admin' | 'manager' | 'employee'} />
+            </div>
 
-            <LocaleSwitcher />
+            {/* Enhanced Locale Switcher */}
+            <div className="hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
+              <LocaleSwitcher />
+            </div>
 
-            <ThemeToggle />
+            {/* Enhanced Theme Toggle */}
+            <div className="hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors p-1">
+              <ThemeToggle />
+            </div>
 
-            {/* User Dropdown */}
+            {/* Enhanced User Dropdown */}
             <Dropdown
               menu={{ 
                 items: userMenuItems as any,
@@ -798,21 +790,24 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, role
               placement="bottomRight"
               trigger={['click']}
             >
-              <div className="flex items-center space-x-2.5 cursor-pointer px-2.5 py-1.5 rounded hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+              <div className="flex items-center space-x-2 rtl:space-x-reverse cursor-pointer px-2 md:px-3 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-all border border-transparent hover:border-gray-200 dark:hover:border-gray-700">
                 <Avatar
                   src={user?.avatar}
                   icon={<UserOutlined />}
-                  size={32}
-                  className="!bg-gray-200 dark:!bg-gray-700 !text-gray-600 dark:!text-gray-400"
+                  size={36}
+                  className="!bg-gradient-to-br !from-blue-500 !to-indigo-600 !text-white ring-2 ring-offset-2 ring-blue-200 dark:ring-blue-900"
                 />
-                <div className="hidden lg:block text-left">
-                  <p className="text-sm font-medium text-gray-900 dark:text-white leading-tight">
+                <div className="hidden lg:block text-left rtl:text-right">
+                  <p className="text-sm font-semibold text-gray-900 dark:text-white leading-tight">
                     {user?.firstName} {user?.lastName}
                   </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">
-                    {validRoleKey}
+                  <p className="text-xs text-gray-500 dark:text-gray-400 capitalize leading-tight">
+                    {validRoleKey === 'admin' ? t('common.adminPortal') : validRoleKey === 'manager' ? t('common.managerPortal') : t('common.employeePortal')}
                   </p>
                 </div>
+                <svg className="hidden lg:block w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
               </div>
             </Dropdown>
           </div>

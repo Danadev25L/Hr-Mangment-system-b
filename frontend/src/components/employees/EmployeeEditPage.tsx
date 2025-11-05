@@ -59,7 +59,6 @@ interface EmployeeEditPageProps {
 }
 
 export function EmployeeEditPage({ role }: EmployeeEditPageProps) {
-  const router = useRouter()
   const params = useParams()
   const locale = useLocale()
   const id = params.id as string
@@ -71,6 +70,13 @@ export function EmployeeEditPage({ role }: EmployeeEditPageProps) {
   const listPath = `/${locale}${basePath}/employees`
   const dashboardPath = `/${locale}${basePath}/dashboard`
   const canEditRoleAndDepartment = role === 'admin'
+
+  // Navigate with locale support
+  const handleNavigation = (path: string) => {
+    if (typeof window !== 'undefined') {
+      window.location.href = path
+    }
+  }
 
   const { data: departmentsData } = useQuery({
     queryKey: ['departments'],
@@ -91,7 +97,7 @@ export function EmployeeEditPage({ role }: EmployeeEditPageProps) {
       queryClient.invalidateQueries({ queryKey: ['users'] })
       queryClient.invalidateQueries({ queryKey: ['user', id] })
       queryClient.invalidateQueries({ queryKey: ['manager-employees'] })
-      router.push(listPath)
+      handleNavigation(listPath)
     },
     onError: (error: any) => {
       const errorMessage = error.response?.data?.message || 'Failed to update employee'
@@ -206,7 +212,7 @@ export function EmployeeEditPage({ role }: EmployeeEditPageProps) {
         items={[
           {
             title: (
-              <span className="flex items-center gap-2 cursor-pointer" onClick={() => router.push(dashboardPath)}>
+              <span className="flex items-center gap-2 cursor-pointer" onClick={() => handleNavigation(dashboardPath)}>
                 <HomeOutlined />
                 <span>Dashboard</span>
               </span>
@@ -214,7 +220,7 @@ export function EmployeeEditPage({ role }: EmployeeEditPageProps) {
           },
           {
             title: (
-              <span className="flex items-center gap-2 cursor-pointer" onClick={() => router.push(listPath)}>
+              <span className="flex items-center gap-2 cursor-pointer" onClick={() => handleNavigation(listPath)}>
                 <TeamOutlined />
                 <span>{role === 'admin' ? 'Employees' : 'My Team'}</span>
               </span>
@@ -245,7 +251,7 @@ export function EmployeeEditPage({ role }: EmployeeEditPageProps) {
           <EnhancedButton
             variant="ghost"
             icon={<ArrowLeftOutlined />}
-            onClick={() => router.push(listPath)}
+            onClick={() => handleNavigation(listPath)}
           >
             Back to {role === 'admin' ? 'Employees' : 'Team'}
           </EnhancedButton>
@@ -528,7 +534,7 @@ export function EmployeeEditPage({ role }: EmployeeEditPageProps) {
 
           <EnhancedCard>
             <div className="flex justify-end gap-4">
-              <EnhancedButton variant="ghost" onClick={() => router.push(listPath)}>
+              <EnhancedButton variant="ghost" onClick={() => handleNavigation(listPath)}>
                 Cancel
               </EnhancedButton>
               <EnhancedButton

@@ -181,31 +181,33 @@ export default function EmployeeDashboard() {
             </div>
           </div>
 
-          {/* Attendance Widget - Priority */}
-          <Col xs={24} lg={8}>
-            <AttendanceWidget />
-          </Col>
+          {/* Stats Row */}
+          <Row gutter={[16, 16]}>
+            {/* Attendance Widget - Priority */}
+            <Col xs={24} lg={8}>
+              <AttendanceWidget />
+            </Col>
 
-          {/* Personal Stats Cards */}
-          <Col xs={24} sm={12} lg={4}>
-            <Card className="card-hover">
-              <Statistic
-                title="Performance Score"
-                value={employeeData?.performance || 92}
-                suffix="%"
-                prefix={<TrophyOutlined className="text-yellow-500" />}
-                loading={isLoading}
-              />
-              <div className="mt-2">
-                <Progress
-                  percent={employeeData?.performance || 92}
-                  size="small"
-                  strokeColor="#52c41a"
-                  showInfo={false}
+            {/* Personal Stats Cards */}
+            <Col xs={24} sm={12} lg={4}>
+              <Card className="card-hover">
+                <Statistic
+                  title="Performance Score"
+                  value={employeeData?.performance || 92}
+                  suffix="%"
+                  prefix={<TrophyOutlined className="text-yellow-500" />}
+                  loading={isLoading}
                 />
-              </div>
-            </Card>
-          </Col>
+                <div className="mt-2">
+                  <Progress
+                    percent={employeeData?.performance || 92}
+                    size="small"
+                    strokeColor="#52c41a"
+                    showInfo={false}
+                  />
+                </div>
+              </Card>
+            </Col>
             <Col xs={24} sm={12} lg={4}>
               <Card className="card-hover">
                 <Statistic

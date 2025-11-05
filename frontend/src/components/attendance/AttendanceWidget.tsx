@@ -16,7 +16,9 @@ import {
 } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import { usePathname } from 'next/navigation'
 import dayjs from 'dayjs'
+import { createLocalizedPath, getCurrentLocale } from '@/lib/localized-routes'
 
 const { Title, Text } = Typography
 
@@ -50,6 +52,8 @@ interface AttendanceSummary {
 }
 
 export function AttendanceWidget() {
+  const pathname = usePathname()
+  const locale = getCurrentLocale(pathname)
   const [correctionModalVisible, setCorrectionModalVisible] = useState(false)
   const [correctionForm] = Form.useForm()
   const queryClient = useQueryClient()
@@ -406,7 +410,7 @@ export function AttendanceWidget() {
               <HistoryOutlined className="text-blue-500" />
               <span>Recent Attendance</span>
             </div>
-            <Button type="link" href="/employee/attendance">
+            <Button type="link" href={createLocalizedPath(locale, '/employee/attendance')}>
               View All
             </Button>
           </div>

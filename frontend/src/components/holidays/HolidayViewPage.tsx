@@ -8,7 +8,6 @@ import {
   Tag,
   Breadcrumb,
   message,
-  Spin,
   Empty,
   Descriptions,
   Typography,
@@ -32,6 +31,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/lib/api'
 import { useRouter } from 'next/navigation'
 import dayjs from 'dayjs'
+import { CustomSpinner } from '@/components/ui'
 
 const { Title, Paragraph, Text } = Typography
 
@@ -75,7 +75,7 @@ export function HolidayViewPage({ role, id }: HolidayViewPageProps) {
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <Spin size="large" />
+        <CustomSpinner size="large" text="Loading holiday details..." />
       </div>
     )
   }

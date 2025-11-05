@@ -196,6 +196,14 @@ export const getMyDepartmentEmployees = async (req, res) => {
         const endDate = req.query.endDate || '';
         const offset = (page - 1) * limit;
         
+        // DEBUG: Log search parameters
+        console.log('🔍 SEARCH DEBUG - Manager Employees:', {
+            search,
+            page,
+            limit,
+            departmentId: manager.departmentId
+        });
+        
         // Build search conditions
         let whereConditions = [
             eq(users.departmentId, manager.departmentId),
@@ -205,7 +213,14 @@ export const getMyDepartmentEmployees = async (req, res) => {
         // Search filter
         if (search) {
             whereConditions.push(
-                sql`(users.fullName ILIKE ${'%' + search + '%'} OR users.username ILIKE ${'%' + search + '%'} OR users.employeeCode ILIKE ${'%' + search + '%'} OR users.jobTitle ILIKE ${'%' + search + '%'})`
+                or(
+                    sql`${users.fullName} ILIKE ${'%' + search + '%'}`,
+                    sql`${users.username} ILIKE ${'%' + search + '%'}`,
+                    sql`${users.employeeCode} ILIKE ${'%' + search + '%'}`,
+                    sql`${users.jobTitle} ILIKE ${'%' + search + '%'}`,
+                    sql`${personalInformation.firstName} ILIKE ${'%' + search + '%'}`,
+                    sql`${personalInformation.lastName} ILIKE ${'%' + search + '%'}`
+                )
             );
         }
 
@@ -277,6 +292,17 @@ export const getMyDepartmentEmployees = async (req, res) => {
         .where(and(...whereConditions))
         .limit(limit)
         .offset(offset);
+        
+        // DEBUG: Log search results
+        console.log('✅ SEARCH RESULTS:', {
+            foundCount: employees.length,
+            searchTerm: search,
+            sampleNames: employees.slice(0, 3).map(e => ({
+                fullName: e.fullName,
+                firstName: e.personalInformation?.firstName,
+                lastName: e.personalInformation?.lastName
+            }))
+        });
         
         const employeesWithCompleteData = employees.map(employee => ({
             ...employee,

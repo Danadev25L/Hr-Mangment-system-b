@@ -21,7 +21,7 @@ import {
 } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/lib/api'
-import { useRouter } from 'next/navigation'
+import { useLocale } from 'next-intl'
 import dayjs from 'dayjs'
 import { CustomSpinner } from '@/components/ui'
 
@@ -33,12 +33,19 @@ interface HolidayEditPageProps {
 
 export function HolidayEditPage({ id }: HolidayEditPageProps) {
   const [form] = Form.useForm()
-  const router = useRouter()
+  const locale = useLocale()
   const queryClient = useQueryClient()
 
   const basePath = '/admin'
-  const dashboardPath = `${basePath}/dashboard`
-  const listPath = `${basePath}/holidays`
+  const dashboardPath = `/${locale}${basePath}/dashboard`
+  const listPath = `/${locale}${basePath}/holidays`
+
+  // Navigate with locale support
+  const handleNavigation = (path: string) => {
+    if (typeof window !== 'undefined') {
+      window.location.href = path
+    }
+  }
 
   // Fetch holiday details
   const { data: holiday, isLoading: holidayLoading } = useQuery({
@@ -53,7 +60,7 @@ export function HolidayEditPage({ id }: HolidayEditPageProps) {
       message.success('Holiday updated successfully')
       queryClient.invalidateQueries({ queryKey: ['holidays'] })
       queryClient.invalidateQueries({ queryKey: ['holiday', id] })
-      router.push(listPath)
+      handleNavigation(listPath)
     },
     onError: (error: any) => {
       message.error(error.response?.data?.message || 'Failed to update holiday')
@@ -98,7 +105,7 @@ export function HolidayEditPage({ id }: HolidayEditPageProps) {
       <Card>
         <Empty description="Holiday not found" />
         <div className="text-center mt-4">
-          <Button onClick={() => router.push(listPath)}>
+          <Button onClick={() => handleNavigation(listPath)}>
             Back to Holidays
           </Button>
         </div>
@@ -113,7 +120,7 @@ export function HolidayEditPage({ id }: HolidayEditPageProps) {
         items={[
           {
             title: (
-              <span className="flex items-center cursor-pointer hover:text-green-600 transition-colors" onClick={() => router.push(dashboardPath)}>
+              <span className="flex items-center cursor-pointer hover:text-green-600 transition-colors" onClick={() => handleNavigation(dashboardPath)}>
                 <HomeOutlined className="mr-1" />
                 Dashboard
               </span>
@@ -121,7 +128,7 @@ export function HolidayEditPage({ id }: HolidayEditPageProps) {
           },
           {
             title: (
-              <span className="flex items-center cursor-pointer hover:text-green-600 transition-colors" onClick={() => router.push(listPath)}>
+              <span className="flex items-center cursor-pointer hover:text-green-600 transition-colors" onClick={() => handleNavigation(listPath)}>
                 <CalendarOutlined className="mr-1" />
                 Holidays
               </span>
@@ -149,7 +156,7 @@ export function HolidayEditPage({ id }: HolidayEditPageProps) {
             <Button
               size="large"
               icon={<ArrowLeftOutlined />}
-              onClick={() => router.push(listPath)}
+              onClick={() => handleNavigation(listPath)}
               className="bg-white/20 backdrop-blur-sm border-white/30 text-white hover:bg-white/30"
             >
               Back
@@ -240,7 +247,7 @@ export function HolidayEditPage({ id }: HolidayEditPageProps) {
                 Update Holiday
               </Button>
               <Button
-                onClick={() => router.push(listPath)}
+                onClick={() => handleNavigation(listPath)}
                 size="large"
               >
                 Cancel

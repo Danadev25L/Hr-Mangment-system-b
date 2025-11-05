@@ -2,8 +2,6 @@
 
 import React, { useEffect, useState } from 'react'
 import {
-  Card,
-  Button,
   Form,
   Input,
   Select,
@@ -11,8 +9,6 @@ import {
   message,
   Row,
   Col,
-  Breadcrumb,
-  Space,
   DatePicker,
   Radio,
   Alert,
@@ -38,21 +34,13 @@ import {
 } from '@ant-design/icons'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/lib/api'
-import { useRouter, useParams } from 'next/navigation'
+import { useParams } from 'next/navigation'
 import dayjs from 'dayjs'
 import { useLocale } from 'next-intl'
-import { EnhancedCard, EnhancedButton } from '@/components/ui'
+import { EnhancedCard, EnhancedButton, PageHeader, CustomSpinner } from '@/components/ui'
 import { EmployeesIllustration } from '@/components/ui/illustrations'
 
 const { Option } = Select
-const { Title, Text } = {
-  Title: ({ children }: { children: React.ReactNode }) => (
-    <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{children}</h1>
-  ),
-  Text: ({ children }: { children: React.ReactNode }) => (
-    <p className="text-gray-500 dark:text-gray-400">{children}</p>
-  ),
-}
 
 interface EmployeeEditPageProps {
   role: 'admin' | 'manager'
@@ -202,61 +190,35 @@ export function EmployeeEditPage({ role }: EmployeeEditPageProps) {
   }
 
   if (isUserLoading) {
-    return <div>Loading...</div>
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <CustomSpinner size="large" text="Loading employee details..." />
+      </div>
+    )
   }
 
   return (
     <div className="space-y-6">
-      {/* Breadcrumb */}
-      <Breadcrumb
-        items={[
-          {
-            title: (
-              <span className="flex items-center gap-2 cursor-pointer" onClick={() => handleNavigation(dashboardPath)}>
-                <HomeOutlined />
-                <span>Dashboard</span>
-              </span>
-            ),
-          },
-          {
-            title: (
-              <span className="flex items-center gap-2 cursor-pointer" onClick={() => handleNavigation(listPath)}>
-                <TeamOutlined />
-                <span>{role === 'admin' ? 'Employees' : 'My Team'}</span>
-              </span>
-            ),
-          },
-          {
-            title: 'Edit Employee',
-          },
-        ]}
-      />
-
       {/* Header */}
-      <EnhancedCard>
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-          <div className="flex items-center gap-6">
-            <div className="hidden md:block">
-              <EmployeesIllustration className="w-20 h-20" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">
-                Edit Employee
-              </h1>
-              <p className="text-gray-600 dark:text-gray-400">
-                Update the employee details below
-              </p>
-            </div>
-          </div>
+      <PageHeader
+        title={`Edit Employee - ${userData?.data?.fullName || ''}`}
+        description={
+          canEditRoleAndDepartment
+            ? "Update employee information, role assignments, and department transfers"
+            : "Update basic employee information (Role and department changes require admin access)"
+        }
+        icon={<EmployeesIllustration className="w-20 h-20" />}
+        gradient="purple"
+        action={
           <EnhancedButton
-            variant="ghost"
+            variant="secondary"
             icon={<ArrowLeftOutlined />}
             onClick={() => handleNavigation(listPath)}
           >
             Back to {role === 'admin' ? 'Employees' : 'Team'}
           </EnhancedButton>
-        </div>
-      </EnhancedCard>
+        }
+      />
 
       {/* Manager Alert */}
       {!canEditRoleAndDepartment && (

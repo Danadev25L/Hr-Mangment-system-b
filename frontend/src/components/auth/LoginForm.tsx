@@ -33,25 +33,26 @@ export const LoginForm: React.FC = () => {
       const result = await login(values.username, values.password)
       message.success(t('auth.loginSuccess'))
 
-      // Redirect based on user role - wait a bit for auth state to update
-      setTimeout(() => {
-        const role = localStorage.getItem('userRole') || 'ROLE_EMPLOYEE'
-        console.log('LoginForm - Redirecting user with role:', role)
-        
-        switch (role) {
-          case 'ROLE_ADMIN':
-            router.push(createLocalizedPath(locale, '/admin/dashboard'))
-            break
-          case 'ROLE_MANAGER':
-            router.push(createLocalizedPath(locale, '/manager/dashboard'))
-            break
-          case 'ROLE_EMPLOYEE':
-            router.push(createLocalizedPath(locale, '/employee/dashboard'))
-            break
-          default:
-            router.push(createLocalizedPath(locale, '/employee/dashboard'))
-        }
-      }, 200)
+      // Get role and redirect immediately - cookies are already set by apiClient
+      const role = localStorage.getItem('userRole') || 'ROLE_EMPLOYEE'
+      
+      let dashboardPath = ''
+      switch (role) {
+        case 'ROLE_ADMIN':
+          dashboardPath = createLocalizedPath(locale, '/admin/dashboard')
+          break
+        case 'ROLE_MANAGER':
+          dashboardPath = createLocalizedPath(locale, '/manager/dashboard')
+          break
+        case 'ROLE_EMPLOYEE':
+          dashboardPath = createLocalizedPath(locale, '/employee/dashboard')
+          break
+        default:
+          dashboardPath = createLocalizedPath(locale, '/employee/dashboard')
+      }
+      
+      // Use router.push for faster client-side navigation
+      router.push(dashboardPath)
     } catch (error) {
       console.error('Login failed:', error)
     } finally {

@@ -145,7 +145,8 @@
     "myProfile": "My Profile",
     "myAttendance": "My Attendance",
     "attendanceRecords": "Attendance Records",
-    "myCorrections": "My Corrections"
+    "myCorrections": "My Corrections",
+    "myApplications": "My Applications"
   },
   "auth": {
     "email": "Email",

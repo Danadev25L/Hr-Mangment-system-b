@@ -18,7 +18,6 @@ import {
 import {
   BellOutlined,
   CheckOutlined,
-  DeleteOutlined,
   ReloadOutlined,
   FilterOutlined,
   SearchOutlined
@@ -28,6 +27,7 @@ import axios from 'axios'
 import { useTranslations } from 'next-intl'
 import { formatDistanceToNow } from 'date-fns'
 import { CustomSpinner } from '@/components/ui'
+import { PageHeader } from '@/components/ui/PageHeader'
 
 interface Notification {
   id: number
@@ -108,28 +108,37 @@ export const NotificationsPage: React.FC = () => {
     }
   })
 
-  // Delete notification mutation
-  const deleteNotificationMutation = useMutation({
-    mutationFn: async (notificationId: number) => {
-      await axios.delete(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/shared/notifications/${notificationId}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      )
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notifications'] })
-      message.success(t('notifications.deleted'))
-    }
-  })
+  // Delete notification mutation - DISABLED (notifications should never be deleted)
+  // const deleteNotificationMutation = useMutation({
+  //   mutationFn: async (notificationId: number) => {
+  //     await axios.delete(
+  //       `${process.env.NEXT_PUBLIC_API_URL}/api/shared/notifications/${notificationId}`,
+  //       { headers: { Authorization: `Bearer ${token}` } }
+  //     )
+  //   },
+  //   onSuccess: () => {
+  //     queryClient.invalidateQueries({ queryKey: ['notifications'] })
+  //     message.success(t('notifications.deleted'))
+  //   }
+  // })
 
   const notifications = notificationsData || []
   
-  // Filter notifications
+  // Filter notifications - Show ALL by default
   const filteredNotifications = notifications.filter((notif: Notification) => {
+    // Type filter
     const matchesType = filterType === 'all' || notif.type.includes(filterType)
-    const matchesStatus = filterStatus === 'all' || 
-      (filterStatus === 'unread' && !notif.isRead) ||
-      (filterStatus === 'read' && notif.isRead)
+    
+    // Status filter - SHOW ALL when 'all' is selected
+    let matchesStatus = true
+    if (filterStatus === 'unread') {
+      matchesStatus = !notif.isRead
+    } else if (filterStatus === 'read') {
+      matchesStatus = notif.isRead
+    }
+    // if filterStatus === 'all', matchesStatus stays true
+    
+    // Search filter
     const matchesSearch = !searchQuery || 
       notif.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       notif.message.toLowerCase().includes(searchQuery.toLowerCase())
@@ -189,27 +198,20 @@ export const NotificationsPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <Card className="!border-0 shadow-lg">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-              <BellOutlined className="text-blue-500" />
-              {t('notifications.title')}
-            </h1>
-            <p className="text-gray-500 dark:text-gray-400 mt-1">
-              {t('notifications.subtitle')}
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Badge count={unreadCount} showZero>
-              <Tag color="blue" className="!px-4 !py-1">
-                {unreadCount} {t('notifications.unread')}
-              </Tag>
-            </Badge>
-          </div>
-        </div>
-      </Card>
+      {/* Modern Header */}
+      <PageHeader
+        title={t('notifications.title')}
+        description={t('notifications.subtitle')}
+        icon={<BellOutlined />}
+        gradient="purple"
+        action={
+          <Badge count={unreadCount} showZero>
+            <Tag color="purple" className="!px-4 !py-2 !text-base !font-semibold !bg-white/20 !border-white/30">
+              {unreadCount} {t('notifications.unread')}
+            </Tag>
+          </Badge>
+        }
+      />
 
       {/* Filters and Actions */}
       <Card className="!border-0 shadow-lg">
@@ -297,19 +299,8 @@ export const NotificationsPage: React.FC = () => {
                       >
                         {t('notifications.markRead')}
                       </Button>
-                    ),
-                    <Button
-                      key="delete"
-                      type="link"
-                      danger
-                      size="small"
-                      icon={<DeleteOutlined />}
-                      onClick={() => deleteNotificationMutation.mutate(notification.id)}
-                      loading={deleteNotificationMutation.isPending}
-                    >
-                      {t('common.delete')}
-                    </Button>
-                  ]}
+                    )
+                  ].filter(Boolean)}
                 >
                   <List.Item.Meta
                     avatar={

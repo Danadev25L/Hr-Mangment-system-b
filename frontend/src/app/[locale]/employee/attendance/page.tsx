@@ -216,7 +216,7 @@ export default function EmployeeAttendancePage() {
     absent: attendanceRecords.filter(r => r.status === 'absent').length,
     late: attendanceRecords.filter(r => r.isLate).length,
     totalHours: Math.floor(attendanceRecords.reduce((sum, r) => sum + (r.workingHours || 0), 0) / 60)
-  ]
+  }
 
   return (
     <DashboardLayout role={user?.role || 'ROLE_EMPLOYEE'}>

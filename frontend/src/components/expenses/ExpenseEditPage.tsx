@@ -28,7 +28,8 @@ import {
 } from '@ant-design/icons'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/lib/api'
-import { useRouter, useParams } from 'next/navigation'
+import { useParams } from 'next/navigation'
+import { useLocale } from 'next-intl'
 import dayjs from 'dayjs'
 import { EnhancedCard, EnhancedButton, CustomSpinner } from '@/components/ui'
 import { ExpensesIllustration } from '@/components/ui/illustrations'
@@ -40,16 +41,23 @@ interface ExpenseEditPageProps {
 }
 
 export function ExpenseEditPage({ role }: ExpenseEditPageProps) {
-  const router = useRouter()
   const params = useParams()
+  const locale = useLocale()
   const id = params.id as string
   const queryClient = useQueryClient()
   const [form] = Form.useForm()
 
   const basePath = role === 'admin' ? '/admin' : '/manager'
-  const listPath = `${basePath}/expenses`
-  const viewPath = `${basePath}/expenses/${id}`
-  const dashboardPath = `${basePath}/dashboard`
+  const listPath = `/${locale}${basePath}/expenses`
+  const viewPath = `/${locale}${basePath}/expenses/${id}`
+  const dashboardPath = `/${locale}${basePath}/dashboard`
+
+  // Navigate with locale support
+  const handleNavigation = (path: string) => {
+    if (typeof window !== 'undefined') {
+      window.location.href = path
+    }
+  }
 
   // Fetch expense data
   const { data: expenseData, isLoading: isLoadingExpense } = useQuery({
@@ -85,7 +93,7 @@ export function ExpenseEditPage({ role }: ExpenseEditPageProps) {
       message.success('Expense updated successfully')
       queryClient.invalidateQueries({ queryKey: ['expense', id] })
       queryClient.invalidateQueries({ queryKey: ['expenses'] })
-      router.push(viewPath)
+      handleNavigation(viewPath)
     },
     onError: (error: any) => {
       message.error(error.response?.data?.message || 'Failed to update expense')
@@ -161,7 +169,7 @@ export function ExpenseEditPage({ role }: ExpenseEditPageProps) {
           <EnhancedButton
             variant="ghost"
             icon={<ArrowLeftOutlined />}
-            onClick={() => router.push(listPath)}
+            onClick={() => handleNavigation(listPath)}
           >
             Back to Expenses
           </EnhancedButton>
@@ -289,7 +297,7 @@ export function ExpenseEditPage({ role }: ExpenseEditPageProps) {
 
         <EnhancedCard>
           <div className="flex justify-end gap-4">
-            <EnhancedButton variant="ghost" onClick={() => router.push(listPath)}>
+            <EnhancedButton variant="ghost" onClick={() => handleNavigation(listPath)}>
               Cancel
             </EnhancedButton>
             <EnhancedButton

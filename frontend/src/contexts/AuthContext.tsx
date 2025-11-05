@@ -101,23 +101,58 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     const initializeAuth = async () => {
       const token = localStorage.getItem('token')
+      const cachedRole = localStorage.getItem('userRole')
+      
       if (token) {
-        try {
-          dispatch({ type: 'AUTH_START' })
-          const user = await apiClient.getCurrentUser()
-          // Store user role for navigation in both localStorage and cookie
-          localStorage.setItem('userRole', user.role)
-          document.cookie = `userRole=${user.role}; path=/; max-age=86400; sameSite=strict`
-          dispatch({ type: 'AUTH_SUCCESS', payload: user })
-        } catch (error) {
-          console.error('Failed to initialize auth:', error)
-          dispatch({ type: 'AUTH_FAILURE', payload: 'Session expired' })
-          localStorage.removeItem('token')
-          localStorage.removeItem('refreshToken')
-          localStorage.removeItem('userRole')
-          // Also remove the cookies
-          document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
-          document.cookie = 'userRole=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
+        // OPTIMIZATION: If we have cached role, set auth as successful immediately
+        // Then verify in background
+        if (cachedRole) {
+          // Set authenticated immediately with cached data
+          dispatch({ 
+            type: 'AUTH_SUCCESS', 
+            payload: { 
+              role: cachedRole,
+              id: 0, // Will be updated when API call completes
+              username: '',
+              firstName: '',
+              lastName: '',
+              email: ''
+            } as any 
+          })
+          
+          // Verify token in background (non-blocking)
+          apiClient.getCurrentUser()
+            .then(user => {
+              localStorage.setItem('userRole', user.role)
+              document.cookie = `userRole=${user.role}; path=/; max-age=86400; sameSite=strict`
+              dispatch({ type: 'AUTH_SUCCESS', payload: user })
+            })
+            .catch(error => {
+              console.error('Background auth verification failed:', error)
+              dispatch({ type: 'AUTH_FAILURE', payload: 'Session expired' })
+              localStorage.removeItem('token')
+              localStorage.removeItem('refreshToken')
+              localStorage.removeItem('userRole')
+              document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
+              document.cookie = 'userRole=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
+            })
+        } else {
+          // No cached role, fetch from API (blocking)
+          try {
+            dispatch({ type: 'AUTH_START' })
+            const user = await apiClient.getCurrentUser()
+            localStorage.setItem('userRole', user.role)
+            document.cookie = `userRole=${user.role}; path=/; max-age=86400; sameSite=strict`
+            dispatch({ type: 'AUTH_SUCCESS', payload: user })
+          } catch (error) {
+            console.error('Failed to initialize auth:', error)
+            dispatch({ type: 'AUTH_FAILURE', payload: 'Session expired' })
+            localStorage.removeItem('token')
+            localStorage.removeItem('refreshToken')
+            localStorage.removeItem('userRole')
+            document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
+            document.cookie = 'userRole=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
+          }
         }
       } else {
         // User not logged in - this is normal, don't show error

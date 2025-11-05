@@ -689,3 +689,120 @@ body {
 .dark .ant-notification-close-icon:hover {
   color: rgb(255 255 255) !important;
 }
+
+/* Enhanced Modern Dropdown Styling */
+.ant-dropdown {
+  border-radius: 0.75rem !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
+}
+
+.ant-dropdown-menu {
+  border-radius: 0.75rem !important;
+  padding: 0.5rem !important;
+  border: 1px solid rgb(229 231 235) !important;
+}
+
+.dark .ant-dropdown-menu {
+  background: rgb(31 41 55) !important;
+  border-color: rgb(55 65 81) !important;
+}
+
+.ant-dropdown-menu-item {
+  border-radius: 0.5rem !important;
+  margin-bottom: 0.25rem !important;
+  padding: 0.625rem 0.875rem !important;
+  transition: all 0.2s ease !important;
+  font-weight: 500 !important;
+}
+
+.ant-dropdown-menu-item:last-child {
+  margin-bottom: 0 !important;
+}
+
+.ant-dropdown-menu-item:hover {
+  background: rgb(243 244 246) !important;
+}
+
+.dark .ant-dropdown-menu-item {
+  color: rgb(229 231 235) !important;
+}
+
+.dark .ant-dropdown-menu-item:hover {
+  background: rgb(55 65 81) !important;
+  color: rgb(255 255 255) !important;
+}
+
+.ant-dropdown-menu-item-divider {
+  margin: 0.5rem 0 !important;
+  background: rgb(229 231 235) !important;
+}
+
+.dark .ant-dropdown-menu-item-divider {
+  background: rgb(55 65 81) !important;
+}
+
+/* User Dropdown with Icons */
+.ant-dropdown-menu-item .anticon {
+  font-size: 1rem !important;
+  margin-right: 0.75rem !important;
+  transition: transform 0.2s ease !important;
+}
+
+.ant-dropdown-menu-item:hover .anticon {
+  transform: scale(1.1) !important;
+}
+
+/* Logout item special styling */
+.ant-dropdown-menu-item[data-menu-id$="logout"] {
+  color: rgb(239 68 68) !important;
+}
+
+.dark .ant-dropdown-menu-item[data-menu-id$="logout"] {
+  color: rgb(248 113 113) !important;
+}
+
+.ant-dropdown-menu-item[data-menu-id$="logout"]:hover {
+  background: rgb(254 242 242) !important;
+}
+
+.dark .ant-dropdown-menu-item[data-menu-id$="logout"]:hover {
+  background: rgb(127 29 29) !important;
+}
+
+/* Sidebar Menu - Force ALL TEXT to WHITE */
+.ant-layout-sider a,
+.ant-layout-sider button,
+.ant-layout-sider span,
+.ant-layout-sider p,
+.ant-layout-sider div {
+  color: white !important;
+}
+
+/* Sidebar Links - All White */
+.ant-layout-sider a {
+  color: white !important;
+}
+
+.ant-layout-sider a:hover {
+  color: white !important;
+}
+
+/* Sidebar Menu Items */
+.ant-layout-sider .ant-menu-item,
+.ant-layout-sider .ant-menu-submenu,
+.ant-layout-sider .ant-menu-item a,
+.ant-layout-sider .ant-menu-submenu-title {
+  color: white !important;
+}
+
+/* Sidebar Menu Icons */
+.ant-layout-sider .anticon,
+.ant-layout-sider svg {
+  color: white !important;
+  fill: white !important;
+}
+
+/* Sidebar - Override any blue/default colors */
+.ant-layout-sider * {
+  color: white !important;
+}

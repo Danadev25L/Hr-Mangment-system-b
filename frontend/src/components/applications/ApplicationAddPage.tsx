@@ -2,26 +2,21 @@
 
 import React, { useState, useMemo } from 'react'
 import {
-  Card,
-  Button,
   Form,
   Input,
   message,
   Row,
   Col,
-  Breadcrumb,
   Space,
   DatePicker,
   Select,
   Tag,
   Divider,
-  Typography,
   Alert,
 } from 'antd'
 import {
   PlusOutlined,
   ArrowLeftOutlined,
-  HomeOutlined,
   FileTextOutlined,
   UserOutlined,
   TeamOutlined,
@@ -37,24 +32,37 @@ import {
 } from '@ant-design/icons'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/lib/api'
-import { useRouter } from 'next/navigation'
+import { useLocale } from 'next-intl'
+import {
+  PageHeader,
+  EnhancedCard,
+  EnhancedButton,
+} from '@/components/ui'
+import { ApplicationsIllustration } from '@/components/ui/illustrations/ApplicationsIllustration'
 
 const { TextArea } = Input
-const { Title } = Typography
 
 interface ApplicationAddPageProps {
-  role: 'admin' | 'manager'
+  role: 'admin' | 'manager' | 'employee'
 }
 
 export function ApplicationAddPage({ role }: ApplicationAddPageProps) {
-  const router = useRouter()
+  const locale = useLocale()
   const queryClient = useQueryClient()
   const [form] = Form.useForm()
   const [selectedDepartment, setSelectedDepartment] = useState<number | null>(null)
 
-  const basePath = role === 'admin' ? '/admin' : '/manager'
-  const listPath = `${basePath}/applications`
-  const dashboardPath = `${basePath}/dashboard`
+  const basePath = 
+    role === 'admin' ? '/admin/applications' : 
+    role === 'manager' ? '/manager/applications' : 
+    '/employee/applications'
+  const listPath = `/${locale}${basePath}`
+
+  const handleNavigation = (path: string) => {
+    if (typeof window !== 'undefined') {
+      window.location.href = path
+    }
+  }
 
   // Fetch departments (for admin to select department, for manager to get their own department)
   const { data: departments, isLoading: isLoadingDepartments } = useQuery({
@@ -91,7 +99,7 @@ export function ApplicationAddPage({ role }: ApplicationAddPageProps) {
     onSuccess: () => {
       message.success('Application created successfully')
       queryClient.invalidateQueries({ queryKey: ['applications'] })
-      router.push(listPath)
+      handleNavigation(listPath)
     },
     onError: (error: any) => {
       message.error(error.response?.data?.message || 'Failed to create application')
@@ -110,66 +118,25 @@ export function ApplicationAddPage({ role }: ApplicationAddPageProps) {
 
   return (
     <div className="space-y-6">
-      {/* Breadcrumb */}
-      <Breadcrumb
-        items={[
-          {
-            title: (
-              <span className="flex items-center cursor-pointer hover:text-blue-600 transition-colors" onClick={() => router.push(dashboardPath)}>
-                <HomeOutlined className="mr-1" />
-                Dashboard
-              </span>
-            ),
-          },
-          {
-            title: (
-              <span className="cursor-pointer hover:text-blue-600 transition-colors" onClick={() => router.push(listPath)}>
-                <FileTextOutlined className="mr-1" />
-                Applications
-              </span>
-            ),
-          },
-          {
-            title: (
-              <span className="flex items-center">
-                <PlusOutlined className="mr-1" />
-                Add New
-              </span>
-            ),
-          },
-        ]}
+      {/* Header */}
+      <PageHeader
+        title="Create New Application"
+        description="Submit a new application request for approval"
+        icon={<ApplicationsIllustration className="w-20 h-20" />}
+        gradient="cyan"
+        action={
+          <EnhancedButton
+            variant="secondary"
+            icon={<ArrowLeftOutlined />}
+            onClick={() => handleNavigation(listPath)}
+          >
+            Back to Applications
+          </EnhancedButton>
+        }
       />
 
-      {/* Header */}
-      <Card className="shadow-lg border-t-4 border-t-cyan-500">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <div className="w-14 h-14 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
-              <FileTextOutlined className="text-white text-2xl" />
-            </div>
-            <div>
-              <Title level={2} className="!mb-1 !text-gray-900 dark:!text-gray-100">
-                Create New Application
-              </Title>
-              <p className="text-gray-500 dark:text-gray-400 m-0 flex items-center gap-2">
-                <InfoCircleOutlined />
-                Submit a new application request for approval
-              </p>
-            </div>
-          </div>
-          <Button 
-            icon={<ArrowLeftOutlined />} 
-            onClick={() => router.push(listPath)}
-            size="large"
-            className="rounded-lg"
-          >
-            Back to List
-          </Button>
-        </div>
-      </Card>
-
-      {/* Form */}
-      <Card className="shadow-lg">
+      {/* Form Card */}
+      <EnhancedCard className="shadow-md">
         <Form
           form={form}
           layout="vertical"
@@ -181,7 +148,7 @@ export function ApplicationAddPage({ role }: ApplicationAddPageProps) {
           }}
         >
           {role === 'admin' && (
-            <Card className="mb-6 bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-gray-800 dark:to-gray-700 border-l-4 border-l-blue-500">
+            <EnhancedCard className="mb-6 bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-gray-800 dark:to-gray-700 border-l-4 border-l-blue-500">
               <Divider orientation="left">
                 <Space>
                   <TeamOutlined className="text-blue-600" />
@@ -260,11 +227,11 @@ export function ApplicationAddPage({ role }: ApplicationAddPageProps) {
                   </Form.Item>
                 </Col>
               </Row>
-            </Card>
+            </EnhancedCard>
           )}
 
           {role === 'manager' && (
-            <Card className="mb-6 bg-gradient-to-r from-green-50 to-teal-50 dark:from-gray-800 dark:to-gray-700 border-l-4 border-l-green-500">
+            <EnhancedCard className="mb-6 bg-gradient-to-r from-green-50 to-teal-50 dark:from-gray-800 dark:to-gray-700 border-l-4 border-l-green-500">
               <Alert
                 message="Application Creation"
                 description="You can create an application for yourself or for any employee in your department"
@@ -312,7 +279,20 @@ export function ApplicationAddPage({ role }: ApplicationAddPageProps) {
                   </Form.Item>
                 </Col>
               </Row>
-            </Card>
+            </EnhancedCard>
+          )}
+
+          {role === 'employee' && (
+            <EnhancedCard className="mb-6 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-gray-800 dark:to-gray-700 border-l-4 border-l-purple-500">
+              <Alert
+                message="Submit Your Application"
+                description="Fill out the form below to submit an application request for approval"
+                type="success"
+                showIcon
+                icon={<CheckCircleOutlined />}
+                className="mb-2"
+              />
+            </EnhancedCard>
           )}
 
           <Divider orientation="left">
@@ -546,28 +526,25 @@ export function ApplicationAddPage({ role }: ApplicationAddPageProps) {
 
           <Form.Item className="mb-0">
             <div className="flex flex-col sm:flex-row justify-end gap-3 pt-2">
-              <Button 
-                onClick={() => router.push(listPath)}
-                size="large"
+              <EnhancedButton
+                variant="secondary"
+                onClick={() => handleNavigation(listPath)}
                 icon={<ArrowLeftOutlined />}
-                className="rounded-lg"
               >
                 Cancel
-              </Button>
-              <Button
-                type="primary"
+              </EnhancedButton>
+              <EnhancedButton
+                variant="primary"
                 htmlType="submit"
                 icon={<PlusOutlined />}
                 loading={createApplicationMutation.isPending}
-                size="large"
-                className="rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 border-none hover:from-cyan-600 hover:to-blue-700"
               >
                 Create Application
-              </Button>
+              </EnhancedButton>
             </div>
           </Form.Item>
         </Form>
-      </Card>
+      </EnhancedCard>
     </div>
   )
 }

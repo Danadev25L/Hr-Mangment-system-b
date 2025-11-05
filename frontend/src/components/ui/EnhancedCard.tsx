@@ -27,7 +27,7 @@ export const EnhancedCard: React.FC<EnhancedCardProps> = ({
         noPadding && 'enhanced-card-no-padding',
         className
       )}
-      bordered={false}
+      variant="borderless"
     >
       {children}
       <style jsx global>{`

@@ -45,7 +45,7 @@ interface ApplicationTableProps {
   onDelete: (record: Application) => void
   onApprove: (record: Application) => void
   onReject: (record: Application) => void
-  role: 'admin' | 'manager'
+  role: 'admin' | 'manager' | 'employee'
 }
 
 export function ApplicationTable({

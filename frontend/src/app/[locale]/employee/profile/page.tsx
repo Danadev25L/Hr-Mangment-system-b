@@ -1,58 +1,18 @@
 'use client'
 
-import React, { useState } from 'react'
-import {
-  Card,
-  Form,
-  Input,
-  Button,
-  Avatar,
-  Upload,
-  message,
-  Row,
-  Col,
-  Select,
-  DatePicker,
-  InputNumber,
-  Divider,
-  Typography,
-  Space,
-  Tag,
-} from 'antd'
-import {
-  UserOutlined,
-  MailOutlined,
-  PhoneOutlined,
-  EditOutlined,
-  SaveOutlined,
-  UploadOutlined,
-  CameraOutlined,
-} from '@ant-design/icons'
-import { DashboardLayout } from '@/components/layout/DashboardLayout'
-import { ProtectedRoute } from '@/components/layout/ProtectedRoute'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { formatDate } from '@/lib/utils'
-import type { UploadProps } from 'antd'
-import dayjs from 'dayjs'
-import apiClient from '@/lib/api'
-import type { User, PersonalInformation, EmergencyContact } from '@/types'
+import { useAuth } from '@/hooks/useAuth';
+import { DashboardLayout } from '@/components/layout/DashboardLayout';
+import { ProfilePage } from '@/components/profile/ProfilePage'
 
-const { Title, Text } = Typography
-const { Option } = Select
-
-interface ProfileData {
-  user: User
-  personalInfo: PersonalInformation | null
+export default function EmployeeProfilePage() {
+  const { user } = useAuth();
+  
+  return (
+    <DashboardLayout role={user?.role || 'ROLE_EMPLOYEE'}>
+      <ProfilePage role="ROLE_EMPLOYEE" />
+    </DashboardLayout>
+  );
 }
-
-export default function ProfilePage() {
-  const [isEditingPersonal, setIsEditingPersonal] = useState(false)
-  const [isEditingProfessional, setIsEditingProfessional] = useState(false)
-  const [personalForm] = Form.useForm()
-  const [professionalForm] = Form.useForm()
-  const queryClient = useQueryClient()
-
-  const { data: profileData, isLoading, error } = useQuery({
     queryKey: ['employee-profile'],
     queryFn: async (): Promise<ProfileData> => {
       const [user, personalInfo] = await Promise.all([

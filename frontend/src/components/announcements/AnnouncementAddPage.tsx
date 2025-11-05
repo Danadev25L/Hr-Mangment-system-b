@@ -1,45 +1,55 @@
 'use client'
 
-import React, { useState, useMemo } from 'react'
+import { useState, useMemo } from 'react'
+import { useLocale, useTranslations } from 'next-intl'
 import {
-  Card,
-  Button,
   Form,
   Input,
   message,
   Row,
   Col,
-  Breadcrumb,
-  Space,
   DatePicker,
   Select,
   Switch,
+  Space,
 } from 'antd'
 import {
   PlusOutlined,
   ArrowLeftOutlined,
-  HomeOutlined,
 } from '@ant-design/icons'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/lib/api'
-import { useRouter } from 'next/navigation'
+import dayjs from 'dayjs'
+import {
+  PageHeader,
+  EnhancedButton,
+  EnhancedCard,
+} from '@/components/ui'
+import { AnnouncementsIllustration } from '@/components/ui/illustrations/AnnouncementsIllustration'
 
 const { TextArea } = Input
 
 interface AnnouncementAddPageProps {
   role: 'admin' | 'manager'
+  title: string
+  description: string
 }
 
-export function AnnouncementAddPage({ role }: AnnouncementAddPageProps) {
-  const router = useRouter()
+export function AnnouncementAddPage({ role, title, description }: AnnouncementAddPageProps) {
+  const locale = useLocale()
+  const t = useTranslations()
   const queryClient = useQueryClient()
   const [form] = Form.useForm()
   const [selectedDepartment, setSelectedDepartment] = useState<number | null>(null)
   const [isCompanyWide, setIsCompanyWide] = useState(false)
 
-  const basePath = role === 'admin' ? '/admin' : '/manager'
-  const listPath = `${basePath}/announcements`
-  const dashboardPath = `${basePath}/dashboard`
+  const basePath = role === 'admin' ? '/admin/announcements' : '/manager/announcements'
+
+  const handleNavigation = (path: string) => {
+    if (typeof window !== 'undefined') {
+      window.location.href = path
+    }
+  }
 
   // Fetch departments
   const { data: departments, isLoading: isLoadingDepartments } = useQuery({
@@ -77,12 +87,12 @@ export function AnnouncementAddPage({ role }: AnnouncementAddPageProps) {
   const createAnnouncementMutation = useMutation({
     mutationFn: (values: any) => apiClient.createAnnouncement(values),
     onSuccess: () => {
-      message.success('Announcement created successfully')
+      message.success(t('announcements.createSuccess') || 'Announcement created successfully')
       queryClient.invalidateQueries({ queryKey: ['announcements'] })
-      router.push(listPath)
+      handleNavigation(`/${locale}${basePath}`)
     },
     onError: (error: any) => {
-      message.error(error.response?.data?.message || 'Failed to create announcement')
+      message.error(error.response?.data?.message || t('announcements.createError') || 'Failed to create announcement')
     },
   })
 
@@ -115,70 +125,47 @@ export function AnnouncementAddPage({ role }: AnnouncementAddPageProps) {
 
   return (
     <div className="space-y-6">
-      {/* Breadcrumb */}
-      <Breadcrumb
-        items={[
-          {
-            title: (
-              <span className="flex items-center cursor-pointer" onClick={() => router.push(dashboardPath)}>
-                <HomeOutlined className="mr-1" />
-                Dashboard
-              </span>
-            ),
-          },
-          {
-            title: (
-              <span className="cursor-pointer" onClick={() => router.push(listPath)}>
-                Announcements
-              </span>
-            ),
-          },
-          {
-            title: 'Create New',
-          },
-        ]}
+      <PageHeader
+        title={title}
+        description={description}
+        icon={<AnnouncementsIllustration className="w-20 h-20" />}
+        gradient="amber"
+        action={
+          <EnhancedButton
+            variant="ghost"
+            icon={<ArrowLeftOutlined />}
+            onClick={() => handleNavigation(`/${locale}${basePath}`)}
+          >
+            {t('common.cancel')}
+          </EnhancedButton>
+        }
       />
 
-      {/* Page Header */}
-      <Card>
-        <div className="flex items-center space-x-3">
-          <Button
-            icon={<ArrowLeftOutlined />}
-            onClick={() => router.push(listPath)}
-          />
-          <div>
-            <h1 className="text-2xl font-bold m-0">Create Announcement</h1>
-            <p className="text-gray-500 mt-1">
-              {role === 'admin' ? 'Create announcement for all company or specific department' : 'Create announcement for your department'}
-            </p>
-          </div>
-        </div>
-      </Card>
-
       {/* Announcement Form */}
-      <Card>
+      <EnhancedCard>
         <Form
           form={form}
           layout="vertical"
           onFinish={handleSubmit}
           initialValues={{
             isActive: true,
+            date: dayjs(),
           }}
         >
           {/* Admin: Company-wide or Department selection */}
           {role === 'admin' && (
             <>
               <Form.Item
-                label="Announcement Scope"
-                tooltip="Choose if this announcement is for the entire company or a specific department"
+                label={t('announcements.scope') || "Announcement Scope"}
+                tooltip={t('announcements.scopeTooltip') || "Choose if this announcement is for the entire company or a specific department"}
               >
                 <Space>
-                  <span>Department-specific</span>
+                  <span>{t('announcements.departmentSpecific') || "Department-specific"}</span>
                   <Switch 
                     checked={isCompanyWide}
                     onChange={handleCompanyWideChange}
                   />
-                  <span>Company-wide</span>
+                  <span>{t('announcements.companyWide') || "Company-wide"}</span>
                 </Space>
               </Form.Item>
 
@@ -187,11 +174,11 @@ export function AnnouncementAddPage({ role }: AnnouncementAddPageProps) {
                   <Col xs={24} md={12}>
                     <Form.Item
                       name="departmentId"
-                      label="Select Department"
-                      rules={[{ required: !isCompanyWide, message: 'Please select a department' }]}
+                      label={t('announcements.department')}
+                      rules={[{ required: !isCompanyWide, message: t('announcements.departmentRequired') || 'Please select a department' }]}
                     >
                       <Select
-                        placeholder="Select department"
+                        placeholder={t('announcements.selectDepartment') || "Select department"}
                         loading={isLoadingDepartments}
                         onChange={handleDepartmentChange}
                         showSearch
@@ -218,12 +205,12 @@ export function AnnouncementAddPage({ role }: AnnouncementAddPageProps) {
           {((role === 'admin' && selectedDepartment && !isCompanyWide) || role === 'manager') && (
             <Form.Item
               name="recipientUserIds"
-              label="Select Recipients (Optional)"
-              tooltip="Leave empty to send to all users in the department"
+              label={t('announcements.recipients') || "Select Recipients (Optional)"}
+              tooltip={t('announcements.recipientsTooltip') || "Leave empty to send to all users in the department"}
             >
               <Select
                 mode="multiple"
-                placeholder="Select specific users (or leave empty for all)"
+                placeholder={t('announcements.selectRecipients') || "Select specific users (or leave empty for all)"}
                 loading={role === 'admin' ? isLoadingUsers : isLoadingManagerUsers}
                 showSearch
                 filterOption={(input, option) =>
@@ -245,21 +232,21 @@ export function AnnouncementAddPage({ role }: AnnouncementAddPageProps) {
             <Col xs={24} md={12}>
               <Form.Item
                 name="title"
-                label="Title"
+                label={t('announcements.announcementTitle')}
                 rules={[
-                  { required: true, message: 'Please enter announcement title' },
-                  { max: 255, message: 'Title cannot exceed 255 characters' },
+                  { required: true, message: t('announcements.titleRequired') || 'Please enter announcement title' },
+                  { max: 255, message: t('announcements.titleMaxLength') || 'Title cannot exceed 255 characters' },
                 ]}
               >
-                <Input placeholder="e.g., Office Closure Notice" />
+                <Input placeholder={t('announcements.titlePlaceholder') || "e.g., Office Closure Notice"} />
               </Form.Item>
             </Col>
 
             <Col xs={24} md={12}>
               <Form.Item
                 name="date"
-                label="Announcement Date"
-                rules={[{ required: true, message: 'Please select announcement date' }]}
+                label={t('announcements.date')}
+                rules={[{ required: true, message: t('announcements.dateRequired') || 'Please select announcement date' }]}
               >
                 <DatePicker
                   style={{ width: '100%' }}
@@ -271,15 +258,15 @@ export function AnnouncementAddPage({ role }: AnnouncementAddPageProps) {
 
           <Form.Item
             name="description"
-            label="Description"
+            label={t('announcements.description')}
             rules={[
-              { required: true, message: 'Please enter announcement description' },
-              { max: 2000, message: 'Description cannot exceed 2000 characters' },
+              { required: true, message: t('announcements.descriptionRequired') || 'Please enter announcement description' },
+              { max: 2000, message: t('announcements.descriptionMaxLength') || 'Description cannot exceed 2000 characters' },
             ]}
           >
             <TextArea
               rows={6}
-              placeholder="Enter the full announcement details..."
+              placeholder={t('announcements.descriptionPlaceholder') || "Enter the full announcement details..."}
               showCount
               maxLength={2000}
             />
@@ -287,27 +274,35 @@ export function AnnouncementAddPage({ role }: AnnouncementAddPageProps) {
 
           <Form.Item
             name="isActive"
-            label="Status"
+            label={t('announcements.status')}
             valuePropName="checked"
           >
-            <Switch checkedChildren="Active" unCheckedChildren="Inactive" />
+            <Switch 
+              checkedChildren={t('announcements.active')} 
+              unCheckedChildren={t('announcements.inactive')} 
+            />
           </Form.Item>
 
           <Form.Item>
             <Space>
-              <Button
-                type="primary"
+              <EnhancedButton
+                variant="primary"
                 htmlType="submit"
                 icon={<PlusOutlined />}
                 loading={createAnnouncementMutation.isPending}
               >
-                Create Announcement
-              </Button>
-              <Button onClick={() => router.push(listPath)}>Cancel</Button>
+                {t('announcements.createAnnouncement')}
+              </EnhancedButton>
+              <EnhancedButton 
+                variant="ghost"
+                onClick={() => handleNavigation(`/${locale}${basePath}`)}
+              >
+                {t('common.cancel')}
+              </EnhancedButton>
             </Space>
           </Form.Item>
         </Form>
-      </Card>
+      </EnhancedCard>
     </div>
   )
 }

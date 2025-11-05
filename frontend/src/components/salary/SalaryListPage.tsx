@@ -3,42 +3,39 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { 
-  Table, 
-  Button, 
-  Select, 
-  Card,
-  Statistic,
-  Row,
-  Col,
-  Space,
-  Tag,
-  Tooltip,
   Modal,
   Descriptions,
   Divider,
   message,
-  Empty
+  Tag,
+  Dropdown,
+  Button,
+  type MenuProps,
 } from 'antd'
 import {
   DollarOutlined,
-  EyeOutlined,
-  TeamOutlined,
-  ReloadOutlined,
   PrinterOutlined,
   DownloadOutlined,
+  FileExcelOutlined,
+  FilePdfOutlined,
   ClockCircleOutlined,
   CalculatorOutlined,
   CheckOutlined,
-  BankOutlined
 } from '@ant-design/icons'
-import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import apiClient from '@/lib/api'
+import { useTranslations, useLocale } from 'next-intl'
 import { DashboardLayout } from '@/components/layout/DashboardLayout'
-import { useTranslations } from 'next-intl'
-import { CustomSpinner } from '@/components/ui'
-
-const { Option } = Select
+import { 
+  PageHeader, 
+  SearchInput,
+  EnhancedButton,
+  CustomSpinner 
+} from '@/components/ui'
+import { SalaryIllustration } from '@/components/ui/illustrations'
+import { SalaryStats } from './SalaryStats'
+import { SalaryFilters } from './SalaryFilters'
+import { SalaryTable } from './SalaryTable'
 
 interface SalaryRecord {
   id: number
@@ -80,10 +77,13 @@ interface SalarySummary {
 
 interface SalaryListProps {
   role: 'ROLE_ADMIN' | 'ROLE_MANAGER'
+  title: string
+  description: string
 }
 
-export default function SalaryListPage({ role }: SalaryListProps) {
+export default function SalaryListPage({ role, title, description }: SalaryListProps) {
   const t = useTranslations()
+  const locale = useLocale()
   const currentDate = dayjs()
   const [selectedMonth, setSelectedMonth] = useState(currentDate.month() + 1)
   const [selectedYear, setSelectedYear] = useState(currentDate.year())
@@ -91,6 +91,7 @@ export default function SalaryListPage({ role }: SalaryListProps) {
   const [selectedDepartment, setSelectedDepartment] = useState<string>('')
   const [detailsModal, setDetailsModal] = useState(false)
   const [selectedRecord, setSelectedRecord] = useState<SalaryRecord | null>(null)
+  const [pagination, setPagination] = useState({ current: 1, pageSize: 20 })
 
   const isAdmin = role === 'ROLE_ADMIN'
 
@@ -195,142 +196,50 @@ export default function SalaryListPage({ role }: SalaryListProps) {
     message.success(t('common.exportSuccess'))
   }
 
-  const getStatusTag = (status: string) => {
-    const statusConfig = {
-      draft: { color: 'default', icon: <ClockCircleOutlined />, label: t('common.draft') },
-      calculated: { color: 'processing', icon: <CalculatorOutlined />, label: t('common.calculated') },
-      approved: { color: 'success', icon: <CheckOutlined />, label: t('applications.approved') },
-      paid: { color: 'success', icon: <DollarOutlined />, label: t('common.paid') }
-    }
-    const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.draft
-    return <Tag icon={config.icon} color={config.color}>{config.label.toUpperCase()}</Tag>
+  const handleTableChange = (newPagination: any) => {
+    setPagination({
+      current: newPagination.current,
+      pageSize: newPagination.pageSize,
+    })
   }
 
-  const columns: ColumnsType<SalaryRecord> = [
+  const handleFilterChange = (key: string, value: any) => {
+    if (key === 'month') setSelectedMonth(value)
+    else if (key === 'year') setSelectedYear(value)
+    else if (key === 'status') setSelectedStatus(value)
+    else if (key === 'department') setSelectedDepartment(value)
+  }
+
+  const handleReset = () => {
+    setSelectedMonth(currentDate.month() + 1)
+    setSelectedYear(currentDate.year())
+    setSelectedStatus('')
+    setSelectedDepartment('')
+    setPagination({ current: 1, pageSize: 20 })
+  }
+
+  const handleNavigation = (path: string) => {
+    window.location.href = path
+  }
+
+  const exportMenuItems: MenuProps['items'] = [
     {
-      title: t('common.employee'),
-      key: 'employee',
-      fixed: 'left',
-      width: 180,
-      render: (_, record) => (
-        <div>
-          <div className="font-semibold text-gray-900">{record.employeeName}</div>
-          <div className="text-xs text-gray-500">{record.employeeCode}</div>
-        </div>
-      )
+      key: 'excel',
+      icon: <FileExcelOutlined />,
+      label: 'Export Excel',
+      onClick: handleExportCSV,
     },
     {
-      title: t('employees.department'),
-      dataIndex: 'department',
-      key: 'department',
-      width: 130,
-      render: (dept) => (
-        <Tag icon={<BankOutlined />} color="blue">{dept}</Tag>
-      )
+      key: 'pdf',
+      icon: <FilePdfOutlined />,
+      label: 'Export PDF',
     },
     {
-      title: t('common.period'),
-      key: 'period',
-      width: 90,
-      align: 'center',
-      render: (_, record) => (
-        <div className="font-medium">{dayjs().month(record.month - 1).format('MMM')} {record.year}</div>
-      )
+      key: 'print',
+      icon: <PrinterOutlined />,
+      label: 'Print',
+      onClick: handlePrint,
     },
-    {
-      title: t('common.baseSalary'),
-      dataIndex: 'baseSalary',
-      key: 'baseSalary',
-      width: 110,
-      align: 'right',
-      render: (value) => <span className="font-medium">${parseFloat(value).toLocaleString()}</span>
-    },
-    {
-      title: t('common.bonuses'),
-      dataIndex: 'totalBonuses',
-      key: 'totalBonuses',
-      width: 100,
-      align: 'right',
-      render: (value) => (
-        <span className="text-green-600 font-medium">
-          +${parseFloat(value).toLocaleString()}
-        </span>
-      )
-    },
-    {
-      title: t('common.overtime'),
-      dataIndex: 'overtimePay',
-      key: 'overtimePay',
-      width: 100,
-      align: 'right',
-      render: (value) => (
-        <span className="text-blue-600 font-medium">
-          +${parseFloat(value).toLocaleString()}
-        </span>
-      )
-    },
-    {
-      title: t('common.deductions'),
-      key: 'deductions',
-      width: 110,
-      align: 'right',
-      render: (_, record) => {
-        const total = parseFloat(record.totalDeductions)
-        const absence = parseFloat(record.absenceDeductions)
-        const latency = parseFloat(record.latencyDeductions)
-        
-        return (
-          <Tooltip title={
-            <div className="text-xs">
-              <div>{t('common.absence')}: ${absence.toFixed(2)}</div>
-              <div>{t('common.latency')}: ${latency.toFixed(2)}</div>
-              <div>{t('common.tax')}: ${parseFloat(record.taxDeduction).toFixed(2)}</div>
-            </div>
-          }>
-            <span className="text-red-600 font-medium cursor-help">
-              -${total.toLocaleString()}
-            </span>
-          </Tooltip>
-        )
-      }
-    },
-    {
-      title: t('common.finalSalary'),
-      dataIndex: 'netSalary',
-      key: 'netSalary',
-      width: 140,
-      align: 'right',
-      render: (value) => (
-        <span className="text-lg font-bold text-emerald-600">
-          ${parseFloat(value).toLocaleString()}
-        </span>
-      )
-    },
-    {
-      title: t('common.status'),
-      dataIndex: 'status',
-      key: 'status',
-      width: 110,
-      align: 'center',
-      render: (status) => getStatusTag(status)
-    },
-    {
-      title: t('common.action'),
-      key: 'actions',
-      fixed: 'right',
-      width: 80,
-      align: 'center',
-      render: (_, record) => (
-        <Tooltip title={t('common.viewDetails')}>
-          <Button
-            type="link"
-            size="small"
-            icon={<EyeOutlined />}
-            onClick={() => handleViewDetails(record)}
-          />
-        </Tooltip>
-      )
-    }
   ]
 
   if (isLoading) {
@@ -343,218 +252,79 @@ export default function SalaryListPage({ role }: SalaryListProps) {
     )
   }
 
+  const getStatusTag = (status: string) => {
+    const statusConfig = {
+      draft: { color: 'default', icon: <ClockCircleOutlined />, label: t('common.draft') },
+      calculated: { color: 'processing', icon: <CalculatorOutlined />, label: t('common.calculated') },
+      approved: { color: 'success', icon: <CheckOutlined />, label: t('applications.approved') },
+      paid: { color: 'success', icon: <DollarOutlined />, label: t('common.paid') }
+    }
+    const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.draft
+    return <Tag icon={config.icon} color={config.color}>{config.label.toUpperCase()}</Tag>
+  }
+
   return (
     <DashboardLayout role={role}>
-      <div className="max-w-full">
-        {/* Enhanced Header Design */}
-        <div className="mb-8">
-          <div className="bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 rounded-2xl shadow-2xl overflow-hidden">
-            <div className="px-8 py-10 relative">
-              {/* Background Pattern */}
-              <div className="absolute inset-0 opacity-10">
-                <div className="absolute inset-0" style={{
-                  backgroundImage: `radial-gradient(circle at 2px 2px, white 1px, transparent 0)`,
-                  backgroundSize: '32px 32px'
-                }} />
-              </div>
-
-              {/* Content */}
-              <div className="relative z-10">
-                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-                  {/* Title Section */}
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="bg-white/20 backdrop-blur-sm rounded-xl p-3">
-                        <DollarOutlined className="text-3xl text-white" />
-                      </div>
-                      <div>
-                        <h1 className="text-3xl md:text-4xl font-bold text-white mb-1">
-                          {t('navigation.salaryList')}
-                        </h1>
-                        <p className="text-blue-100 text-base">
-                          {t('common.viewAll')} {t('notifications.salary').toLowerCase()}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Action Buttons */}
-                  <div className="flex flex-wrap gap-3">
-                    <Button
-                      icon={<PrinterOutlined />}
-                      onClick={handlePrint}
-                      size="large"
-                      className="!bg-white/10 !border-white/20 !text-white hover:!bg-white/20 backdrop-blur-sm"
-                    >
-                      {t('common.print') || 'Print'}
-                    </Button>
-                    <Button
-                      icon={<DownloadOutlined />}
-                      onClick={handleExportCSV}
-                      size="large"
-                      className="!bg-white !border-white !text-blue-600 hover:!bg-blue-50"
-                    >
-                      {t('common.export') || 'Export CSV'}
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Summary Cards */}
-        <Row gutter={[16, 16]} className="mb-6">
-          <Col xs={24} sm={12} lg={6}>
-            <Card className="shadow-sm hover:shadow-md transition-shadow">
-              <Statistic
-                title={t('employees.totalEmployees')}
-                value={filteredSalaries.length}
-                prefix={<TeamOutlined />}
-                valueStyle={{ color: '#1890ff', fontSize: '24px' }}
-              />
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} lg={6}>
-            <Card className="shadow-sm hover:shadow-md transition-shadow">
-              <Statistic
-                title={t('common.totalGross') || 'Total Gross Salary'}
-                value={summary.totalGrossSalary}
-                precision={2}
-                prefix="$"
-                valueStyle={{ color: '#52c41a', fontSize: '24px' }}
-              />
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} lg={6}>
-            <Card className="shadow-sm hover:shadow-md transition-shadow">
-              <Statistic
-                title={t('common.totalNet') || 'Total Net Salary'}
-                value={summary.totalNetSalary}
-                precision={2}
-                prefix="$"
-                valueStyle={{ color: '#13c2c2', fontSize: '24px' }}
-              />
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} lg={6}>
-            <Card className="shadow-sm hover:shadow-md transition-shadow">
-              <Statistic
-                title={t('common.totalBonuses') || 'Total Bonuses'}
-                value={summary.totalBonuses}
-                precision={2}
-                prefix="$"
-                valueStyle={{ color: '#faad14', fontSize: '24px' }}
-              />
-            </Card>
-          </Col>
-        </Row>
-
-        {/* Filters */}
-        <Card className="mb-6 shadow-sm hover:shadow-md transition-shadow">
-          <div className="flex flex-col md:flex-row gap-4 flex-wrap items-start md:items-center">
-            <span className="font-semibold text-gray-700">{t('common.filters') || 'Filters'}:</span>
-            
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-600">{t('common.period') || 'Period'}:</span>
-              <Select
-                value={selectedMonth}
-                onChange={setSelectedMonth}
-                style={{ width: 120 }}
-                size="large"
+      <div className="space-y-6">
+        {/* Page Header */}
+        <PageHeader
+          title={title}
+          description={description}
+          icon={<SalaryIllustration />}
+          gradient="green"
+          action={
+            <div className="flex gap-3">
+              <EnhancedButton
+                onClick={() => handleNavigation(`/${locale}/admin/salary/adjustments`)}
+                icon={<DollarOutlined />}
               >
-                {Array.from({ length: 12 }, (_, i) => i + 1).map(month => (
-                  <Option key={month} value={month}>
-                    {dayjs().month(month - 1).format('MMMM')}
-                  </Option>
-                ))}
-              </Select>
-              <Select
-                value={selectedYear}
-                onChange={setSelectedYear}
-                style={{ width: 90 }}
-                size="large"
-              >
-                {Array.from({ length: 5 }, (_, i) => currentDate.year() - i).map(year => (
-                  <Option key={year} value={year}>{year}</Option>
-                ))}
-              </Select>
+                Adjust Salary
+              </EnhancedButton>
+              <Dropdown menu={{ items: exportMenuItems }} placement="bottomRight">
+                <EnhancedButton variant="secondary" icon={<DownloadOutlined />}>
+                  Export
+                </EnhancedButton>
+              </Dropdown>
             </div>
+          }
+        />
 
-            {isAdmin && departments.length > 0 && (
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-600">{t('employees.department')}:</span>
-                <Select
-                  value={selectedDepartment}
-                  onChange={setSelectedDepartment}
-                  style={{ width: 180 }}
-                  placeholder={t('departments.allDepartments') || 'All Departments'}
-                  allowClear
-                  size="large"
-                >
-                  {departments.map((dept: any) => (
-                    <Option key={dept.id} value={dept.departmentName || dept.name}>
-                      {dept.departmentName || dept.name}
-                    </Option>
-                  ))}
-                </Select>
-              </div>
-            )}
-            
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-600">{t('common.status')}:</span>
-              <Select
-                value={selectedStatus}
-                onChange={setSelectedStatus}
-                style={{ width: 140 }}
-                placeholder={t('common.allStatus') || 'All Status'}
-                allowClear
-                size="large"
-              >
-                <Option value="draft">{t('common.draft') || 'Draft'}</Option>
-                <Option value="calculated">{t('common.calculated') || 'Calculated'}</Option>
-                <Option value="approved">{t('applications.approved')}</Option>
-                <Option value="paid">{t('common.paid') || 'Paid'}</Option>
-              </Select>
-            </div>
+      {/* Salary Stats */}
+      <SalaryStats
+        totalEmployees={filteredSalaries.length}
+        totalGrossSalary={summary.totalGrossSalary}
+        totalNetSalary={summary.totalNetSalary}
+        totalBonuses={summary.totalBonuses}
+      />
 
-            <Button
-              icon={<ReloadOutlined />}
-              onClick={() => refetch()}
-              size="large"
-              className="ml-auto"
-            >
-              {t('common.refresh')}
-            </Button>
-          </div>
-        </Card>
+      {/* Filters */}
+      <SalaryFilters
+        role={isAdmin ? 'admin' : 'manager'}
+        filters={{
+          month: selectedMonth,
+          year: selectedYear,
+          status: selectedStatus,
+          department: selectedDepartment,
+        }}
+        departments={departments}
+        onFilterChange={handleFilterChange}
+        onReset={handleReset}
+        onRefresh={() => refetch()}
+        isLoading={isLoading}
+      />
 
-        {/* Salary Table */}
-        <Card className="shadow-sm print-section" id="salary-print-section">
-          {filteredSalaries.length === 0 ? (
-            <Empty 
-              description={t('common.noRecordsFound') || 'No salary records found for the selected period'}
-              image={Empty.PRESENTED_IMAGE_SIMPLE}
-            />
-          ) : (
-            <div className="overflow-x-auto">
-              <Table
-                columns={columns}
-                dataSource={filteredSalaries}
-                rowKey="id"
-                loading={isLoading}
-                scroll={{ x: 1200 }}
-                pagination={{
-                  pageSize: 20,
-                  showTotal: (total) => `${t('common.total')} ${total} ${t('common.employee').toLowerCase()}`,
-                  showSizeChanger: true,
-                  pageSizeOptions: ['10', '20', '50', '100']
-                }}
-                size="middle"
-              />
-            </div>
-          )}
-        </Card>
+      {/* Salary Table */}
+      <SalaryTable
+        data={filteredSalaries}
+        loading={isLoading}
+        pagination={{
+          current: pagination.current,
+          pageSize: pagination.pageSize,
+          total: filteredSalaries.length,
+        }}
+        onTableChange={handleTableChange}
+        onViewDetails={handleViewDetails}
+      />
 
         {/* Details Modal */}
         <Modal

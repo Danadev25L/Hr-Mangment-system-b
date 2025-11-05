@@ -17,6 +17,10 @@ class ApiClient {
       headers: {
         'Content-Type': 'application/json',
       },
+      // Performance optimizations
+      maxRedirects: 5,
+      maxContentLength: 50 * 1000 * 1000, // 50MB
+      validateStatus: (status) => status >= 200 && status < 500, // Don't throw on 4xx
     })
 
     this.setupInterceptors()

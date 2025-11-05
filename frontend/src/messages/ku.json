@@ -112,7 +112,8 @@
     "myProfile": "پرۆفایلی من",
     "myAttendance": "ئامادەبوونی من",
     "attendanceRecords": "تۆمارەکانی ئامادەبوون",
-    "myCorrections": "چاککردنەوەکانی من"
+    "myCorrections": "چاککردنەوەکانی من",
+    "myApplications": "داواکارییەکانی من"
   },
   "auth": {
     "email": "ئیمەیڵ",

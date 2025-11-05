@@ -35,8 +35,15 @@ import {
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import apiClient from '@/lib/api'
-import { useRouter } from 'next/navigation'
+import { useLocale, useTranslations } from 'next-intl'
 import { DashboardLayout } from '@/components/layout/DashboardLayout'
+import { 
+  PageHeader,
+  EnhancedCard,
+  EnhancedButton,
+} from '@/components/ui'
+import { SalaryAdjustmentIllustration } from '@/components/ui/illustrations'
+import { ArrowLeftOutlined } from '@ant-design/icons'
 
 const { Option } = Select
 const { Title, Text } = Typography
@@ -45,10 +52,13 @@ const { TabPane } = Tabs
 
 interface SalaryAdjustmentsPageProps {
   role: 'admin' | 'manager'
+  title?: string
+  description?: string
 }
 
-export default function SalaryAdjustmentsPage({ role }: SalaryAdjustmentsPageProps) {
-  const router = useRouter()
+export default function SalaryAdjustmentsPage({ role, title = 'Salary Management', description = 'Add bonuses, deductions, overtime and manage employee salaries' }: SalaryAdjustmentsPageProps) {
+  const t = useTranslations()
+  const locale = useLocale()
   const queryClient = useQueryClient()
   
   const [bonusForm] = Form.useForm()
@@ -62,8 +72,13 @@ export default function SalaryAdjustmentsPage({ role }: SalaryAdjustmentsPagePro
   const [selectedYear, setSelectedYear] = useState(dayjs().year())
 
   const basePath = role === 'admin' ? '/admin' : '/manager'
-  const dashboardPath = `${basePath}/dashboard`
-  const salaryListPath = `${basePath}/salary`
+  const salaryListPath = `/${locale}${basePath}/salary`
+  
+  const handleNavigation = (path: string) => {
+    if (typeof window !== 'undefined') {
+      window.location.href = path
+    }
+  }
 
   // Fetch departments
   const { data: departmentsData } = useQuery({
@@ -238,65 +253,32 @@ export default function SalaryAdjustmentsPage({ role }: SalaryAdjustmentsPagePro
   return (
     <DashboardLayout role={role === 'admin' ? 'ROLE_ADMIN' : 'ROLE_MANAGER'}>
       <div className="space-y-6">
-        {/* Breadcrumb */}
-        <Breadcrumb
-          items={[
-            {
-              title: (
-              <span 
-                className="flex items-center cursor-pointer hover:text-amber-600 transition-colors" 
-                onClick={() => router.push(dashboardPath)}
-              >
-                <HomeOutlined className="mr-1" />
-                Dashboard
-              </span>
-            ),
-          },
-          {
-            title: (
-              <span 
-                className="flex items-center cursor-pointer hover:text-amber-600 transition-colors" 
-                onClick={() => router.push(salaryListPath)}
-              >
-                <DollarOutlined className="mr-1" />
-                Salary
-              </span>
-            ),
-          },
-          {
-            title: 'Salary Management',
-          },
-        ]}
-      />
+        {/* Page Header */}
+        <PageHeader
+          title={title}
+          description={description}
+          icon={<SalaryAdjustmentIllustration />}
+          gradient="green"
+          action={
+            <EnhancedButton
+              variant="secondary"
+              icon={<ArrowLeftOutlined />}
+              onClick={() => handleNavigation(salaryListPath)}
+            >
+              Back to Salary List
+            </EnhancedButton>
+          }
+        />
 
-      {/* Page Header */}
-      <Card className="shadow-lg">
-        <div className="bg-gradient-to-r from-amber-500 to-yellow-600 p-6 -m-6 mb-6 rounded-t-lg">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
-                <DollarOutlined className="text-white text-2xl" />
-              </div>
-              <div>
-                <Title level={2} className="!text-white !mb-1">Salary Management</Title>
-                <Text className="text-white/90">
-                  Add bonuses, deductions, overtime and manage employee salaries
-                </Text>
-              </div>
-            </div>
-          </div>
-        </div>
-      </Card>
-
-      {/* Selection Card */}
-      <Card className="shadow-md">
-        <Title level={4} className="mb-4 flex items-center gap-2">
-          <UserOutlined className="text-amber-600" />
-          Employee Selection
-        </Title>
+        {/* Selection Card */}
+        <EnhancedCard>
+          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-gray-900 dark:text-gray-100">
+            <UserOutlined className="text-green-600 dark:text-green-400" />
+            Employee Selection
+          </h3>
         <Row gutter={[16, 16]}>
           <Col xs={24} md={6}>
-            <div className="mb-2 font-medium text-gray-700">Period</div>
+            <div className="mb-2 font-medium text-gray-700 dark:text-gray-300">Period</div>
             <Space>
               <Select
                 value={selectedMonth}
@@ -323,7 +305,7 @@ export default function SalaryAdjustmentsPage({ role }: SalaryAdjustmentsPagePro
             </Space>
           </Col>
           <Col xs={24} md={9}>
-            <div className="mb-2 font-medium text-gray-700">Department</div>
+            <div className="mb-2 font-medium text-gray-700 dark:text-gray-300">Department</div>
             <Select
               value={selectedDepartment}
               onChange={(value) => {
@@ -344,7 +326,7 @@ export default function SalaryAdjustmentsPage({ role }: SalaryAdjustmentsPagePro
             </Select>
           </Col>
           <Col xs={24} md={9}>
-            <div className="mb-2 font-medium text-gray-700">Employee</div>
+            <div className="mb-2 font-medium text-gray-700 dark:text-gray-300">Employee</div>
             <Select
               value={selectedEmployee}
               onChange={setSelectedEmployee}
@@ -370,33 +352,33 @@ export default function SalaryAdjustmentsPage({ role }: SalaryAdjustmentsPagePro
         </Row>
 
         {selectedEmployeeData && (
-          <div className="mt-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-blue-500 rounded">
+          <div className="mt-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-l-4 border-blue-500 dark:border-blue-400 rounded">
             <Row gutter={16}>
               <Col span={6}>
-                <Text type="secondary" className="text-xs">Employee Code</Text>
-                <div className="font-semibold">{selectedEmployeeData.employeeCode}</div>
+                <Text type="secondary" className="text-xs dark:text-gray-400">Employee Code</Text>
+                <div className="font-semibold text-gray-900 dark:text-gray-100">{selectedEmployeeData.employeeCode}</div>
               </Col>
               <Col span={6}>
-                <Text type="secondary" className="text-xs">Department</Text>
-                <div className="font-semibold">{selectedEmployeeData.department?.departmentName || 'N/A'}</div>
+                <Text type="secondary" className="text-xs dark:text-gray-400">Department</Text>
+                <div className="font-semibold text-gray-900 dark:text-gray-100">{selectedEmployeeData.department?.departmentName || 'N/A'}</div>
               </Col>
               <Col span={6}>
-                <Text type="secondary" className="text-xs">Current Base Salary</Text>
-                <div className="font-bold text-green-600 text-lg">
+                <Text type="secondary" className="text-xs dark:text-gray-400">Current Base Salary</Text>
+                <div className="font-bold text-green-600 dark:text-green-400 text-lg">
                   ${parseFloat(selectedEmployeeData.baseSalary || 0).toLocaleString()}
                 </div>
               </Col>
               <Col span={6}>
-                <Text type="secondary" className="text-xs">Job Title</Text>
-                <div className="font-semibold">{selectedEmployeeData.jobTitle || 'N/A'}</div>
+                <Text type="secondary" className="text-xs dark:text-gray-400">Job Title</Text>
+                <div className="font-semibold text-gray-900 dark:text-gray-100">{selectedEmployeeData.jobTitle || 'N/A'}</div>
               </Col>
             </Row>
           </div>
         )}
-      </Card>
+        </EnhancedCard>
 
-      {/* Adjustment Tabs */}
-      <Card className="shadow-md">
+        {/* Adjustment Tabs */}
+        <EnhancedCard>
         <Tabs defaultActiveKey="bonus" size="large" tabBarGutter={32}>
           {/* Bonus Tab */}
           <TabPane
@@ -472,37 +454,37 @@ export default function SalaryAdjustmentsPage({ role }: SalaryAdjustmentsPagePro
           >
             {/* Attendance Stats Display */}
             {selectedEmployee && attendanceStats?.summary && (
-              <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                <div className="font-semibold text-gray-700 mb-3">📊 Attendance Summary - {dayjs().month(selectedMonth - 1).format('MMMM')} {selectedYear}</div>
+              <div className="mb-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg">
+                <div className="font-semibold text-gray-700 dark:text-gray-200 mb-3">📊 Attendance Summary - {dayjs().month(selectedMonth - 1).format('MMMM')} {selectedYear}</div>
                 <Row gutter={[16, 12]}>
                   <Col xs={12} md={6}>
-                    <div className="text-center p-2 bg-white rounded border">
-                      <div className="text-red-600 font-bold text-xl">{attendanceStats.summary.absentDays || 0}</div>
-                      <div className="text-xs text-gray-600">Days Absent</div>
+                    <div className="text-center p-2 bg-white dark:bg-gray-700 rounded border dark:border-gray-600">
+                      <div className="text-red-600 dark:text-red-400 font-bold text-xl">{attendanceStats.summary.absentDays || 0}</div>
+                      <div className="text-xs text-gray-600 dark:text-gray-400">Days Absent</div>
                     </div>
                   </Col>
                   <Col xs={12} md={6}>
-                    <div className="text-center p-2 bg-white rounded border">
-                      <div className="text-orange-600 font-bold text-xl">{attendanceStats.summary.lateDays || 0}</div>
-                      <div className="text-xs text-gray-600">Days Late</div>
+                    <div className="text-center p-2 bg-white dark:bg-gray-700 rounded border dark:border-gray-600">
+                      <div className="text-orange-600 dark:text-orange-400 font-bold text-xl">{attendanceStats.summary.lateDays || 0}</div>
+                      <div className="text-xs text-gray-600 dark:text-gray-400">Days Late</div>
                     </div>
                   </Col>
                   <Col xs={12} md={6}>
-                    <div className="text-center p-2 bg-white rounded border">
-                      <div className="text-blue-600 font-bold text-xl">{attendanceStats.summary.leaveDays || 0}</div>
-                      <div className="text-xs text-gray-600">Days on Leave</div>
+                    <div className="text-center p-2 bg-white dark:bg-gray-700 rounded border dark:border-gray-600">
+                      <div className="text-blue-600 dark:text-blue-400 font-bold text-xl">{attendanceStats.summary.leaveDays || 0}</div>
+                      <div className="text-xs text-gray-600 dark:text-gray-400">Days on Leave</div>
                     </div>
                   </Col>
                   <Col xs={12} md={6}>
-                    <div className="text-center p-2 bg-white rounded border">
-                      <div className="text-purple-600 font-bold text-xl">
+                    <div className="text-center p-2 bg-white dark:bg-gray-700 rounded border dark:border-gray-600">
+                      <div className="text-purple-600 dark:text-purple-400 font-bold text-xl">
                         {Math.floor((attendanceStats.summary.totalWorkingHours || 0) / 60)}h {(attendanceStats.summary.totalWorkingHours || 0) % 60}m
                       </div>
-                      <div className="text-xs text-gray-600">Total Hours</div>
+                      <div className="text-xs text-gray-600 dark:text-gray-400">Total Hours</div>
                     </div>
                   </Col>
                 </Row>
-                <div className="mt-3 p-2 bg-gray-50 rounded text-xs text-gray-600">
+                <div className="mt-3 p-2 bg-gray-50 dark:bg-gray-800 rounded text-xs text-gray-600 dark:text-gray-400">
                   💡 <strong>Tip:</strong> Use this attendance data to calculate deductions. For example: "Absent {attendanceStats.summary.absentDays} days this month" or "Late {attendanceStats.summary.lateDays} times this month"
                 </div>
               </div>
@@ -510,7 +492,7 @@ export default function SalaryAdjustmentsPage({ role }: SalaryAdjustmentsPagePro
 
             {/* No Attendance Data Message */}
             {selectedEmployee && attendanceStats && !attendanceStats.summary && (
-              <div className="mb-4 p-3 bg-gray-50 border border-gray-200 rounded-lg text-center text-gray-500 text-sm">
+              <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-center text-gray-500 dark:text-gray-400 text-sm">
                 ℹ️ No attendance summary available for {dayjs().month(selectedMonth - 1).format('MMMM')} {selectedYear}
               </div>
             )}
@@ -680,30 +662,30 @@ export default function SalaryAdjustmentsPage({ role }: SalaryAdjustmentsPagePro
             key="raise"
           >
             <Form form={salaryForm} layout="vertical">
-              <div className="mb-4 p-4 bg-amber-50 border-l-4 border-amber-500 rounded">
-                <Text type="warning" className="font-semibold">
+              <div className="mb-4 p-4 bg-amber-50 dark:bg-amber-900/20 border-l-4 border-amber-500 dark:border-amber-400 rounded">
+                <Text type="warning" className="font-semibold dark:text-amber-300">
                   ⚠️ Important: Raising base salary affects all future months
                 </Text>
-                <p className="text-sm text-gray-600 mt-2">
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
                   This change will update the employee's base salary permanently and will be reflected in all future salary calculations.
                 </p>
               </div>
 
               {selectedEmployeeData && (
-                <div className="mb-4 p-4 bg-gray-50 rounded">
+                <div className="mb-4 p-4 bg-gray-50 dark:bg-gray-700 rounded">
                   <Row gutter={16}>
                     <Col span={12}>
-                      <Text type="secondary" className="text-xs">Current Base Salary</Text>
-                      <div className="text-2xl font-bold text-gray-700">
+                      <Text type="secondary" className="text-xs dark:text-gray-400">Current Base Salary</Text>
+                      <div className="text-2xl font-bold text-gray-700 dark:text-gray-200">
                         ${parseFloat(selectedEmployeeData.baseSalary || 0).toLocaleString()}
                       </div>
                     </Col>
                     <Col span={12}>
-                      <Text type="secondary" className="text-xs">Employee</Text>
-                      <div className="font-semibold text-lg">
+                      <Text type="secondary" className="text-xs dark:text-gray-400">Employee</Text>
+                      <div className="font-semibold text-lg text-gray-900 dark:text-gray-100">
                         {selectedEmployeeData.fullName}
                       </div>
-                      <div className="text-sm text-gray-500">
+                      <div className="text-sm text-gray-500 dark:text-gray-400">
                         {selectedEmployeeData.employeeCode} - {selectedEmployeeData.department}
                       </div>
                     </Col>
@@ -759,8 +741,8 @@ export default function SalaryAdjustmentsPage({ role }: SalaryAdjustmentsPagePro
             </Form>
           </TabPane>
         </Tabs>
-      </Card>
-    </div>
+        </EnhancedCard>
+      </div>
     </DashboardLayout>
   )
 }

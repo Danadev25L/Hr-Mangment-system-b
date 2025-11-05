@@ -23,7 +23,7 @@ import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import dayjs from 'dayjs'
 import * as XLSX from 'xlsx'
 import jsPDF from 'jspdf'
-import 'jspdf-autotable'
+import autoTable from 'jspdf-autotable'
 import apiClient from '@/lib/api'
 import { useTranslations } from 'next-intl'
 import { useLocale } from 'next-intl'
@@ -254,7 +254,7 @@ export default function ExpenseListPage({ role, title, description }: ExpenseLis
       dayjs(expense.date).format('YYYY-MM-DD'),
     ])
 
-    ;(doc as any).autoTable({
+    autoTable(doc, {
       head: [['Submitted By', 'Department', 'Reason', 'Amount', 'Status', 'Date']],
       body: tableData,
       startY: 35,

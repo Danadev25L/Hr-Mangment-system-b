@@ -8,7 +8,7 @@ interface PageHeaderProps {
   description?: string
   icon?: React.ReactNode
   action?: React.ReactNode
-  gradient?: 'blue' | 'purple' | 'green' | 'orange' | 'red' | 'cyan' | 'indigo'
+  gradient?: 'blue' | 'purple' | 'green' | 'orange' | 'red' | 'cyan' | 'indigo' | 'amber'
   className?: string
 }
 
@@ -28,6 +28,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
     red: 'from-red-500 to-red-600',
     cyan: 'from-cyan-500 to-cyan-600',
     indigo: 'from-indigo-500 to-indigo-600',
+    amber: 'from-amber-500 to-amber-600',
   }
 
   return (

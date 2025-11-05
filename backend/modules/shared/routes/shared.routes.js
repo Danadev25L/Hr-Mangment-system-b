@@ -22,7 +22,8 @@ router.put('/notifications/read-all', sharedNotificationController.markAllMyNoti
 router.put('/notifications/user/:userId/read-all', sharedNotificationController.markAllUserNotificationsAsRead); // Admin/Manager only
 router.get('/notifications/unread-count', sharedNotificationController.getMyUnreadCount);
 router.get('/notifications/user/:userId/unread-count', sharedNotificationController.getUserUnreadCount); // Admin/Manager only
-router.delete('/notifications/:id', sharedNotificationController.deleteNotification);
+// DISABLED: Notifications should never be deleted - keep historical record
+// router.delete('/notifications/:id', sharedNotificationController.deleteNotification);
 
 // Personal Events Routes (available to all authenticated users)
 router.post('/personal-events', sharedPersonalEventController.createPersonalEvent);

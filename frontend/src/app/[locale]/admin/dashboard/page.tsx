@@ -1,7 +1,7 @@
 'use client'
 
-import React, { useState } from 'react'
-import { Typography, Select, Space } from 'antd'
+import React, { useState, lazy, Suspense } from 'react'
+import { Typography, Select, Space, Skeleton } from 'antd'
 import dayjs from 'dayjs'
 import { useTranslations } from 'next-intl'
 import { useQuery } from '@tanstack/react-query'
@@ -9,13 +9,15 @@ import apiClient from '@/lib/api'
 import { DashboardLayout } from '@/components/layout/DashboardLayout'
 import { DashboardStats } from '@/components/dashboard/admin/DashboardStats'
 import { QuickStats } from '@/components/dashboard/admin/QuickStats'
-import { DashboardCharts } from '@/components/dashboard/admin/DashboardCharts'
-import { DashboardTables } from '@/components/dashboard/admin/DashboardTables'
-import { DashboardActivity } from '@/components/dashboard/admin/DashboardActivity'
-import { QuickActions } from '@/components/dashboard/admin/QuickActions'
-import { DashboardIllustration } from '@/components/dashboard/admin/DashboardIllustration'
 import { CustomSpinner } from '@/components/ui'
-import { DashboardCalendar } from '@/components/dashboard/admin/DashboardCalendar'
+
+// Lazy load heavy components
+const DashboardCharts = lazy(() => import('@/components/dashboard/admin/DashboardCharts').then(m => ({ default: m.DashboardCharts })))
+const DashboardTables = lazy(() => import('@/components/dashboard/admin/DashboardTables').then(m => ({ default: m.DashboardTables })))
+const DashboardActivity = lazy(() => import('@/components/dashboard/admin/DashboardActivity').then(m => ({ default: m.DashboardActivity })))
+const QuickActions = lazy(() => import('@/components/dashboard/admin/QuickActions').then(m => ({ default: m.QuickActions })))
+const DashboardIllustration = lazy(() => import('@/components/dashboard/admin/DashboardIllustration').then(m => ({ default: m.DashboardIllustration })))
+const DashboardCalendar = lazy(() => import('@/components/dashboard/admin/DashboardCalendar').then(m => ({ default: m.DashboardCalendar })))
 
 const { Title, Text } = Typography
 
@@ -23,13 +25,15 @@ export default function AdminDashboard() {
   const t = useTranslations()
   const [timeRange, setTimeRange] = useState<'week' | 'month' | 'year'>('month')
 
-  // Fetch dashboard statistics
+  // Fetch dashboard statistics first (priority)
   const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ['dashboard-stats'],
     queryFn: () => apiClient.getDashboardStats(),
+    staleTime: 10 * 60 * 1000, // Cache for 10 minutes - aggressive caching
+    gcTime: 15 * 60 * 1000, // Keep in memory for 15 minutes
   })
 
-  // Fetch employee growth data
+  // Fetch employee growth data (load after stats)
   const { data: userGrowthData } = useQuery({
     queryKey: ['user-growth-chart'],
     queryFn: async () => {
@@ -42,9 +46,11 @@ export default function AdminDashboard() {
       const data = await response.json()
       return data.data || []
     },
+    enabled: !statsLoading, // Wait for stats to load first
+    staleTime: 2 * 60 * 1000,
   })
 
-  // Fetch departments data
+  // Fetch departments data (load after stats)
   const { data: departmentsData } = useQuery({
     queryKey: ['departments-chart'],
     queryFn: async () => {
@@ -57,27 +63,33 @@ export default function AdminDashboard() {
       const data = await response.json()
       return data.data || []
     },
+    enabled: !statsLoading,
+    staleTime: 2 * 60 * 1000,
   })
 
-  // Fetch recent users
+  // Fetch recent users (load after stats)
   const { data: recentUsers } = useQuery({
     queryKey: ['recent-users'],
     queryFn: async () => {
       const result = await apiClient.getUsers(1, 5)
       return result.data || []
     },
+    enabled: !statsLoading,
+    staleTime: 2 * 60 * 1000,
   })
 
-  // Fetch recent applications
+  // Fetch recent applications (load after stats)
   const { data: recentApplications } = useQuery({
     queryKey: ['recent-applications'],
     queryFn: async () => {
       const result = await apiClient.getApplications(1, 5)
       return result.data || []
     },
+    enabled: !statsLoading,
+    staleTime: 2 * 60 * 1000,
   })
 
-  // Fetch recent expenses
+  // Fetch recent expenses (load after stats)
   const { data: recentExpenses } = useQuery({
     queryKey: ['recent-expenses'],
     queryFn: async () => {
@@ -131,7 +143,9 @@ export default function AdminDashboard() {
         {/* Header with Illustration */}
         <div className="relative">
           <div className="absolute right-0 top-0 hidden lg:block opacity-20 dark:opacity-10">
-            <DashboardIllustration className="w-64 h-48" />
+            <Suspense fallback={null}>
+              <DashboardIllustration className="w-64 h-48" />
+            </Suspense>
           </div>
           <div className="flex items-center justify-between flex-wrap gap-4 relative z-10">
             <div>
@@ -174,28 +188,38 @@ export default function AdminDashboard() {
         />
 
         {/* Charts */}
-        <DashboardCharts
-          employeeGrowthData={employeeGrowthData}
-          departmentChartData={departmentChartData}
-        />
+        <Suspense fallback={<Skeleton active paragraph={{ rows: 4 }} />}>
+          <DashboardCharts
+            employeeGrowthData={employeeGrowthData}
+            departmentChartData={departmentChartData}
+          />
+        </Suspense>
 
         {/* Tables */}
-        <DashboardTables
-          recentApplications={recentApplications || []}
-          recentExpenses={recentExpenses || []}
-        />
+        <Suspense fallback={<Skeleton active paragraph={{ rows: 4 }} />}>
+          <DashboardTables
+            recentApplications={recentApplications || []}
+            recentExpenses={recentExpenses || []}
+          />
+        </Suspense>
 
         {/* Activity & Announcements */}
-        <DashboardActivity
-          announcements={announcements || []}
-          recentUsers={recentUsers || []}
-        />
+        <Suspense fallback={<Skeleton active paragraph={{ rows: 4 }} />}>
+          <DashboardActivity
+            announcements={announcements || []}
+            recentUsers={recentUsers || []}
+          />
+        </Suspense>
 
         {/* Calendar */}
-        <DashboardCalendar />
+        <Suspense fallback={<Skeleton active paragraph={{ rows: 3 }} />}>
+          <DashboardCalendar />
+        </Suspense>
 
         {/* Quick Actions */}
-        <QuickActions />
+        <Suspense fallback={<Skeleton active paragraph={{ rows: 2 }} />}>
+          <QuickActions />
+        </Suspense>
       </div>
     </DashboardLayout>
   )

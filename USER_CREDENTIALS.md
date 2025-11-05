@@ -6,7 +6,7 @@ This document contains the login credentials for all user accounts created in th
 
 ### Administrator Account
 - **Username:** `admin`
-- **Password:** Admin@2024!Secure
+- **Password:** c
 - **Employee Code:** `ADM-0001` (Auto-generated)
 - **Role:** Admin
 - **Full Name:** Admin User

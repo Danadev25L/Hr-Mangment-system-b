@@ -1,114 +1,102 @@
-'use client'
+﻿'use client'
 
 import { useState, useEffect } from 'react'
-import { useTranslations } from 'next-intl'
+import { useLocale } from 'next-intl'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import {
-  Button,
-  Space,
-  Input,
-  Select,
-  DatePicker,
-  message,
-  Modal,
-  Card,
-  Dropdown,
-  Breadcrumb,
-  Empty,
-} from 'antd'
+import { message, Modal, Empty, Dropdown, Input } from 'antd'
 import {
   PlusOutlined,
-  SearchOutlined,
   ExportOutlined,
-  PrinterOutlined,
   FileExcelOutlined,
   FilePdfOutlined,
   ReloadOutlined,
-  HomeOutlined,
-  FilterOutlined,
-  FileTextOutlined,
+  ClearOutlined,
+  PrinterOutlined,
 } from '@ant-design/icons'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams, usePathname } from 'next/navigation'
 import dayjs from 'dayjs'
 import * as XLSX from 'xlsx'
 import jsPDF from 'jspdf'
-import 'jspdf-autotable'
+import autoTable from 'jspdf-autotable'
 import apiClient from '@/lib/api'
 import { ApplicationTable, type Application } from './ApplicationTable'
 import { ApplicationStats } from './ApplicationStats'
-
-const { RangePicker } = DatePicker
+import {
+  PageHeader,
+  SearchInput,
+  FilterBar,
+  FilterSelect,
+  EnhancedButton,
+} from '@/components/ui'
+import { ApplicationsIllustration } from '@/components/ui/illustrations/ApplicationsIllustration'
+import type { MenuProps } from 'antd'
 
 interface ApplicationListPageProps {
-  role: 'admin' | 'manager'
-  title?: string
-  description?: string
+  role: 'admin' | 'manager' | 'employee'
+  title: string
+  description: string
 }
 
 export default function ApplicationListPage({ role, title, description }: ApplicationListPageProps) {
-  const t = useTranslations()
-  const router = useRouter()
+  const locale = useLocale()
   const queryClient = useQueryClient()
   const searchParams = useSearchParams()
+  const pathname = usePathname()
 
-  // Set default title and description if not provided
-  const pageTitle = title || (role === 'admin' ? t('applications.allApplications') : t('applications.teamApplications'))
-  const pageDescription = description || (role === 'admin' 
-    ? t('applications.subtitle') 
-    : t('applications.subtitleManager'))
-
-  // State with URL sync
   const [searchText, setSearchText] = useState(searchParams?.get('search') || '')
   const [filters, setFilters] = useState({
-    status: searchParams?.get('status') || 'all',
-    department: searchParams?.get('department') || 'all',
-    applicationType: searchParams?.get('type') || 'all',
-    priority: searchParams?.get('priority') || 'all',
+    status: searchParams?.get('status') || undefined,
+    department: role === 'admin' ? searchParams?.get('department') || undefined : undefined,
+    applicationType: searchParams?.get('type') || undefined,
+    priority: searchParams?.get('priority') || undefined,
   })
-  const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs] | null>(null)
   const [pagination, setPagination] = useState({
     current: parseInt(searchParams?.get('page') || '1'),
     pageSize: parseInt(searchParams?.get('pageSize') || '10'),
   })
 
-  // Base path for routing
-  const basePath = role === 'admin' ? '/admin/applications' : '/manager/applications'
-  const dashboardPath = role === 'admin' ? '/admin/dashboard' : '/manager/dashboard'
+  const basePath = 
+    role === 'admin' ? '/admin/applications' : 
+    role === 'manager' ? '/manager/applications' : 
+    '/employee/applications'
 
-  // Sync URL with state
+  const handleNavigation = (path: string) => {
+    if (typeof window !== 'undefined') {
+      window.location.href = path
+    }
+  }
+
   useEffect(() => {
     const params = new URLSearchParams()
     if (searchText) params.set('search', searchText)
-    if (filters.status !== 'all') params.set('status', filters.status)
-    if (filters.department !== 'all') params.set('department', filters.department)
-    if (filters.applicationType !== 'all') params.set('type', filters.applicationType)
-    if (filters.priority !== 'all') params.set('priority', filters.priority)
-    if (pagination.current !== 1) params.set('page', pagination.current.toString())
-    if (pagination.pageSize !== 10) params.set('pageSize', pagination.pageSize.toString())
+    if (filters.status) params.set('status', filters.status)
+    if (filters.department) params.set('department', filters.department)
+    if (filters.applicationType) params.set('type', filters.applicationType)
+    if (filters.priority) params.set('priority', filters.priority)
+    params.set('page', pagination.current.toString())
+    params.set('pageSize', pagination.pageSize.toString())
 
-    const newUrl = params.toString() ? `${basePath}?${params.toString()}` : basePath
-    window.history.replaceState({}, '', newUrl)
-  }, [searchText, filters, pagination, basePath])
+    const newUrl = `${pathname}?${params.toString()}`
+    if (typeof window !== 'undefined') {
+      window.history.replaceState({}, '', newUrl)
+    }
+  }, [searchText, filters, pagination, pathname])
 
-  // Fetch departments for admin
   const { data: departmentsData } = useQuery({
     queryKey: ['departments'],
     queryFn: () => apiClient.getDepartments(),
     enabled: role === 'admin',
   })
 
-  // Fetch applications
   const { data: applicationsData, isLoading, refetch } = useQuery({
-    queryKey: ['applications', role, pagination.current, pagination.pageSize, searchText, filters, dateRange],
+    queryKey: ['applications', role, pagination.current, pagination.pageSize, searchText, filters],
     queryFn: () =>
       apiClient.getApplications(pagination.current, pagination.pageSize, {
         search: searchText,
-        status: filters.status !== 'all' ? filters.status : undefined,
-        department: filters.department !== 'all' ? filters.department : undefined,
-        applicationType: filters.applicationType !== 'all' ? filters.applicationType : undefined,
-        priority: filters.priority !== 'all' ? filters.priority : undefined,
-        startDate: dateRange?.[0]?.toISOString(),
-        endDate: dateRange?.[1]?.toISOString(),
+        status: filters.status,
+        department: filters.department,
+        applicationType: filters.applicationType,
+        priority: filters.priority,
       }),
   })
 
@@ -146,37 +134,18 @@ export default function ApplicationListPage({ role, title, description }: Applic
     },
   })
 
-  const handleSearch = (value: string) => {
-    setSearchText(value)
-    setPagination({ ...pagination, current: 1 })
-  }
-
-  const handleFilterChange = (key: string, value: string) => {
-    setFilters({ ...filters, [key]: value })
-    setPagination({ ...pagination, current: 1 })
-  }
-
-  const handleDateRangeChange = (dates: any) => {
-    setDateRange(dates)
-    setPagination({ ...pagination, current: 1 })
-  }
-
-  const handlePaginationChange = (page: number, pageSize: number) => {
-    setPagination({ current: page, pageSize })
-  }
-
   const handleView = (record: Application) => {
-    router.push(`${basePath}/${record.id}`)
+    handleNavigation(`/${locale}${basePath}/${record.id}`)
   }
 
   const handleEdit = (record: Application) => {
-    router.push(`${basePath}/${record.id}/edit`)
+    handleNavigation(`/${locale}${basePath}/${record.id}/edit`)
   }
 
   const handleDelete = (application: Application) => {
     Modal.confirm({
       title: 'Delete Application',
-      content: `Are you sure you want to delete "${application.title}"?`,
+      content: 'Are you sure you want to delete this application?',
       okText: 'Delete',
       okType: 'danger',
       cancelText: 'Cancel',
@@ -187,7 +156,7 @@ export default function ApplicationListPage({ role, title, description }: Applic
   const handleApprove = (application: Application) => {
     Modal.confirm({
       title: 'Approve Application',
-      content: `Approve application "${application.title}"?`,
+      content: 'Approve this application?',
       okText: 'Approve',
       okType: 'primary',
       cancelText: 'Cancel',
@@ -201,7 +170,7 @@ export default function ApplicationListPage({ role, title, description }: Applic
       title: 'Reject Application',
       content: (
         <div>
-          <p>Reject application "{application.title}"?</p>
+          <p>Reject this application?</p>
           <Input.TextArea
             placeholder="Reason for rejection (optional)"
             rows={3}
@@ -273,19 +242,25 @@ export default function ApplicationListPage({ role, title, description }: Applic
     message.success('Print dialog opened')
   }
 
-  const handleClearFilters = () => {
+  const handleResetFilters = () => {
     setSearchText('')
     setFilters({
-      status: 'all',
-      department: 'all',
-      applicationType: 'all',
-      priority: 'all',
+      status: undefined,
+      department: undefined,
+      applicationType: undefined,
+      priority: undefined,
     })
-    setDateRange(null)
     setPagination({ current: 1, pageSize: 10 })
+    message.success('Filters reset successfully')
   }
 
-  // Calculate statistics
+  const handleTableChange = (newPagination: any) => {
+    setPagination({
+      current: newPagination.current || 1,
+      pageSize: newPagination.pageSize || 10,
+    })
+  }
+
   const statistics = {
     total: applicationsData?.pagination?.total || 0,
     pending: applicationsData?.data?.filter((app: Application) => app.status === 'pending').length || 0,
@@ -293,58 +268,55 @@ export default function ApplicationListPage({ role, title, description }: Applic
     rejected: applicationsData?.data?.filter((app: Application) => app.status === 'rejected').length || 0,
   }
 
-  const hasActiveFilters = searchText || filters.status !== 'all' || filters.department !== 'all' || 
-    filters.applicationType !== 'all' || filters.priority !== 'all' || dateRange
+  const exportMenuItems: MenuProps['items'] = [
+    {
+      key: 'excel',
+      icon: <FileExcelOutlined />,
+      label: 'Export to Excel',
+      onClick: exportToExcel,
+    },
+    {
+      key: 'pdf',
+      icon: <FilePdfOutlined />,
+      label: 'Export to PDF',
+      onClick: exportToPDF,
+    },
+    {
+      type: 'divider',
+    },
+    {
+      key: 'print',
+      icon: <PrinterOutlined />,
+      label: 'Print List',
+      onClick: handlePrint,
+    },
+  ]
 
   return (
     <div className="space-y-6">
-      {/* Breadcrumb */}
-      <Breadcrumb
-        items={[
-          {
-            title: (
-              <span className="flex items-center cursor-pointer hover:text-blue-600 transition-colors" onClick={() => router.push(dashboardPath)}>
-                <HomeOutlined className="mr-1" />
-                Dashboard
-              </span>
-            ),
-          },
-          {
-            title: (
-              <span className="flex items-center">
-                <FileTextOutlined className="mr-1" />
-                Applications
-              </span>
-            ),
-          },
-        ]}
+      <PageHeader
+        title={title}
+        description={description}
+        icon={<ApplicationsIllustration className="w-20 h-20" />}
+        gradient="cyan"
+        action={
+          <div className="flex items-center gap-3">
+            <Dropdown menu={{ items: exportMenuItems }} placement="bottomRight">
+              <EnhancedButton variant="secondary" icon={<ExportOutlined />}>
+                Export
+              </EnhancedButton>
+            </Dropdown>
+            <EnhancedButton
+              variant="primary"
+              icon={<PlusOutlined />}
+              onClick={() => handleNavigation(`/${locale}${basePath}/add`)}
+            >
+              Add Application
+            </EnhancedButton>
+          </div>
+        }
       />
 
-      {/* Header */}
-      <Card className="shadow-lg border-t-4 border-t-purple-500">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div className="flex items-center space-x-4">
-            <div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
-              <FileTextOutlined className="text-white text-2xl" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100 m-0">{pageTitle}</h1>
-              <p className="text-gray-600 dark:text-gray-400 m-0">{pageDescription}</p>
-            </div>
-          </div>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            size="large"
-            onClick={() => router.push(`${basePath}/add`)}
-            className="bg-gradient-to-r from-purple-500 to-indigo-600 border-none hover:from-purple-600 hover:to-indigo-700 shadow-md"
-          >
-            Add Application
-          </Button>
-        </div>
-      </Card>
-
-      {/* Statistics */}
       <ApplicationStats
         total={statistics.total}
         pending={statistics.pending}
@@ -352,168 +324,122 @@ export default function ApplicationListPage({ role, title, description }: Applic
         rejected={statistics.rejected}
       />
 
-      {/* Filters */}
-      <Card className="shadow-md">
-        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-          {/* Search Bar */}
-          <div className="flex flex-col md:flex-row gap-4">
-            <Input
-              placeholder="Search by title, reason, or applicant name..."
-              prefix={<SearchOutlined className="text-gray-400" />}
-              value={searchText}
-              onChange={(e) => handleSearch(e.target.value)}
-              allowClear
-              size="large"
-              className="flex-1"
-            />
-            <Space wrap>
-              <Button
-                icon={<ReloadOutlined />}
-                onClick={() => refetch()}
-                size="large"
-              >
-                Refresh
-              </Button>
-              <Dropdown
-                menu={{
-                  items: [
-                    {
-                      key: 'excel',
-                      icon: <FileExcelOutlined />,
-                      label: 'Export to Excel',
-                      onClick: exportToExcel,
-                    },
-                    {
-                      key: 'pdf',
-                      icon: <FilePdfOutlined />,
-                      label: 'Export to PDF',
-                      onClick: exportToPDF,
-                    },
-                    {
-                      key: 'print',
-                      icon: <PrinterOutlined />,
-                      label: 'Print',
-                      onClick: handlePrint,
-                    },
-                  ],
-                }}
-              >
-                <Button icon={<ExportOutlined />} size="large">
-                  Export
-                </Button>
-              </Dropdown>
-            </Space>
-          </div>
+      <SearchInput
+        placeholder="Search by title, reason, or applicant name..."
+        value={searchText}
+        onChange={(e) => {
+          setSearchText(e.target.value)
+          setPagination({ ...pagination, current: 1 })
+        }}
+      />
 
-          {/* Filter Controls */}
-          <div className="flex flex-wrap gap-3">
-            <Select
-              placeholder="Filter by Status"
-              style={{ minWidth: 180 }}
-              value={filters.status}
-              onChange={(value) => handleFilterChange('status', value)}
-              size="large"
-            >
-              <Select.Option value="all">All Status</Select.Option>
-              <Select.Option value="pending">Pending</Select.Option>
-              <Select.Option value="approved">Approved</Select.Option>
-              <Select.Option value="rejected">Rejected</Select.Option>
-            </Select>
+      <FilterBar>
+        <FilterSelect
+          placeholder="Status"
+          options={[
+            { label: 'Pending', value: 'pending' },
+            { label: 'Approved', value: 'approved' },
+            { label: 'Rejected', value: 'rejected' },
+          ]}
+          value={filters.status}
+          onChange={(value) => {
+            setFilters({ ...filters, status: value as string })
+            setPagination({ ...pagination, current: 1 })
+          }}
+        />
 
-            <Select
-              placeholder="Filter by Type"
-              style={{ minWidth: 180 }}
-              value={filters.applicationType}
-              onChange={(value) => handleFilterChange('applicationType', value)}
-              size="large"
-            >
-              <Select.Option value="all">All Types</Select.Option>
-              <Select.Option value="leave">Leave</Select.Option>
-              <Select.Option value="overtime">Overtime</Select.Option>
-              <Select.Option value="remote">Remote Work</Select.Option>
-              <Select.Option value="other">Other</Select.Option>
-            </Select>
+        <FilterSelect
+          placeholder="Application Type"
+          options={[
+            { label: 'Leave', value: 'leave' },
+            { label: 'Overtime', value: 'overtime' },
+            { label: 'Remote Work', value: 'remote' },
+            { label: 'Other', value: 'other' },
+          ]}
+          value={filters.applicationType}
+          onChange={(value) => {
+            setFilters({ ...filters, applicationType: value as string })
+            setPagination({ ...pagination, current: 1 })
+          }}
+        />
 
-            <Select
-              placeholder="Filter by Priority"
-              style={{ minWidth: 180 }}
-              value={filters.priority}
-              onChange={(value) => handleFilterChange('priority', value)}
-              size="large"
-            >
-              <Select.Option value="all">All Priorities</Select.Option>
-              <Select.Option value="low">Low</Select.Option>
-              <Select.Option value="medium">Medium</Select.Option>
-              <Select.Option value="high">High</Select.Option>
-              <Select.Option value="urgent">Urgent</Select.Option>
-            </Select>
+        <FilterSelect
+          placeholder="Priority"
+          options={[
+            { label: 'Low', value: 'low' },
+            { label: 'Medium', value: 'medium' },
+            { label: 'High', value: 'high' },
+            { label: 'Urgent', value: 'urgent' },
+          ]}
+          value={filters.priority}
+          onChange={(value) => {
+            setFilters({ ...filters, priority: value as string })
+            setPagination({ ...pagination, current: 1 })
+          }}
+        />
 
-            {role === 'admin' && (
-              <Select
-                placeholder="Filter by Department"
-                style={{ minWidth: 200 }}
-                value={filters.department}
-                onChange={(value) => handleFilterChange('department', value)}
-                loading={!departmentsData}
-                size="large"
-              >
-                <Select.Option value="all">All Departments</Select.Option>
-                {(Array.isArray(departmentsData) ? departmentsData : (departmentsData as any)?.data || [])?.map((dept: any) => (
-                  <Select.Option key={dept.id} value={dept.id}>
-                    {dept.departmentName || dept.name}
-                  </Select.Option>
-                ))}
-              </Select>
-            )}
-
-            <RangePicker
-              style={{ minWidth: 280 }}
-              value={dateRange}
-              onChange={handleDateRangeChange}
-              format="YYYY-MM-DD"
-              size="large"
-            />
-
-            {hasActiveFilters && (
-              <Button
-                icon={<FilterOutlined />}
-                onClick={handleClearFilters}
-                size="large"
-                danger
-              >
-                Clear Filters
-              </Button>
-            )}
-          </div>
-        </Space>
-      </Card>
-
-      {/* Applications Table */}
-      <Card className="shadow-md">
-        {applicationsData?.data?.length === 0 && !isLoading ? (
-          <Empty
-            image={Empty.PRESENTED_IMAGE_SIMPLE}
-            description="No applications found"
-          />
-        ) : (
-          <ApplicationTable
-            data={applicationsData?.data || []}
-            loading={isLoading}
-            pagination={{
-              current: pagination.current,
-              pageSize: pagination.pageSize,
-              total: applicationsData?.pagination?.total || 0,
+        {role === 'admin' && (
+          <FilterSelect
+            placeholder="Department"
+            options={
+              Array.isArray(departmentsData)
+                ? departmentsData.map((dept: any) => ({
+                    label: dept.departmentName || dept.name,
+                    value: dept.id.toString(),
+                  }))
+                : []
+            }
+            value={filters.department}
+            onChange={(value) => {
+              setFilters({ ...filters, department: value as string })
+              setPagination({ ...pagination, current: 1 })
             }}
-            onPaginationChange={handlePaginationChange}
-            onView={handleView}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-            onApprove={handleApprove}
-            onReject={handleReject}
-            role={role}
           />
         )}
-      </Card>
+
+        <div className="ml-auto flex gap-2">
+          <EnhancedButton
+            variant="ghost"
+            icon={<ReloadOutlined />}
+            onClick={() => refetch()}
+            loading={isLoading}
+          >
+            Refresh
+          </EnhancedButton>
+          <EnhancedButton
+            variant="secondary"
+            icon={<ClearOutlined />}
+            onClick={handleResetFilters}
+          >
+            Reset
+          </EnhancedButton>
+        </div>
+      </FilterBar>
+
+      {applicationsData?.data?.length === 0 && !isLoading ? (
+        <Empty
+          image={Empty.PRESENTED_IMAGE_SIMPLE}
+          description="No applications found"
+          className="my-8"
+        />
+      ) : (
+        <ApplicationTable
+          data={applicationsData?.data || []}
+          loading={isLoading}
+          pagination={{
+            current: pagination.current,
+            pageSize: pagination.pageSize,
+            total: applicationsData?.pagination?.total || 0,
+          }}
+          onPaginationChange={(page, pageSize) => setPagination({ current: page, pageSize })}
+          onView={handleView}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+          onApprove={handleApprove}
+          onReject={handleReject}
+          role={role}
+        />
+      )}
     </div>
   )
 }

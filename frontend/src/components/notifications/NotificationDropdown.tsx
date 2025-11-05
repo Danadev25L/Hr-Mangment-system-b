@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react'
 import { Dropdown, Badge, Button, Empty, Spin, Divider, Tag } from 'antd'
-import { BellOutlined, CheckOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons'
+import { BellOutlined, CheckOutlined, EyeOutlined } from '@ant-design/icons'
 import { useRouter } from 'next/navigation'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import axios from 'axios'
@@ -93,21 +93,23 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ loca
     }
   })
 
-  // Delete notification mutation
-  const deleteNotificationMutation = useMutation({
-    mutationFn: async (notificationId: number) => {
-      await axios.delete(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/shared/notifications/${notificationId}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      )
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notifications'] })
-    }
-  })
+  // Delete notification mutation - DISABLED (notifications should never be deleted)
+  // const deleteNotificationMutation = useMutation({
+  //   mutationFn: async (notificationId: number) => {
+  //     await axios.delete(
+  //       `${process.env.NEXT_PUBLIC_API_URL}/api/shared/notifications/${notificationId}`,
+  //       { headers: { Authorization: `Bearer ${token}` } }
+  //     )
+  //   },
+  //   onSuccess: () => {
+  //     queryClient.invalidateQueries({ queryKey: ['notifications'] })
+  //   }
+  // })
 
   const unreadCount = unreadData?.count || 0
-  const recentNotifications = notifications?.slice(0, 5) || []
+  // Only show UNREAD notifications in dropdown
+  const unreadNotifications = notifications?.filter((n: Notification) => !n.isRead) || []
+  const recentNotifications = unreadNotifications.slice(0, 5)
 
   const getNotificationIcon = (type: string) => {
     const iconMap: Record<string, string> = {
@@ -161,10 +163,11 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ loca
     markAllAsReadMutation.mutate()
   }
 
-  const handleDelete = (e: React.MouseEvent, notificationId: number) => {
-    e.stopPropagation()
-    deleteNotificationMutation.mutate(notificationId)
-  }
+  // handleDelete - DISABLED (notifications should never be deleted)
+  // const handleDelete = (e: React.MouseEvent, notificationId: number) => {
+  //   e.stopPropagation()
+  //   deleteNotificationMutation.mutate(notificationId)
+  // }
 
   const dropdownContent = (
     <div className="w-96 max-h-[500px] overflow-hidden bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700">
@@ -227,14 +230,6 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ loca
                     }`}>
                       {notification.title}
                     </h4>
-                    <Button
-                      type="text"
-                      size="small"
-                      icon={<DeleteOutlined />}
-                      onClick={(e) => handleDelete(e, notification.id)}
-                      className="!text-gray-400 hover:!text-red-500 !p-0 !h-auto !min-w-0 ml-2"
-                      loading={deleteNotificationMutation.isPending}
-                    />
                   </div>
                   
                   <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2 mb-2">
@@ -286,13 +281,17 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ loca
       onOpenChange={setOpen}
       placement="bottomRight"
     >
-      <Badge count={unreadCount} size="small" overflowCount={99}>
-        <Button
-          type="text"
-          icon={<BellOutlined />}
-          className="flex items-center justify-center w-9 h-9 rounded !text-gray-600 dark:!text-gray-400 hover:!text-gray-900 dark:hover:!text-white hover:bg-gray-100 dark:hover:bg-gray-800"
-        />
-      </Badge>
+      <button className="relative flex items-center gap-2 px-3 py-2 rounded-lg bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md group">
+        <BellOutlined className="text-lg text-purple-600 dark:text-purple-400 group-hover:scale-110 transition-transform" />
+        {unreadCount > 0 && (
+          <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-[20px] h-5 px-1.5 text-xs font-bold text-white bg-gradient-to-br from-red-500 to-pink-600 rounded-full shadow-lg animate-pulse">
+            {unreadCount > 99 ? '99+' : unreadCount}
+          </span>
+        )}
+        <span className="text-sm font-semibold text-gray-900 dark:text-white hidden md:inline">
+          {unreadCount > 0 ? `${unreadCount} New` : 'Notifications'}
+        </span>
+      </button>
     </Dropdown>
   )
 }

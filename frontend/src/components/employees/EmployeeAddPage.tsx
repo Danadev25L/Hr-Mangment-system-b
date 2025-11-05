@@ -1,20 +1,19 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { Form, Card, message, Breadcrumb, Button, Space } from 'antd'
-import { ArrowLeftOutlined, HomeOutlined, TeamOutlined, PlusOutlined } from '@ant-design/icons'
+import { Form, message } from 'antd'
+import { ArrowLeftOutlined, HomeOutlined, TeamOutlined, PlusOutlined, UserAddOutlined } from '@ant-design/icons'
 import { useRouter } from 'next/navigation'
 import { EmployeeForm } from '@/components/employees/EmployeeForm'
 import apiClient from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
-
-const Title = ({ children }: { children: React.ReactNode }) => (
-  <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{children}</h1>
-)
-
-const Text = ({ children }: { children: React.ReactNode }) => (
-  <p className="text-gray-500 dark:text-gray-400">{children}</p>
-)
+import { useLocale } from 'next-intl'
+import { 
+  PageHeader, 
+  EnhancedCard, 
+  EnhancedButton,
+} from '@/components/ui'
+import { EmployeesIllustration } from '@/components/ui/illustrations'
 
 interface EmployeeAddPageProps {
   role: 'admin' | 'manager'
@@ -23,13 +22,14 @@ interface EmployeeAddPageProps {
 export function EmployeeAddPage({ role }: EmployeeAddPageProps) {
   const [form] = Form.useForm()
   const router = useRouter()
+  const locale = useLocale()
   const [loading, setLoading] = useState(false)
   const [departments, setDepartments] = useState<Array<{ id: number; departmentName: string }>>([])
   const { user } = useAuth()
 
   const basePath = role === 'admin' ? '/admin' : '/manager'
-  const listPath = `${basePath}/employees`
-  const dashboardPath = `${basePath}/dashboard`
+  const listPath = `/${locale}${basePath}/employees`
+  const dashboardPath = `/${locale}${basePath}/dashboard`
   const isAdmin = role === 'admin'
 
   // Get manager's department info
@@ -104,56 +104,47 @@ export function EmployeeAddPage({ role }: EmployeeAddPageProps) {
     }
   }
 
+  const handleNavigation = (path: string) => {
+    if (typeof window !== 'undefined') {
+      window.location.href = path
+    }
+  }
+
   return (
     <div className="space-y-6">
-      <Breadcrumb
-        items={[
-          {
-            title: (
-              <a href={dashboardPath} className="flex items-center gap-2">
-                <HomeOutlined />
-                <span>Dashboard</span>
-              </a>
-            ),
-          },
-          {
-            title: (
-              <a href={listPath} className="flex items-center gap-2">
-                <TeamOutlined />
-                <span>{role === 'admin' ? 'Employees' : 'My Team'}</span>
-              </a>
-            ),
-          },
-          {
-            title: (
-              <span className="flex items-center gap-2">
-                <PlusOutlined />
-                <span>Add Employee</span>
-              </span>
-            ),
-          },
-        ]}
+      {/* Header */}
+      <PageHeader
+        title="Add New Employee"
+        description={
+          isAdmin 
+            ? "Create a new employee account with all necessary details and permissions" 
+            : "Add a new team member to your department with employee credentials"
+        }
+        icon={<EmployeesIllustration className="w-20 h-20" />}
+        gradient="purple"
+        action={
+          <EnhancedButton
+            variant="secondary"
+            icon={<ArrowLeftOutlined />}
+            onClick={() => handleNavigation(listPath)}
+          >
+            Back to {role === 'admin' ? 'Employees' : 'Team'}
+          </EnhancedButton>
+        }
       />
-      <div className="flex items-center justify-between">
-        <div>
-          <Title>Add New Employee</Title>
-          <Text>Fill in the employee details below</Text>
-        </div>
-        <Button icon={<ArrowLeftOutlined />} onClick={() => router.push(listPath)}>
-          Back to {role === 'admin' ? 'Employees' : 'Team'}
-        </Button>
-      </div>
-      <Card className="shadow-sm dark:bg-gray-800 dark:border-gray-700">
+
+      {/* Form Card */}
+      <EnhancedCard className="shadow-md">
         <EmployeeForm
           form={form}
           onFinish={onFinish}
           loading={loading}
-          onCancel={() => router.push(listPath)}
+          onCancel={() => handleNavigation(listPath)}
           isAdmin={isAdmin}
           departments={departments}
           userDepartment={managerDepartmentName}
         />
-      </Card>
+      </EnhancedCard>
     </div>
   )
 }

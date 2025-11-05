@@ -1,9 +1,10 @@
 'use client'
 
 import React from 'react'
-import { useRouter, useParams } from 'next/navigation'
+import { useParams } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import apiClient from '@/lib/api'
+import { useLocale } from 'next-intl'
 import { 
   Card, 
   Descriptions, 
@@ -47,8 +48,8 @@ interface ExpenseViewPageProps {
 }
 
 export function ExpenseViewPage({ role }: ExpenseViewPageProps) {
-  const router = useRouter()
   const params = useParams()
+  const locale = useLocale()
   const id = params.id as string
 
   const { data: expenseData, isLoading } = useQuery({
@@ -58,9 +59,16 @@ export function ExpenseViewPage({ role }: ExpenseViewPageProps) {
   })
 
   const basePath = role === 'admin' ? '/admin' : '/manager'
-  const listPath = `${basePath}/expenses`
-  const editPath = `${basePath}/expenses/${id}/edit`
-  const dashboardPath = `${basePath}/dashboard`
+  const listPath = `/${locale}${basePath}/expenses`
+  const editPath = `/${locale}${basePath}/expenses/${id}/edit`
+  const dashboardPath = `/${locale}${basePath}/dashboard`
+
+  // Navigate with locale support
+  const handleNavigation = (path: string) => {
+    if (typeof window !== 'undefined') {
+      window.location.href = path
+    }
+  }
 
   if (isLoading) {
     return (
@@ -246,7 +254,7 @@ export function ExpenseViewPage({ role }: ExpenseViewPageProps) {
             <EnhancedButton
               variant="ghost"
               icon={<ArrowLeftOutlined />}
-              onClick={() => router.push(listPath)}
+              onClick={() => handleNavigation(listPath)}
             >
               Back
             </EnhancedButton>
@@ -254,7 +262,7 @@ export function ExpenseViewPage({ role }: ExpenseViewPageProps) {
               <EnhancedButton
                 variant="primary"
                 icon={<EditOutlined />}
-                onClick={() => router.push(editPath)}
+                onClick={() => handleNavigation(editPath)}
               >
                 Edit
               </EnhancedButton>

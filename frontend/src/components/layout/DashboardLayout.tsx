@@ -1,66 +1,37 @@
 'use client'
 
-import React, { useState, ReactNode, useEffect } from 'react'
-import { Layout, Menu, Avatar, Dropdown, Button, Badge, Tooltip } from 'antd'
-import type { MenuProps } from 'antd'
-import Image from 'next/image'
+import React, { useState, ReactNode, useEffect, useMemo } from 'react'
+import { Layout } from 'antd'
 import {
-  MenuFoldOutlined,
-  MenuUnfoldOutlined,
-  UserOutlined,
-  BellOutlined,
   SettingOutlined,
   LogoutOutlined,
-  DashboardOutlined,
-  TeamOutlined,
-  FileTextOutlined,
-  DollarOutlined,
-  CalendarOutlined,
-  NotificationOutlined,
-  BarChartOutlined,
-  HomeOutlined,
-  BankOutlined,
-  IdcardOutlined,
-  ClockCircleOutlined,
-  MessageOutlined,
-  SendOutlined,
-  HistoryOutlined,
-  PayCircleOutlined,
-  ThunderboltOutlined,
-  AuditOutlined,
-  UserSwitchOutlined,
-  ShopOutlined,
-  PlusOutlined,
-  FileSearchOutlined,
+  UserOutlined,
 } from '@ant-design/icons'
-import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import { useTranslations } from 'next-intl'
-import { cn } from '@/lib/utils'
-import { ThemeToggle } from '@/components/ThemeToggle'
-import LocaleSwitcher from '@/components/LocaleSwitcher'
-import { NotificationDropdown } from '@/components/notifications/NotificationDropdown'
 import { createLocalizedPath, getCurrentLocale } from '@/lib/localized-routes'
-import verticalLogo from '@/public/colored Vertical.png'
+import { Sidebar } from './Sidebar'
+import { DashboardHeader } from './DashboardHeader'
+import { getMenuItems, roleColors } from './menuConfig'
 
-const { Header, Sider, Content } = Layout
+const { Content } = Layout
 
 interface DashboardLayoutProps {
   children: ReactNode
   role: 'admin' | 'manager' | 'employee' | 'ROLE_ADMIN' | 'ROLE_MANAGER' | 'ROLE_EMPLOYEE'
 }
 
-type MenuItem = Required<MenuProps>['items'][number]
-
 export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, role }) => {
-  const [collapsed, setCollapsed] = useState(true) // Default to collapsed
-  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false)
+  const [collapsed, setCollapsed] = useState(true)
   const [openSubmenuKeys, setOpenSubmenuKeys] = useState<string[]>([])
   const { user, logout } = useAuth()
   const router = useRouter()
   const pathname = usePathname()
   const t = useTranslations()
+
+  // Get locale from pathname
+  const locale = getCurrentLocale(pathname)
 
   // Convert role format to simpler version for menu lookup
   const roleKey = role.replace('ROLE_', '').toLowerCase()
@@ -68,375 +39,26 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, role
   // Validate roleKey and provide fallback
   const validRoleKey = ['admin', 'manager', 'employee'].includes(roleKey) ? roleKey : 'admin'
 
-  // Define role-based color schemes with comprehensive theming
-  const roleColors = {
-    admin: {
-      primary: '#3B82F6', // blue-600
-      light: '#EFF6FF', // blue-50
-      medium: '#DBEAFE', // blue-100
-      dark: '#1E40AF', // blue-800
-      gradient: 'linear-gradient(135deg, #3B82F6 0%, #1E40AF 100%)',
-      hover: '#2563EB', // blue-700
-      shadow: 'rgba(59, 130, 246, 0.2)',
-    },
-    manager: {
-      primary: '#10B981', // green-600
-      light: '#ECFDF5', // green-50
-      medium: '#D1FAE5', // green-100
-      dark: '#065F46', // green-800
-      gradient: 'linear-gradient(135deg, #10B981 0%, #065F46 100%)',
-      hover: '#059669', // green-700
-      shadow: 'rgba(16, 185, 129, 0.2)',
-    },
-    employee: {
-      primary: '#EF4444', // red-600
-      light: '#FEF2F2', // red-50
-      medium: '#FEE2E2', // red-100
-      dark: '#991B1B', // red-800
-      gradient: 'linear-gradient(135deg, #EF4444 0%, #991B1B 100%)',
-      hover: '#DC2626', // red-700
-      shadow: 'rgba(239, 68, 68, 0.2)',
-    }
-  }
-
+  // Get current role colors
   const currentRoleColors = roleColors[validRoleKey as keyof typeof roleColors]
 
-  const locale = getCurrentLocale(pathname)
-
-  const menuItems: Record<string, MenuItem[]> = {
-    admin: [
-      {
-        key: 'dashboard',
-        icon: <DashboardOutlined />,
-        label: t('common.dashboard'),
-        href: createLocalizedPath(locale, '/admin/dashboard'),
-      },
-      {
-        key: 'employees',
-        icon: <TeamOutlined />,
-        label: t('navigation.employeeManagement'),
-        children: [
-          {
-            key: 'employees-list',
-            icon: <TeamOutlined />,
-            label: t('navigation.allEmployees'),
-            href: createLocalizedPath(locale, '/admin/employees'),
-          },
-          {
-            key: 'employees-add',
-            icon: <UserOutlined />,
-            label: t('navigation.addEmployee'),
-            href: createLocalizedPath(locale, '/admin/employees/add'),
-          },
-        ],
-      },
-      {
-        key: 'expenses',
-        icon: <DollarOutlined />,
-        label: t('navigation.expenseManagement'),
-        children: [
-          {
-            key: 'expenses-list',
-            icon: <FileTextOutlined />,
-            label: t('navigation.allExpenses'),
-            href: createLocalizedPath(locale, '/admin/expenses'),
-          },
-          {
-            key: 'expenses-add',
-            icon: <DollarOutlined />,
-            label: t('navigation.addExpense'),
-            href: createLocalizedPath(locale, '/admin/expenses/add'),
-          },
-        ],
-      },
-      {
-        key: 'applications',
-        icon: <FileTextOutlined />,
-        label: t('navigation.applicationManagement'),
-        children: [
-          {
-            key: 'applications-list',
-            icon: <FileTextOutlined />,
-            label: t('navigation.allApplications'),
-            href: createLocalizedPath(locale, '/admin/applications'),
-          },
-          {
-            key: 'applications-add',
-            icon: <PlusOutlined />,
-            label: t('navigation.addApplication'),
-            href: createLocalizedPath(locale, '/admin/applications/add'),
-          },
-        ],
-      },
-      {
-        key: 'announcements',
-        icon: <NotificationOutlined />,
-        label: t('navigation.announcements'),
-        children: [
-          {
-            key: 'announcements-list',
-            icon: <NotificationOutlined />,
-            label: t('navigation.allAnnouncements'),
-            href: createLocalizedPath(locale, '/admin/announcements'),
-          },
-          {
-            key: 'announcements-add',
-            icon: <PlusOutlined />,
-            label: t('navigation.createAnnouncement'),
-            href: createLocalizedPath(locale, '/admin/announcements/add'),
-          },
-        ],
-      },
-      {
-        key: 'holidays',
-        icon: <CalendarOutlined />,
-        label: t('navigation.holidays'),
-        children: [
-          {
-            key: 'holidays-list',
-            icon: <CalendarOutlined />,
-            label: t('navigation.allHolidays'),
-            href: createLocalizedPath(locale, '/admin/holidays'),
-          },
-          {
-            key: 'holidays-add',
-            icon: <PlusOutlined />,
-            label: t('navigation.addHoliday'),
-            href: createLocalizedPath(locale, '/admin/holidays/add'),
-          },
-        ],
-      },
-      {
-        key: 'salary',
-        icon: <DollarOutlined />,
-        label: t('navigation.salaryManagement'),
-        children: [
-          {
-            key: 'salary-list',
-            icon: <FileTextOutlined />,
-            label: t('navigation.salaryList'),
-            href: createLocalizedPath(locale, '/admin/salary'),
-          },
-          {
-            key: 'salary-adjustments',
-            icon: <PlusOutlined />,
-            label: t('navigation.salaryAdjustments'),
-            href: createLocalizedPath(locale, '/admin/salary/adjustments'),
-          },
-        ],
-      },
-      {
-        key: 'departments',
-        icon: <BankOutlined />,
-        label: t('navigation.departments'),
-        href: createLocalizedPath(locale, '/admin/departments'),
-      },
-      {
-        key: 'attendance',
-        icon: <ClockCircleOutlined />,
-        label: t('navigation.attendance'),
-        children: [
-          {
-            key: 'attendance-records',
-            icon: <ClockCircleOutlined />,
-            label: t('navigation.allRecords'),
-            href: createLocalizedPath(locale, '/admin/attendance'),
-          },
-          {
-            key: 'attendance-corrections',
-            icon: <FileSearchOutlined />,
-            label: t('navigation.corrections'),
-            href: createLocalizedPath(locale, '/admin/attendance/corrections'),
-          },
-        ],
-      },
-    ],
-    manager: [
-      {
-        key: 'dashboard',
-        icon: <DashboardOutlined />,
-        label: t('common.dashboard'),
-        href: createLocalizedPath(locale, '/manager/dashboard'),
-      },
-      {
-        key: 'team-management',
-        icon: <TeamOutlined />,
-        label: t('navigation.teamManagement'),
-        children: [
-          {
-            key: 'team-all',
-            icon: <TeamOutlined />,
-            label: t('navigation.allEmployees'),
-            href: createLocalizedPath(locale, '/manager/employees'),
-          },
-          {
-            key: 'team-add',
-            icon: <UserOutlined />,
-            label: t('navigation.addEmployee'),
-            href: createLocalizedPath(locale, '/manager/employees/add'),
-          },
-        ],
-      },
-      {
-        key: 'expenses',
-        icon: <DollarOutlined />,
-        label: t('navigation.expenseManagement'),
-        children: [
-          {
-            key: 'expenses-list',
-            icon: <FileTextOutlined />,
-            label: t('navigation.allExpenses'),
-            href: createLocalizedPath(locale, '/manager/expenses'),
-          },
-          {
-            key: 'expenses-add',
-            icon: <DollarOutlined />,
-            label: t('navigation.addExpense'),
-            href: createLocalizedPath(locale, '/manager/expenses/add'),
-          },
-        ],
-      },
-      {
-        key: 'applications',
-        icon: <FileTextOutlined />,
-        label: t('navigation.applicationManagement'),
-        children: [
-          {
-            key: 'applications-list',
-            icon: <FileTextOutlined />,
-            label: t('navigation.allApplications'),
-            href: createLocalizedPath(locale, '/manager/applications'),
-          },
-          {
-            key: 'applications-add',
-            icon: <PlusOutlined />,
-            label: t('navigation.addApplication'),
-            href: createLocalizedPath(locale, '/manager/applications/add'),
-          },
-        ],
-      },
-      {
-        key: 'announcements',
-        icon: <NotificationOutlined />,
-        label: t('navigation.announcements'),
-        children: [
-          {
-            key: 'announcements-list',
-            icon: <NotificationOutlined />,
-            label: t('navigation.departmentAnnouncements'),
-            href: createLocalizedPath(locale, '/manager/announcements'),
-          },
-          {
-            key: 'announcements-add',
-            icon: <PlusOutlined />,
-            label: t('navigation.createAnnouncement'),
-            href: createLocalizedPath(locale, '/manager/announcements/add'),
-          },
-        ],
-      },
-      {
-        key: 'holidays',
-        icon: <CalendarOutlined />,
-        label: t('navigation.companyHolidays'),
-        href: createLocalizedPath(locale, '/manager/holidays'),
-      },
-      {
-        key: 'team-overview',
-        icon: <BarChartOutlined />,
-        label: t('navigation.teamOverview'),
-        href: createLocalizedPath(locale, '/manager/team'),
-      },
-      {
-        key: 'attendance',
-        icon: <ClockCircleOutlined />,
-        label: t('navigation.teamAttendance'),
-        children: [
-          {
-            key: 'attendance-team',
-            icon: <TeamOutlined />,
-            label: t('navigation.teamStatus'),
-            href: createLocalizedPath(locale, '/manager/attendance'),
-          },
-          {
-            key: 'attendance-corrections',
-            icon: <FileSearchOutlined />,
-            label: t('navigation.pendingCorrections'),
-            href: createLocalizedPath(locale, '/manager/attendance/corrections'),
-          },
-        ],
-      },
-    ],
-    employee: [
-      {
-        key: 'dashboard',
-        icon: <DashboardOutlined />,
-        label: t('common.dashboard'),
-        href: createLocalizedPath(locale, '/employee/dashboard'),
-      },
-      {
-        key: 'profile',
-        icon: <UserOutlined />,
-        label: t('navigation.myProfile'),
-        href: createLocalizedPath(locale, '/employee/profile'),
-      },
-      {
-        key: 'announcements',
-        icon: <NotificationOutlined />,
-        label: t('navigation.announcements'),
-        href: createLocalizedPath(locale, '/employee/announcements'),
-      },
-      {
-        key: 'holidays',
-        icon: <CalendarOutlined />,
-        label: t('navigation.companyHolidays'),
-        href: createLocalizedPath(locale, '/employee/holidays'),
-      },
-      {
-        key: 'attendance',
-        icon: <ClockCircleOutlined />,
-        label: t('navigation.myAttendance'),
-        children: [
-          {
-            key: 'attendance-records',
-            icon: <ClockCircleOutlined />,
-            label: t('navigation.attendanceRecords'),
-            href: createLocalizedPath(locale, '/employee/attendance'),
-          },
-          {
-            key: 'attendance-corrections',
-            icon: <FileSearchOutlined />,
-            label: t('navigation.myCorrections'),
-            href: createLocalizedPath(locale, '/employee/attendance/corrections'),
-          },
-        ],
-      },
-    ],
-  }
-
   // Get menu items for current role
-  const currentMenuItems = menuItems[validRoleKey]
+  const allMenuItems = useMemo(() => getMenuItems(locale, t), [locale, t])
+  const currentMenuItems = allMenuItems[validRoleKey as keyof typeof allMenuItems]
 
+  // Auto-expand parent menu items when navigating to a child page
   useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth >= 768) {
-        setMobileDrawerOpen(false)
-      }
-    }
-
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [])
-
-  // Initialize open submenus based on current path
-  useEffect(() => {
-    const findParentKey = (items: MenuItem[]): string | null => {
+    const findParentKey = (items: any[]): string | null => {
       for (const item of items) {
         if (!item || !('key' in item)) continue
+        
         if ('children' in item && item.children) {
-          const hasActiveChild = item.children.some((child: any) => 
-            child && 'href' in child && pathname.includes(String(child.href))
+          const hasMatchingChild = item.children.some(
+            (child: any) => child && 'href' in child && child.href && pathname === child.href
           )
-          if (hasActiveChild) return String(item.key)
+          if (hasMatchingChild) {
+            return String(item.key)
+          }
         }
       }
       return null
@@ -448,30 +70,13 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, role
     }
   }, [pathname, currentMenuItems, openSubmenuKeys])
 
-  const handleMenuClick = ({ key }: { key: string }) => {
-    const findMenuItem = (items: MenuItem[], key: string): MenuItem | null => {
-      for (const item of items) {
-        if ('key' in item && item.key === key) return item
-        if ('children' in item && item.children) {
-          const found = findMenuItem(item.children, key)
-          if (found) return found
-        }
-      }
-      return null
-    }
-
-    const menuItem = findMenuItem(currentMenuItems, key)
-    if (menuItem && 'href' in menuItem && menuItem.href) {
-      router.push(menuItem.href)
-      setMobileDrawerOpen(false)
-    }
-  }
-
+  // Handle logout
   const handleLogout = async () => {
     await logout()
     router.push(createLocalizedPath(locale, '/login'))
   }
 
+  // User dropdown menu items
   const userMenuItems = [
     {
       key: 'profile',
@@ -497,8 +102,8 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, role
   ]
 
   // Find selected menu key based on current pathname
-  const getSelectedKeys = (): string[] => {
-    const findMatchingKey = (items: MenuItem[]): string | null => {
+  const selectedKeys = useMemo(() => {
+    const findMatchingKey = (items: any[]): string | null => {
       for (const item of items) {
         if (!item || !('key' in item)) continue
         
@@ -521,302 +126,45 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, role
     
     const matchedKey = findMatchingKey(currentMenuItems)
     return matchedKey ? [matchedKey] : ['dashboard']
-  }
-
-  const selectedKeys = getSelectedKeys()
-
-  const sidebarContent = (
-    <div className="h-full flex flex-col bg-white dark:bg-gray-900">
-      {/* Logo & Branding Section */}
-      <div className={cn(
-        "border-b border-gray-200 dark:border-gray-700",
-        collapsed ? "py-5 px-4" : "py-6 px-6"
-      )}>
-        {!collapsed ? (
-          <div className="flex items-center justify-center">
-            <Image 
-              src={verticalLogo}
-              alt="HR Management System" 
-              width={120}
-              height={56}
-              className="h-14 w-auto object-contain"
-              priority
-            />
-          </div>
-        ) : (
-          <div className="flex items-center justify-center">
-            <Image 
-              src={verticalLogo}
-              alt="HR" 
-              width={80}
-              height={40}
-              className="h-10 w-auto object-contain"
-              priority
-            />
-          </div>
-        )}
-      </div>
-
-      {/* User Profile Section */}
-      <div className={cn(
-        "border-b border-gray-200 dark:border-gray-700",
-        collapsed ? "py-4 px-4" : "py-5 px-6"
-      )}>
-        <div className="flex items-center">
-          <div className={cn(
-            "flex items-center justify-center rounded bg-gray-100 dark:bg-gray-800",
-            collapsed ? "w-9 h-9" : "w-10 h-10"
-          )}>
-            <UserOutlined className="text-base text-gray-600 dark:text-gray-400" />
-          </div>
-          {!collapsed && (
-            <div className="ml-3 rtl:ml-0 rtl:mr-3 flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                {user?.firstName} {user?.lastName}
-              </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">
-                {validRoleKey === 'admin' ? t('common.adminPortal') : validRoleKey === 'manager' ? t('common.managerPortal') : t('common.employeePortal')}
-              </p>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Menu Section */}
-      <div className="flex-1 overflow-y-auto px-3 py-4">
-        <div className="space-y-1">
-          {currentMenuItems.map((item) => {
-            if (!item || !('key' in item)) return null
-
-            const itemKey = String(item.key)
-            const isSelected = selectedKeys.includes(itemKey)
-            const hasChildren = 'children' in item && item.children
-            const isOpen = openSubmenuKeys.includes(itemKey)
-
-            // Role-based colors
-            const activeColorClass = validRoleKey === 'admin' 
-              ? 'bg-blue-600 dark:bg-blue-600' 
-              : validRoleKey === 'manager' 
-              ? 'bg-green-600 dark:bg-green-600' 
-              : 'bg-red-600 dark:bg-red-600'
-
-            const hoverColorClass = validRoleKey === 'admin' 
-              ? 'hover:bg-blue-50 dark:hover:bg-blue-950' 
-              : validRoleKey === 'manager' 
-              ? 'hover:bg-green-50 dark:hover:bg-green-950' 
-              : 'hover:bg-red-50 dark:hover:bg-red-950'
-
-            return (
-              <div key={itemKey}>
-                {collapsed ? (
-                  <Tooltip
-                    title={'label' in item ? String(item.label) : ''}
-                    placement="right"
-                    mouseEnterDelay={0.4}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => handleMenuClick({ key: itemKey })}
-                      className={cn(
-                        "w-full flex items-center justify-center py-3 rounded transition-colors",
-                        isSelected 
-                          ? `${activeColorClass} text-white` 
-                          : `text-gray-600 dark:text-gray-400 ${hoverColorClass}`
-                      )}
-                    >
-                      <span className="text-base">
-                        {'icon' in item ? item.icon : null}
-                      </span>
-                    </button>
-                  </Tooltip>
-                ) : (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (hasChildren) {
-                          setOpenSubmenuKeys(prev => 
-                            isOpen ? prev.filter(k => k !== itemKey) : [...prev, itemKey]
-                          )
-                        } else {
-                          handleMenuClick({ key: itemKey })
-                        }
-                      }}
-                      className={cn(
-                        "w-full flex items-center px-4 py-3 rounded-lg text-sm font-medium transition-colors",
-                        isSelected
-                          ? `${activeColorClass} text-white`
-                          : `text-gray-700 dark:text-gray-300 ${hoverColorClass}`
-                      )}
-                    >
-                      <span className={cn(
-                        "mr-3 rtl:mr-0 rtl:ml-3 text-base",
-                        isSelected ? "text-white" : "text-gray-500 dark:text-gray-400"
-                      )}>
-                        {'icon' in item ? item.icon : null}
-                      </span>
-                      <span className="flex-1 text-left rtl:text-right">
-                        {'label' in item ? item.label : ''}
-                      </span>
-                      {hasChildren && (
-                        <svg
-                          className={cn(
-                            "w-3.5 h-3.5 transition-transform duration-200",
-                            isOpen ? "rotate-90 rtl:-rotate-90" : "rotate-0",
-                            isSelected ? "text-white" : "text-gray-400 dark:text-gray-500"
-                          )}
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                          strokeWidth={2.5}
-                        >
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                        </svg>
-                      )}
-                    </button>
-
-                    {/* Submenu */}
-                    {hasChildren && isOpen && (
-                      <div className="mt-1 ml-4 rtl:ml-0 rtl:mr-4 pl-6 rtl:pl-0 rtl:pr-6 border-l-2 rtl:border-l-0 rtl:border-r-2 border-gray-200 dark:border-gray-700 space-y-1 py-1">
-                        {item.children?.map((child) => {
-                          if (!child || !('key' in child)) return null
-                          const childKey = String(child.key)
-                          const isChildSelected = selectedKeys.includes(childKey)
-
-                          return (
-                            <button
-                              type="button"
-                              key={childKey}
-                              onClick={() => handleMenuClick({ key: childKey })}
-                              className={cn(
-                                "w-full flex items-center px-4 py-2.5 rounded-lg text-sm transition-colors",
-                                isChildSelected
-                                  ? `${activeColorClass} text-white font-medium`
-                                  : `text-gray-600 dark:text-gray-400 ${hoverColorClass}`
-                              )}
-                            >
-                              <span className={cn(
-                                "mr-3 rtl:mr-0 rtl:ml-3 text-sm", 
-                                isChildSelected ? "text-white" : "text-gray-400 dark:text-gray-500"
-                              )}>
-                                {'icon' in child ? child.icon : null}
-                              </span>
-                              <span className="flex-1 text-left rtl:text-right">
-                                {'label' in child ? child.label : ''}
-                              </span>
-                            </button>
-                          )
-                        })}
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-            )
-          })}
-        </div>
-      </div>
-
-      {/* Footer */}
-      {!collapsed && (
-        <div className="border-t border-gray-200 dark:border-gray-700 py-3 px-6">
-          <p className="text-xs text-gray-400 dark:text-gray-500 text-center">
-            © 2024 HRS System
-          </p>
-        </div>
-      )}
-    </div>
-  )
+  }, [pathname, currentMenuItems])
 
   return (
-    <Layout className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Desktop Sidebar */}
-      <Sider
-        trigger={null}
-        collapsible
+    <Layout style={{ minHeight: '100vh' }}>
+      {/* Sidebar Component */}
+      <Sidebar
         collapsed={collapsed}
-        className="hidden md:block border-r border-gray-200 dark:border-gray-700"
-        width={240}
-        collapsedWidth={60}
-        theme="light"
-        style={{
-          backgroundColor: 'transparent'
-        }}
-      >
-        {sidebarContent}
-      </Sider>
-
-      <Layout className="bg-gray-50 dark:bg-gray-900">
-        <Header 
-          className="sticky top-0 z-10 px-4 md:px-6 flex items-center justify-between bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 h-16 shadow-sm"
+        setCollapsed={setCollapsed}
+        user={user}
+        roleColors={currentRoleColors}
+        currentMenuItems={currentMenuItems}
+        selectedKeys={selectedKeys}
+        openSubmenuKeys={openSubmenuKeys}
+        setOpenSubmenuKeys={setOpenSubmenuKeys}
+        pathname={pathname}
+        locale={locale}
+      />
+      
+      <Layout>
+        {/* Header Component */}
+        <DashboardHeader
+          collapsed={collapsed}
+          setCollapsed={setCollapsed}
+          user={user}
+          locale={locale}
+          validRoleKey={validRoleKey}
+          userMenuItems={userMenuItems}
+        />
+        
+        {/* Main Content */}
+        <Content
+          style={{
+            margin: '16px',
+            padding: 24,
+            minHeight: 280,
+            background: 'var(--bg-color)',
+          }}
         >
-          <div className="flex items-center space-x-3 rtl:space-x-reverse">
-            {/* Enhanced Collapse button */}
-            <Button
-              type="text"
-              icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-              onClick={() => setCollapsed(!collapsed)}
-              className="!text-gray-600 dark:!text-gray-400 hover:!text-gray-900 dark:hover:!text-white hover:!bg-gray-100 dark:hover:!bg-gray-800 !rounded-lg !w-10 !h-10 flex items-center justify-center transition-all"
-              size="large"
-            />
-            <div className="hidden sm:flex items-center space-x-2 rtl:space-x-reverse">
-              <h1 className="text-base md:text-lg font-semibold text-gray-900 dark:text-white">
-                {t('common.appName')}
-              </h1>
-            </div>
-          </div>
-
-          <div className="flex items-center space-x-1.5 md:space-x-2 rtl:space-x-reverse">
-            {/* Enhanced Notification Dropdown */}
-            <div className="hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
-              <NotificationDropdown locale={locale} role={validRoleKey as 'admin' | 'manager' | 'employee'} />
-            </div>
-
-            {/* Enhanced Locale Switcher */}
-            <div className="hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
-              <LocaleSwitcher />
-            </div>
-
-            {/* Enhanced Theme Toggle */}
-            <div className="hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors p-1">
-              <ThemeToggle />
-            </div>
-
-            {/* Enhanced User Dropdown */}
-            <Dropdown
-              menu={{ 
-                items: userMenuItems as any,
-              }}
-              placement="bottomRight"
-              trigger={['click']}
-            >
-              <div className="flex items-center space-x-2 rtl:space-x-reverse cursor-pointer px-2 md:px-3 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-all border border-transparent hover:border-gray-200 dark:hover:border-gray-700">
-                <Avatar
-                  src={user?.avatar}
-                  icon={<UserOutlined />}
-                  size={36}
-                  className="!bg-gradient-to-br !from-blue-500 !to-indigo-600 !text-white ring-2 ring-offset-2 ring-blue-200 dark:ring-blue-900"
-                />
-                <div className="hidden lg:block text-left rtl:text-right">
-                  <p className="text-sm font-semibold text-gray-900 dark:text-white leading-tight">
-                    {user?.firstName} {user?.lastName}
-                  </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 capitalize leading-tight">
-                    {validRoleKey === 'admin' ? t('common.adminPortal') : validRoleKey === 'manager' ? t('common.managerPortal') : t('common.employeePortal')}
-                  </p>
-                </div>
-                <svg className="hidden lg:block w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </div>
-            </Dropdown>
-          </div>
-        </Header>
-
-        <Content className="p-6 overflow-auto bg-gray-50 dark:bg-gray-900">
-          <div className="max-w-7xl mx-auto">
-            {children}
-          </div>
+          {children}
         </Content>
       </Layout>
     </Layout>

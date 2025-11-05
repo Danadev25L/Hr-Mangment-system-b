@@ -29,7 +29,7 @@ import {
 } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/lib/api'
-import { useRouter } from 'next/navigation'
+import { useLocale } from 'next-intl'
 import dayjs from 'dayjs'
 import { CustomSpinner } from '@/components/ui'
 
@@ -41,12 +41,19 @@ interface HolidayViewPageProps {
 }
 
 export function HolidayViewPage({ role, id }: HolidayViewPageProps) {
-  const router = useRouter()
+  const locale = useLocale()
   const queryClient = useQueryClient()
 
   const basePath = role === 'admin' ? '/admin' : role === 'manager' ? '/manager' : '/employee'
-  const listPath = `${basePath}/holidays`
-  const dashboardPath = `${basePath}/dashboard`
+  const listPath = `/${locale}${basePath}/holidays`
+  const dashboardPath = `/${locale}${basePath}/dashboard`
+
+  // Navigate with locale support
+  const handleNavigation = (path: string) => {
+    if (typeof window !== 'undefined') {
+      window.location.href = path
+    }
+  }
 
   // Fetch holiday details
   const { data: holiday, isLoading } = useQuery({
@@ -59,7 +66,7 @@ export function HolidayViewPage({ role, id }: HolidayViewPageProps) {
     mutationFn: (holidayId: number) => apiClient.deleteHoliday(holidayId),
     onSuccess: () => {
       message.success('Holiday deleted successfully')
-      router.push(listPath)
+      handleNavigation(listPath)
     },
     onError: (error: any) => {
       message.error(error.response?.data?.message || 'Failed to delete holiday')
@@ -85,7 +92,7 @@ export function HolidayViewPage({ role, id }: HolidayViewPageProps) {
       <Card>
         <Empty description="Holiday not found" />
         <div className="text-center mt-4">
-          <Button onClick={() => router.push(listPath)}>
+          <Button onClick={() => handleNavigation(listPath)}>
             Back to Holidays
           </Button>
         </div>
@@ -107,7 +114,7 @@ export function HolidayViewPage({ role, id }: HolidayViewPageProps) {
         items={[
           {
             title: (
-              <span className="flex items-center cursor-pointer hover:text-green-600 transition-colors" onClick={() => router.push(dashboardPath)}>
+              <span className="flex items-center cursor-pointer hover:text-green-600 transition-colors" onClick={() => handleNavigation(dashboardPath)}>
                 <HomeOutlined className="mr-1" />
                 Dashboard
               </span>
@@ -115,7 +122,7 @@ export function HolidayViewPage({ role, id }: HolidayViewPageProps) {
           },
           {
             title: (
-              <span className="flex items-center cursor-pointer hover:text-green-600 transition-colors" onClick={() => router.push(listPath)}>
+              <span className="flex items-center cursor-pointer hover:text-green-600 transition-colors" onClick={() => handleNavigation(listPath)}>
                 <CalendarOutlined className="mr-1" />
                 Holidays
               </span>
@@ -175,7 +182,7 @@ export function HolidayViewPage({ role, id }: HolidayViewPageProps) {
               <Button
                 size="large"
                 icon={<ArrowLeftOutlined />}
-                onClick={() => router.push(listPath)}
+                onClick={() => handleNavigation(listPath)}
                 className="bg-white/20 backdrop-blur-sm border-white/30 text-white hover:bg-white/30"
               >
                 Back
@@ -186,7 +193,7 @@ export function HolidayViewPage({ role, id }: HolidayViewPageProps) {
                     type="primary"
                     size="large"
                     icon={<EditOutlined />}
-                    onClick={() => router.push(`${listPath}/${id}/edit`)}
+                    onClick={() => handleNavigation(`${listPath}/${id}/edit`)}
                     className="bg-white text-green-600 border-0 hover:bg-white/90"
                   >
                     Edit

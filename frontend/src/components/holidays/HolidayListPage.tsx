@@ -1,55 +1,84 @@
-'use client'
+﻿'use client'
 
-import React, { useState } from 'react'
-import {
-  Card,
-  Button,
-  Space,
-  Input,
-  Breadcrumb,
-  message,
-  Modal,
-  Typography,
-  Calendar,
-  Badge,
-  Empty,
-  Segmented,
-} from 'antd'
+import { useState, useEffect } from 'react'
+import { useLocale, useTranslations } from 'next-intl'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { message, Modal, Table, Tag, Space, Tooltip, Segmented, Calendar, Badge, Empty } from 'antd'
+import type { ColumnsType } from 'antd/es/table'
 import type { Dayjs } from 'dayjs'
 import type { BadgeProps } from 'antd'
 import {
   PlusOutlined,
-  SearchOutlined,
-  HomeOutlined,
+  ExportOutlined,
+  FileExcelOutlined,
+  FilePdfOutlined,
+  ReloadOutlined,
+  ClearOutlined,
+  PrinterOutlined,
+  EyeOutlined,
+  EditOutlined,
+  DeleteOutlined,
   CalendarOutlined,
   UnorderedListOutlined,
 } from '@ant-design/icons'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import apiClient from '@/lib/api'
-import { useRouter } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import dayjs from 'dayjs'
-import { useTranslations } from 'next-intl'
-import { HolidayTable, type Holiday } from './HolidayTable'
-import { HolidayStats } from './HolidayStats'
+import * as XLSX from 'xlsx'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
+import apiClient from '@/lib/api'
+import {
+  PageHeader,
+  SearchInput,
+  FilterBar,
+  EnhancedButton,
+  EnhancedCard,
+} from '@/components/ui'
+import { HolidaysIllustration } from '@/components/ui/illustrations/HolidaysIllustration'
+import type { MenuProps } from 'antd'
 
 const { confirm } = Modal
-const { Title } = Typography
 
 interface HolidayListPageProps {
   role: 'admin' | 'manager' | 'employee'
+  title: string
+  description: string
 }
 
-export function HolidayListPage({ role }: HolidayListPageProps) {
+export function HolidayListPage({ role, title, description }: HolidayListPageProps) {
+  const locale = useLocale()
   const t = useTranslations()
-  const router = useRouter()
   const queryClient = useQueryClient()
-  const [searchText, setSearchText] = useState('')
-  const [viewMode, setViewMode] = useState<'table' | 'calendar'>('table')
+  const searchParams = useSearchParams()
 
-  const basePath = role === 'admin' ? '/admin' : role === 'manager' ? '/manager' : '/employee'
-  const dashboardPath = `${basePath}/dashboard`
-  const listPath = `${basePath}/holidays`
-  const addPath = `${basePath}/holidays/add`
+  const [searchText, setSearchText] = useState(searchParams?.get('search') || '')
+  const [viewMode, setViewMode] = useState<'table' | 'calendar'>((searchParams?.get('view') as any) || 'table')
+  const [pagination, setPagination] = useState({
+    current: parseInt(searchParams?.get('page') || '1'),
+    pageSize: parseInt(searchParams?.get('pageSize') || '10'),
+  })
+
+  const basePath = role === 'admin' ? '/admin/holidays' : role === 'manager' ? '/manager/holidays' : '/employee/holidays'
+
+  const handleNavigation = (path: string) => {
+    if (typeof window !== 'undefined') {
+      window.location.href = path
+    }
+  }
+
+  // Update URL params when filters change
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    
+    const params = new URLSearchParams()
+    if (searchText) params.set('search', searchText)
+    params.set('view', viewMode)
+    params.set('page', pagination.current.toString())
+    params.set('pageSize', pagination.pageSize.toString())
+    
+    const newUrl = `/${locale}${basePath}?${params.toString()}`
+    window.history.replaceState({}, '', newUrl)
+  }, [searchText, viewMode, pagination, locale, basePath])
 
   // Fetch holidays
   const { data: holidaysData, isLoading, refetch } = useQuery({
@@ -61,53 +90,132 @@ export function HolidayListPage({ role }: HolidayListPageProps) {
   const deleteHolidayMutation = useMutation({
     mutationFn: (id: number) => apiClient.deleteHoliday(id),
     onSuccess: () => {
-      message.success('Holiday deleted successfully')
+      message.success(t('holidays.deleteSuccess'))
       queryClient.invalidateQueries({ queryKey: ['holidays'] })
     },
     onError: (error: any) => {
-      message.error(error.response?.data?.message || 'Failed to delete holiday')
+      message.error(error.response?.data?.message || t('holidays.deleteError'))
     },
   })
 
-  const handleView = (record: Holiday) => {
-    router.push(`${listPath}/${record.id}`)
-  }
-
-  const handleEdit = (record: Holiday) => {
-    router.push(`${listPath}/${record.id}/edit`)
-  }
-
   const handleDelete = (id: number, name: string) => {
     confirm({
-      title: 'Delete Holiday',
-      content: `Are you sure you want to delete "${name}"?`,
-      okText: 'Delete',
+      title: t('holidays.deleteHoliday'),
+      content: t('holidays.deleteConfirm', { name }),
+      okText: t('common.delete'),
       okType: 'danger',
-      cancelText: 'Cancel',
+      cancelText: t('common.cancel'),
       onOk: () => deleteHolidayMutation.mutate(id),
     })
+  }
+
+  const handleView = (id: number) => {
+    handleNavigation(`/${locale}${basePath}/${id}`)
   }
 
   const holidays = Array.isArray(holidaysData)
     ? holidaysData
     : holidaysData?.holidays || []
 
+  // Filter holidays
   const filteredHolidays = holidays.filter((holiday: any) =>
+    !searchText ||
     holiday.name?.toLowerCase().includes(searchText.toLowerCase()) ||
     holiday.description?.toLowerCase().includes(searchText.toLowerCase())
   )
 
   // Calculate statistics
   const today = dayjs()
-  const upcomingHolidays = filteredHolidays.filter((holiday: any) =>
-    dayjs(holiday.date).isAfter(today) || dayjs(holiday.date).isSame(today, 'day')
-  )
-  const pastHolidays = filteredHolidays.filter((holiday: any) =>
-    dayjs(holiday.date).isBefore(today, 'day')
-  )
-  const recurringHolidays = filteredHolidays.filter((holiday: any) => holiday.isRecurring)
+  const stats = {
+    total: filteredHolidays.length,
+    upcoming: filteredHolidays.filter((h: any) => 
+      dayjs(h.date).isAfter(today) || dayjs(h.date).isSame(today, 'day')
+    ).length,
+    past: filteredHolidays.filter((h: any) => dayjs(h.date).isBefore(today, 'day')).length,
+    recurring: filteredHolidays.filter((h: any) => h.isRecurring).length,
+  }
 
-  // Calendar mode helpers
+  // Export functions
+  const exportToExcel = () => {
+    if (filteredHolidays.length === 0) {
+      message.warning(t('common.noDataToExport'))
+      return
+    }
+
+    const exportData = filteredHolidays.map((holiday: any) => ({
+      [t('holidays.holidayName')]: holiday.name,
+      [t('holidays.date')]: dayjs(holiday.date).format('MMM DD, YYYY'),
+      [t('holidays.description')]: holiday.description || t('holidays.noDescription'),
+      [t('holidays.type')]: holiday.isRecurring ? t('holidays.recurring') : t('holidays.oneTime'),
+    }))
+
+    const ws = XLSX.utils.json_to_sheet(exportData)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Holidays')
+    XLSX.writeFile(wb, `holidays-${dayjs().format('YYYY-MM-DD')}.xlsx`)
+    message.success(t('common.exportSuccess'))
+  }
+
+  const exportToPDF = () => {
+    if (filteredHolidays.length === 0) {
+      message.warning(t('common.noDataToExport'))
+      return
+    }
+
+    const doc = new jsPDF()
+    doc.setFontSize(18)
+    doc.text(title, 14, 20)
+    
+    autoTable(doc, {
+      startY: 30,
+      head: [[
+        t('holidays.holidayName'),
+        t('holidays.date'),
+        t('holidays.type'),
+      ]],
+      body: filteredHolidays.map((holiday: any) => [
+        holiday.name,
+        dayjs(holiday.date).format('MMM DD, YYYY'),
+        holiday.isRecurring ? t('holidays.recurring') : t('holidays.oneTime'),
+      ]),
+    })
+
+    doc.save(`holidays-${dayjs().format('YYYY-MM-DD')}.pdf`)
+    message.success('PDF exported successfully')
+  }
+
+  const handlePrint = () => {
+    if (typeof window === 'undefined') return
+    window.print()
+  }
+
+  const handleClearFilters = () => {
+    setSearchText('')
+    setPagination({ current: 1, pageSize: 10 })
+  }
+
+  const exportMenuItems: MenuProps['items'] = [
+    {
+      key: 'excel',
+      icon: <FileExcelOutlined />,
+      label: 'Export to Excel',
+      onClick: exportToExcel,
+    },
+    {
+      key: 'pdf',
+      icon: <FilePdfOutlined />,
+      label: 'Export to PDF',
+      onClick: exportToPDF,
+    },
+    {
+      key: 'print',
+      icon: <PrinterOutlined />,
+      label: 'Print',
+      onClick: handlePrint,
+    },
+  ]
+
+  // Calendar helpers
   const getListData = (value: Dayjs) => {
     const listData: { type: BadgeProps['status']; content: string }[] = []
     
@@ -115,7 +223,7 @@ export function HolidayListPage({ role }: HolidayListPageProps) {
       if (dayjs(holiday.date).isSame(value, 'day')) {
         listData.push({
           type: 'success',
-          content: holiday.name || 'Holiday',
+          content: holiday.name || t('holidays.unnamedHoliday'),
         })
       }
     })
@@ -126,7 +234,7 @@ export function HolidayListPage({ role }: HolidayListPageProps) {
   const dateCellRender = (value: Dayjs) => {
     const listData = getListData(value)
     return (
-      <ul className="list-none p-0">
+      <ul className="list-none p-0 m-0">
         {listData.map((item, index) => (
           <li key={index}>
             <Badge status={item.type} text={item.content} />
@@ -136,128 +244,247 @@ export function HolidayListPage({ role }: HolidayListPageProps) {
     )
   }
 
+  // Get days until holiday
+  const getDaysUntil = (date: string) => {
+    const diff = dayjs(date).diff(today, 'day')
+    if (diff === 0) return t('holidays.today')
+    if (diff < 0) return t('holidays.past')
+    const days = Math.abs(diff)
+    const unit = days === 1 ? t('holidays.day') : t('holidays.days')
+    return t('holidays.inDays', { days, unit })
+  }
+
+  const columns: ColumnsType<any> = [
+    {
+      title: t('holidays.holidayName'),
+      dataIndex: 'name',
+      key: 'name',
+      render: (text: string, record: any) => (
+        <Space>
+          <CalendarOutlined className="text-green-500" />
+          <span className="font-medium">{text || t('holidays.unnamedHoliday')}</span>
+          {record.isRecurring && (
+            <Tag color="cyan">{t('holidays.recurring')}</Tag>
+          )}
+        </Space>
+      ),
+    },
+    {
+      title: t('holidays.date'),
+      dataIndex: 'date',
+      key: 'date',
+      render: (date: string) => (
+        <Space direction="vertical" size="small">
+          <span>{dayjs(date).format('MMM DD, YYYY')}</span>
+          <Tag color={dayjs(date).isBefore(today, 'day') ? 'default' : 'green'}>
+            {getDaysUntil(date)}
+          </Tag>
+        </Space>
+      ),
+      sorter: (a: any, b: any) => dayjs(a.date).unix() - dayjs(b.date).unix(),
+    },
+    {
+      title: t('holidays.description'),
+      dataIndex: 'description',
+      key: 'description',
+      ellipsis: true,
+      render: (text: string) => (
+        <Tooltip title={text}>
+          <span className="text-gray-600">{text || t('holidays.noDescription')}</span>
+        </Tooltip>
+      ),
+    },
+    {
+      title: t('holidays.actions'),
+      key: 'actions',
+      fixed: 'right',
+      width: 80,
+      render: (_: any, record: any) => (
+        <Space size="small">
+          <Tooltip title={t('holidays.viewDetails')}>
+            <EnhancedButton
+              variant="ghost"
+              size="small"
+              icon={<EyeOutlined />}
+              onClick={() => handleView(record.id)}
+            />
+          </Tooltip>
+          {role === 'admin' && (
+            <>
+              <Tooltip title={t('common.edit')}>
+                <EnhancedButton
+                  variant="ghost"
+                  size="small"
+                  icon={<EditOutlined />}
+                  onClick={() => handleNavigation(`/${locale}${basePath}/${record.id}/edit`)}
+                />
+              </Tooltip>
+              <Tooltip title={t('common.delete')}>
+                <EnhancedButton
+                  variant="ghost"
+                  size="small"
+                  danger
+                  icon={<DeleteOutlined />}
+                  onClick={() => handleDelete(record.id, record.name)}
+                />
+              </Tooltip>
+            </>
+          )}
+        </Space>
+      ),
+    },
+  ]
+
   return (
     <div className="space-y-6">
-      {/* Breadcrumb */}
-      <Breadcrumb
-        items={[
-          {
-            title: (
-              <span className="flex items-center cursor-pointer hover:text-blue-600 transition-colors" onClick={() => router.push(dashboardPath)}>
-                <HomeOutlined className="mr-1" />
-                Dashboard
-              </span>
-            ),
-          },
-          {
-            title: (
-              <span className="flex items-center">
-                <CalendarOutlined className="mr-1" />
-                Holidays
-              </span>
-            ),
-          },
-        ]}
-      />
-
-      {/* Header */}
-      <Card className="shadow-lg border-t-4 border-t-green-500">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div className="flex items-center space-x-4">
-            <div className="w-14 h-14 bg-gradient-to-br from-green-500 to-teal-600 rounded-xl flex items-center justify-center shadow-lg">
-              <CalendarOutlined className="text-white text-2xl" />
-            </div>
-            <div>
-              <Title level={2} className="!mb-1 !text-gray-900 dark:!text-gray-100">
-                Holidays
-              </Title>
-              <p className="text-gray-500 dark:text-gray-400 m-0">
-                {role === 'admin' ? 'Manage company holidays and events' : 'View company holidays and events'}
-              </p>
-            </div>
-          </div>
-          <Space>
+      <PageHeader
+        title={title}
+        description={description}
+        icon={<HolidaysIllustration className="w-20 h-20" />}
+        gradient="green"
+        action={
+          <div className="flex items-center gap-3">
             {role === 'admin' && (
-              <Button
-                type="primary"
+              <EnhancedButton
+                variant="primary"
                 icon={<PlusOutlined />}
-                size="large"
-                onClick={() => router.push(addPath)}
-                className="bg-gradient-to-r from-green-500 to-teal-600 border-none hover:from-green-600 hover:to-teal-700 shadow-md"
+                onClick={() => handleNavigation(`/${locale}${basePath}/add`)}
               >
-                Add Holiday
-              </Button>
+                {t('holidays.addHoliday')}
+              </EnhancedButton>
             )}
-          </Space>
-        </div>
-      </Card>
+            <EnhancedButton
+              variant="secondary"
+              icon={<ExportOutlined />}
+              dropdown={{ menu: { items: exportMenuItems } }}
+            >
+              {t('common.export')}
+            </EnhancedButton>
+          </div>
+        }
+      />
 
       {/* Statistics */}
-      <HolidayStats
-        total={filteredHolidays.length}
-        upcoming={upcomingHolidays.length}
-        past={pastHolidays.length}
-        recurring={recurringHolidays.length}
-      />
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <EnhancedCard className="bg-gradient-to-br from-green-50 to-white dark:from-green-900/20 dark:to-gray-800">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">{t('holidays.totalHolidays')}</p>
+              <p className="text-2xl font-bold text-green-600 dark:text-green-400">{stats.total}</p>
+            </div>
+            <CalendarOutlined className="text-4xl text-green-500 opacity-50" />
+          </div>
+        </EnhancedCard>
 
-      {/* Filters and View Toggle */}
-      <Card className="shadow-md">
-        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-          <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-            <Input
-              placeholder="Search holidays by name or description..."
-              prefix={<SearchOutlined className="text-gray-400" />}
+        <EnhancedCard className="bg-gradient-to-br from-blue-50 to-white dark:from-blue-900/20 dark:to-gray-800">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">{t('holidays.upcomingHolidays')}</p>
+              <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{stats.upcoming}</p>
+            </div>
+            <CalendarOutlined className="text-4xl text-blue-500 opacity-50" />
+          </div>
+        </EnhancedCard>
+
+        <EnhancedCard className="bg-gradient-to-br from-gray-50 to-white dark:from-gray-800/20 dark:to-gray-800">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">{t('holidays.pastHolidays')}</p>
+              <p className="text-2xl font-bold text-gray-600 dark:text-gray-400">{stats.past}</p>
+            </div>
+            <CalendarOutlined className="text-4xl text-gray-500 opacity-50" />
+          </div>
+        </EnhancedCard>
+
+        <EnhancedCard className="bg-gradient-to-br from-cyan-50 to-white dark:from-cyan-900/20 dark:to-gray-800">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">{t('holidays.recurring')}</p>
+              <p className="text-2xl font-bold text-cyan-600 dark:text-cyan-400">{stats.recurring}</p>
+            </div>
+            <ReloadOutlined className="text-4xl text-cyan-500 opacity-50" />
+          </div>
+        </EnhancedCard>
+      </div>
+
+      {/* Filters and View Mode */}
+      <EnhancedCard>
+        <FilterBar
+          searchComponent={
+            <SearchInput
+              placeholder={t('holidays.searchPlaceholder')}
               value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-              allowClear
-              size="large"
-              className="flex-1 max-w-md"
+              onChange={setSearchText}
+              onClear={() => setSearchText('')}
             />
+          }
+          filterComponents={
             <Segmented
               value={viewMode}
               onChange={(value) => setViewMode(value as 'table' | 'calendar')}
               size="large"
               options={[
                 {
-                  label: 'List View',
+                  label: t('holidays.listView'),
                   value: 'table',
                   icon: <UnorderedListOutlined />,
                 },
                 {
-                  label: 'Calendar View',
+                  label: t('holidays.calendarView'),
                   value: 'calendar',
                   icon: <CalendarOutlined />,
                 },
               ]}
             />
-          </div>
-        </Space>
-      </Card>
+          }
+          actionButtons={
+            <>
+              <EnhancedButton
+                variant="ghost"
+                icon={<ReloadOutlined />}
+                onClick={() => refetch()}
+              >
+                {t('common.refresh')}
+              </EnhancedButton>
+              <EnhancedButton
+                variant="ghost"
+                icon={<ClearOutlined />}
+                onClick={handleClearFilters}
+              >
+                {t('common.cancel')}
+              </EnhancedButton>
+            </>
+          }
+        />
+      </EnhancedCard>
 
       {/* Content - Table or Calendar */}
-      {viewMode === 'table' ? (
-        <Card className="shadow-md">
-          {filteredHolidays.length === 0 && !isLoading ? (
+      <EnhancedCard>
+        {viewMode === 'table' ? (
+          filteredHolidays.length === 0 && !isLoading ? (
             <Empty
               image={Empty.PRESENTED_IMAGE_SIMPLE}
-              description="No holidays found"
+              description={t('holidays.noHolidays') || 'No holidays found'}
             />
           ) : (
-            <HolidayTable
-              data={filteredHolidays}
+            <Table
+              columns={columns}
+              dataSource={filteredHolidays}
+              rowKey="id"
               loading={isLoading}
-              onView={handleView}
-              onEdit={role === 'admin' ? handleEdit : undefined}
-              onDelete={role === 'admin' ? handleDelete : undefined}
-              role={role}
+              scroll={{ x: 'max-content' }}
+              pagination={{
+                ...pagination,
+                showSizeChanger: true,
+                showTotal: (total) => t('holidays.totalItems', { total }),
+                onChange: (page, pageSize) => setPagination({ current: page, pageSize }),
+              }}
             />
-          )}
-        </Card>
-      ) : (
-        <Card className="shadow-md">
+          )
+        ) : (
           <Calendar dateCellRender={dateCellRender} />
-        </Card>
-      )}
+        )}
+      </EnhancedCard>
     </div>
   )
 }

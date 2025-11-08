@@ -19,6 +19,7 @@ import {
 } from '@ant-design/icons'
 import apiClient from '@/lib/api'
 import dayjs from 'dayjs'
+import { useTranslations } from 'next-intl'
 
 const { TextArea } = Input
 const { Title } = Typography
@@ -28,6 +29,7 @@ interface ExpenseAddPageProps {
 }
 
 export default function ExpenseAddPage({ role }: ExpenseAddPageProps) {
+  const t = useTranslations()
   const router = useRouter()
   const [form] = Form.useForm()
   const [loading, setLoading] = useState(false)
@@ -42,11 +44,11 @@ export default function ExpenseAddPage({ role }: ExpenseAddPageProps) {
   const createExpenseMutation = useMutation({
     mutationFn: (data: any) => apiClient.createExpense(data),
     onSuccess: () => {
-      message.success('Expense created successfully')
+      message.success(t('expenses.add.success'))
       router.push(`/${role}/expenses`)
     },
     onError: (error: any) => {
-      message.error(error.response?.data?.message || 'Failed to create expense')
+      message.error(error.response?.data?.message || t('expenses.add.error'))
       setLoading(false)
     },
   })
@@ -75,18 +77,18 @@ export default function ExpenseAddPage({ role }: ExpenseAddPageProps) {
           </div>
           <div className="flex-1">
             <Title level={2} className="!mb-1 !text-gray-900 dark:!text-gray-100">
-              Add New Expense
+              {t('expenses.addExpense')}
             </Title>
             <p className="text-gray-500 dark:text-gray-400 m-0 flex items-center gap-2">
               <InfoCircleOutlined />
               {role === 'admin'
-                ? 'Create a new expense for any department or company-wide'
-                : 'Create a new expense for your department'}
+                ? t('expenses.add.subtitleAdmin')
+                : t('expenses.add.subtitleManager')}
             </p>
           </div>
           <div className="hidden md:flex gap-2">
-            <Tag icon={<CheckCircleOutlined />} color="success">Quick Entry</Tag>
-            <Tag icon={<DollarOutlined />} color="processing">Financial</Tag>
+            <Tag icon={<CheckCircleOutlined />} color="success">{t('expenses.add.quickEntry')}</Tag>
+            <Tag icon={<DollarOutlined />} color="processing">{t('expenses.add.financial')}</Tag>
           </div>
         </div>
       </Card>
@@ -107,16 +109,16 @@ export default function ExpenseAddPage({ role }: ExpenseAddPageProps) {
                 label={
                   <span className="flex items-center gap-2 font-medium text-base">
                     <BankOutlined className="text-blue-600" />
-                    Department
+                    {t('expenses.department')}
                   </span>
                 }
                 name="departmentId"
-                rules={[{ required: true, message: 'Please select a department' }]}
-                tooltip="Select a specific department or 'Company-wide' for general expenses"
+                rules={[{ required: true, message: t('expenses.form.departmentRequired') }]}
+                tooltip={t('expenses.add.departmentTooltip')}
                 className="mb-0"
               >
                 <Select
-                  placeholder="Select department"
+                  placeholder={t('expenses.form.selectDepartment')}
                   size="large"
                   showSearch
                   optionFilterProp="children"
@@ -126,8 +128,8 @@ export default function ExpenseAddPage({ role }: ExpenseAddPageProps) {
                   <Select.Option value={0}>
                     <Space>
                       <BankOutlined className="text-purple-500" />
-                      <span className="font-medium">Company-wide</span>
-                      <Tag color="purple" className="ml-2">All Departments</Tag>
+                      <span className="font-medium">{t('expenses.view.companyWide')}</span>
+                      <Tag color="purple" className="ml-2">{t('expenses.add.allDepartments')}</Tag>
                     </Space>
                   </Select.Option>
                   {departmentsData?.map((dept: any) => (
@@ -146,7 +148,7 @@ export default function ExpenseAddPage({ role }: ExpenseAddPageProps) {
           <Divider orientation="left">
             <Space>
               <ShoppingOutlined className="text-emerald-600" />
-              <span className="text-gray-700 dark:text-gray-300 font-semibold">Expense Details</span>
+              <span className="text-gray-700 dark:text-gray-300 font-semibold">{t('expenses.add.expenseDetails')}</span>
             </Space>
           </Divider>
 
@@ -156,18 +158,18 @@ export default function ExpenseAddPage({ role }: ExpenseAddPageProps) {
                 label={
                   <span className="flex items-center gap-2 font-medium">
                     <ShoppingOutlined className="text-emerald-600" />
-                    Expense Item Name
+                    {t('expenses.add.expenseItemName')}
                   </span>
                 }
                 name="itemName"
                 rules={[
-                  { required: true, message: 'Please enter the item name' },
-                  { max: 200, message: 'Item name cannot exceed 200 characters' },
+                  { required: true, message: t('expenses.form.itemNameRequired') },
+                  { max: 200, message: t('expenses.add.itemNameMaxLength') },
                 ]}
               >
                 <Input
                   prefix={<ShoppingOutlined className="text-gray-400" />}
-                  placeholder="e.g., Office Supplies, Travel Ticket, Equipment"
+                  placeholder={t('expenses.form.itemNamePlaceholder')}
                   size="large"
                   className="rounded-lg"
                 />
@@ -179,15 +181,15 @@ export default function ExpenseAddPage({ role }: ExpenseAddPageProps) {
                 label={
                   <span className="flex items-center gap-2 font-medium">
                     <DollarOutlined className="text-emerald-600" />
-                    Amount
+                    {t('expenses.amount')}
                   </span>
                 }
                 name="amount"
                 rules={[
-                  { required: true, message: 'Please enter the amount' },
-                  { type: 'number', min: 0.01, message: 'Amount must be greater than 0' },
+                  { required: true, message: t('expenses.form.amountRequired') },
+                  { type: 'number', min: 0.01, message: t('expenses.form.amountMin') },
                 ]}
-                tooltip="Enter the expense amount in USD"
+                tooltip={t('expenses.add.amountTooltip')}
               >
                 <InputNumber
                   prefix={<CreditCardOutlined className="text-gray-400" />}
@@ -209,12 +211,12 @@ export default function ExpenseAddPage({ role }: ExpenseAddPageProps) {
                 label={
                   <span className="flex items-center gap-2 font-medium">
                     <CalendarOutlined className="text-emerald-600" />
-                    Expense Date
+                    {t('expenses.view.expenseDate')}
                   </span>
                 }
                 name="date"
-                rules={[{ required: true, message: 'Please select the date' }]}
-                tooltip="Select the date when the expense occurred"
+                rules={[{ required: true, message: t('expenses.form.dateRequired') }]}
+                tooltip={t('expenses.add.dateTooltip')}
               >
                 <DatePicker
                   size="large"
@@ -229,8 +231,8 @@ export default function ExpenseAddPage({ role }: ExpenseAddPageProps) {
             <Col xs={24} md={12}>
               <div className="h-full flex items-center pt-8">
                 <Alert
-                  message="Expense Tip"
-                  description="Ensure the date matches when the expense occurred"
+                  message={t('expenses.add.expenseTip')}
+                  description={t('expenses.add.expenseTipDescription')}
                   type="info"
                   showIcon
                   className="w-full"
@@ -242,7 +244,7 @@ export default function ExpenseAddPage({ role }: ExpenseAddPageProps) {
           <Divider orientation="left">
             <Space>
               <FileTextOutlined className="text-emerald-600" />
-              <span className="text-gray-700 dark:text-gray-300 font-semibold">Additional Information</span>
+              <span className="text-gray-700 dark:text-gray-300 font-semibold">{t('expenses.view.additionalInformation')}</span>
             </Space>
           </Divider>
 
@@ -250,17 +252,17 @@ export default function ExpenseAddPage({ role }: ExpenseAddPageProps) {
             label={
               <span className="flex items-center gap-2 font-medium">
                 <FileTextOutlined className="text-emerald-600" />
-                Description / Reason
+                {t('expenses.reason')}
               </span>
             }
             name="reason"
             rules={[
-              { max: 500, message: 'Description cannot exceed 500 characters' },
+              { max: 500, message: t('expenses.add.descriptionMaxLength') },
             ]}
-            tooltip="Provide additional context or justification for this expense"
+            tooltip={t('expenses.add.descriptionTooltip')}
           >
             <TextArea
-              placeholder="Provide additional details about this expense... (Optional)"
+              placeholder={t('expenses.add.descriptionPlaceholder')}
               rows={5}
               showCount
               maxLength={500}
@@ -278,7 +280,7 @@ export default function ExpenseAddPage({ role }: ExpenseAddPageProps) {
                 size="large"
                 className="rounded-lg"
               >
-                Cancel
+                {t('common.cancel')}
               </Button>
               <Button
                 type="primary"
@@ -288,7 +290,7 @@ export default function ExpenseAddPage({ role }: ExpenseAddPageProps) {
                 size="large"
                 className="rounded-lg bg-gradient-to-r from-emerald-500 to-teal-600 border-none hover:from-emerald-600 hover:to-teal-700"
               >
-                Create Expense
+                {t('expenses.add.createExpense')}
               </Button>
             </div>
           </Form.Item>

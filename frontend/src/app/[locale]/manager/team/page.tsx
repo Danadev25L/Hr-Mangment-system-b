@@ -63,7 +63,7 @@ export default function TeamPage() {
   const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null)
   const [form] = Form.useForm()
 
-  const { data: teamMembers, isLoading } = useQuery({
+  const { data: teamMembers, isLoading } = useQuery<TeamMember[]>({
     queryKey: ['team-members'],
     queryFn: () => Promise.resolve([
       {
@@ -73,7 +73,7 @@ export default function TeamPage() {
         phone: '+1 (555) 123-4567',
         role: 'Senior Developer',
         department: 'Engineering',
-        status: 'active',
+        status: 'active' as const,
         performance: 92,
         projects: 5,
         joinDate: '2022-03-15',
@@ -86,7 +86,7 @@ export default function TeamPage() {
         phone: '+1 (555) 234-5678',
         role: 'UI/UX Designer',
         department: 'Design',
-        status: 'active',
+        status: 'active' as const,
         performance: 88,
         projects: 3,
         joinDate: '2022-06-20',
@@ -99,7 +99,7 @@ export default function TeamPage() {
         phone: '+1 (555) 345-6789',
         role: 'Backend Developer',
         department: 'Engineering',
-        status: 'active',
+        status: 'active' as const,
         performance: 85,
         projects: 4,
         joinDate: '2021-11-10',
@@ -112,7 +112,7 @@ export default function TeamPage() {
         phone: '+1 (555) 456-7890',
         role: 'Frontend Developer',
         department: 'Engineering',
-        status: 'on_leave',
+        status: 'on_leave' as const,
         performance: 90,
         projects: 4,
         joinDate: '2022-01-05',
@@ -125,7 +125,7 @@ export default function TeamPage() {
         phone: '+1 (555) 567-8901',
         role: 'QA Engineer',
         department: 'Quality',
-        status: 'active',
+        status: 'active' as const,
         performance: 87,
         projects: 6,
         joinDate: '2022-09-12',
@@ -138,7 +138,7 @@ export default function TeamPage() {
         phone: '+1 (555) 678-9012',
         role: 'DevOps Engineer',
         department: 'Engineering',
-        status: 'active',
+        status: 'active' as const,
         performance: 89,
         projects: 3,
         joinDate: '2021-08-18',
@@ -309,8 +309,8 @@ export default function TeamPage() {
   }
 
   return (
-    <ProtectedRoute requiredRole="manager">
-      <DashboardLayout role="manager">
+    <ProtectedRoute requiredRole="ROLE_MANAGER">
+      <DashboardLayout role="ROLE_MANAGER">
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <div>
@@ -404,7 +404,7 @@ export default function TeamPage() {
 
           {/* Team Members Table */}
           <Card>
-            <Table
+            <Table<TeamMember>
               columns={columns}
               dataSource={filteredTeamMembers}
               rowKey="id"

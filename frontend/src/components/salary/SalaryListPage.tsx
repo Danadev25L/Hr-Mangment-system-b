@@ -362,21 +362,21 @@ export default function SalaryListPage({ role, title, description }: SalaryListP
               <Divider orientation="left">{t('common.earnings')}</Divider>
               <Descriptions column={2} bordered size="small">
                 <Descriptions.Item label={t('common.baseSalary')}>
-                  <span className="font-semibold">${parseFloat(selectedRecord.baseSalary).toLocaleString()}</span>
+                  <span className="font-semibold">${Math.max(0, parseFloat(selectedRecord.baseSalary) || 0).toLocaleString()}</span>
                 </Descriptions.Item>
                 <Descriptions.Item label={t('common.bonuses')}>
                   <span className="text-green-600 font-semibold">
-                    +${parseFloat(selectedRecord.totalBonuses).toLocaleString()}
+                    +${Math.max(0, parseFloat(selectedRecord.totalBonuses) || 0).toLocaleString()}
                   </span>
                 </Descriptions.Item>
                 <Descriptions.Item label={t('common.allowances')}>
                   <span className="text-green-600 font-semibold">
-                    +${parseFloat(selectedRecord.totalAllowances).toLocaleString()}
+                    +${Math.max(0, parseFloat(selectedRecord.totalAllowances) || 0).toLocaleString()}
                   </span>
                 </Descriptions.Item>
                 <Descriptions.Item label={t('common.overtimePay')}>
                   <span className="text-blue-600 font-semibold">
-                    +${parseFloat(selectedRecord.overtimePay).toLocaleString()}
+                    +${Math.max(0, parseFloat(selectedRecord.overtimePay) || 0).toLocaleString()}
                   </span>
                 </Descriptions.Item>
               </Descriptions>
@@ -385,22 +385,22 @@ export default function SalaryListPage({ role, title, description }: SalaryListP
               <Descriptions column={2} bordered size="small">
                 <Descriptions.Item label={t('common.absenceDeductions')}>
                   <span className="text-red-600 font-semibold">
-                    -${parseFloat(selectedRecord.absenceDeductions).toLocaleString()}
+                    -${Math.max(0, parseFloat(selectedRecord.absenceDeductions) || 0).toLocaleString()}
                   </span>
                 </Descriptions.Item>
                 <Descriptions.Item label={t('common.latencyDeductions')}>
                   <span className="text-orange-600 font-semibold">
-                    -${parseFloat(selectedRecord.latencyDeductions).toLocaleString()}
+                    -${Math.max(0, parseFloat(selectedRecord.latencyDeductions) || 0).toLocaleString()}
                   </span>
                 </Descriptions.Item>
                 <Descriptions.Item label={t('common.taxDeduction')}>
                   <span className="text-red-600 font-semibold">
-                    -${parseFloat(selectedRecord.taxDeduction).toLocaleString()}
+                    -${Math.max(0, parseFloat(selectedRecord.taxDeduction) || 0).toLocaleString()}
                   </span>
                 </Descriptions.Item>
                 <Descriptions.Item label={t('common.totalDeductions')}>
                   <span className="text-red-600 font-bold text-lg">
-                    -${parseFloat(selectedRecord.totalDeductions).toLocaleString()}
+                    -${Math.max(0, parseFloat(selectedRecord.totalDeductions) || 0).toLocaleString()}
                   </span>
                 </Descriptions.Item>
               </Descriptions>
@@ -409,12 +409,12 @@ export default function SalaryListPage({ role, title, description }: SalaryListP
               <Descriptions column={2} bordered size="small">
                 <Descriptions.Item label={t('common.grossSalary')}>
                   <span className="text-xl font-bold">
-                    ${parseFloat(selectedRecord.grossSalary).toLocaleString()}
+                    ${Math.max(0, parseFloat(selectedRecord.grossSalary) || 0).toLocaleString()}
                   </span>
                 </Descriptions.Item>
                 <Descriptions.Item label={`${t('common.netSalary')} (${t('common.finalAmount')})`}>
                   <span className="text-2xl font-bold text-emerald-600">
-                    ${parseFloat(selectedRecord.netSalary).toLocaleString()}
+                    ${Math.max(0, parseFloat(selectedRecord.netSalary) || 0).toLocaleString()}
                   </span>
                 </Descriptions.Item>
               </Descriptions>

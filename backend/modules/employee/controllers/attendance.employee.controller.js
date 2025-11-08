@@ -81,7 +81,7 @@ export const checkIn = async (req, res) => {
       userId,
       date: new Date(),
       checkIn: new Date(),
-      status: isLate ? 'late' : 'present',
+      status: isLate ? 'LATE' : 'PRESENT',
       isLate,
       lateMinutes,
       location: location || null,

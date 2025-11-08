@@ -52,7 +52,7 @@ export function AnnouncementViewPage({ role, id }: AnnouncementViewPageProps) {
   const dashboardPath = `${basePath}/dashboard`
 
   // Fetch announcement details
-  const { data: announcement, isLoading } = useQuery({
+  const { data: announcement, isLoading } = useQuery<any>({
     queryKey: ['announcement', id],
     queryFn: () => apiClient.getAnnouncement(parseInt(id)),
   })

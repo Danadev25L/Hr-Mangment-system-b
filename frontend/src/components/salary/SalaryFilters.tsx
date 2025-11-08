@@ -67,18 +67,6 @@ export const SalaryFilters: React.FC<SalaryFiltersProps> = ({
         />
       </div>
       
-      <FilterSelect
-        placeholder="Status"
-        options={[
-          { label: 'Draft', value: 'draft' },
-          { label: 'Calculated', value: 'calculated' },
-          { label: 'Approved', value: 'approved' },
-          { label: 'Paid', value: 'paid' },
-        ]}
-        value={filters.status}
-        onChange={(value) => onFilterChange('status', value)}
-      />
-      
       {role === 'admin' && departments.length > 0 && (
         <FilterSelect
           placeholder="Department"

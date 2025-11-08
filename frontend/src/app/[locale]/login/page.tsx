@@ -15,13 +15,12 @@ export default function LoginPage() {
       // User is already authenticated, redirect to appropriate dashboard
       // Try localStorage first, then cookie as fallback
       const getRole = () => {
-        if (typeof window !== 'undefined') {
-          return localStorage.getItem('userRole') || getCookie('userRole')
-        }
-        return null
+        if (typeof window === 'undefined') return null
+        return localStorage.getItem('userRole') || getCookie('userRole')
       }
 
       const getCookie = (name: string) => {
+        if (typeof window === 'undefined') return null
         const value = `; ${document.cookie}`
         const parts = value.split(`; ${name}=`)
         if (parts.length === 2) {

@@ -45,20 +45,20 @@ export function AnnouncementEditPage({ role, id }: AnnouncementEditPageProps) {
   const listPath = `${basePath}/announcements`
 
   // Fetch announcement details
-  const { data: announcement, isLoading: announcementLoading } = useQuery({
+  const { data: announcement, isLoading: announcementLoading } = useQuery<any>({
     queryKey: ['announcement', id],
     queryFn: () => apiClient.getAnnouncement(parseInt(id)),
   })
 
   // Fetch departments (admin only)
-  const { data: departments } = useQuery({
+  const { data: departments } = useQuery<any>({
     queryKey: ['departments'],
     queryFn: () => apiClient.getDepartments(),
     enabled: role === 'admin',
   })
 
   // Fetch users for selected department
-  const { data: users } = useQuery({
+  const { data: users } = useQuery<any>({
     queryKey: ['users', selectedDepartment],
     queryFn: () => {
       if (role === 'admin') {

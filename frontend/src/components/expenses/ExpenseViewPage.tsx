@@ -4,7 +4,7 @@ import React from 'react'
 import { useParams } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import apiClient from '@/lib/api'
-import { useLocale } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { 
   Card, 
   Descriptions, 
@@ -50,6 +50,7 @@ interface ExpenseViewPageProps {
 export function ExpenseViewPage({ role }: ExpenseViewPageProps) {
   const params = useParams()
   const locale = useLocale()
+  const t = useTranslations()
   const id = params.id as string
 
   const { data: expenseData, isLoading } = useQuery({
@@ -73,13 +74,13 @@ export function ExpenseViewPage({ role }: ExpenseViewPageProps) {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <CustomSpinner size="large" text="Loading expense details..." />
+        <CustomSpinner size="large" text={t('expenses.view.loading')} />
       </div>
     )
   }
 
   if (!expenseData) {
-    return <div className="text-center text-gray-500">Expense not found</div>
+    return <div className="text-center text-gray-500">{t('expenses.view.notFound')}</div>
   }
 
   const expense: Expense = expenseData
@@ -87,10 +88,10 @@ export function ExpenseViewPage({ role }: ExpenseViewPageProps) {
   // Status tag configuration
   const getStatusTag = (status: string) => {
     const statusConfig = {
-      pending: { color: 'gold', icon: <ClockCircleOutlined />, text: 'Pending' },
-      approved: { color: 'green', icon: <CheckCircleOutlined />, text: 'Approved' },
-      rejected: { color: 'red', icon: <CloseCircleOutlined />, text: 'Rejected' },
-      paid: { color: 'blue', icon: <CheckCircleOutlined />, text: 'Paid' },
+      pending: { color: 'gold', icon: <ClockCircleOutlined />, text: t('expenses.pending') },
+      approved: { color: 'green', icon: <CheckCircleOutlined />, text: t('expenses.approved') },
+      rejected: { color: 'red', icon: <CloseCircleOutlined />, text: t('expenses.rejected') },
+      paid: { color: 'blue', icon: <CheckCircleOutlined />, text: t('expenses.paid') },
     }
     const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.pending
     return (
@@ -109,9 +110,9 @@ export function ExpenseViewPage({ role }: ExpenseViewPageProps) {
     dot: <UserOutlined />,
     children: (
       <div>
-        <p className="font-semibold">Expense Created</p>
+        <p className="font-semibold">{t('expenses.view.expenseCreated')}</p>
         <p className="text-sm text-gray-500">
-          By: {expense.userName}
+          {t('expenses.view.by')}: {expense.userName}
         </p>
         <p className="text-sm text-gray-500">
           {dayjs(expense.createdAt).format('MMM DD, YYYY hh:mm A')}
@@ -127,9 +128,9 @@ export function ExpenseViewPage({ role }: ExpenseViewPageProps) {
       dot: <CheckCircleOutlined />,
       children: (
         <div>
-          <p className="font-semibold">Expense Approved</p>
+          <p className="font-semibold">{t('expenses.view.expenseApproved')}</p>
           <p className="text-sm text-gray-500">
-            By: {expense.approvedByName}
+            {t('expenses.view.by')}: {expense.approvedByName}
           </p>
           <p className="text-sm text-gray-500">
             {dayjs(expense.approvedAt).format('MMM DD, YYYY hh:mm A')}
@@ -146,9 +147,9 @@ export function ExpenseViewPage({ role }: ExpenseViewPageProps) {
       dot: <CloseCircleOutlined />,
       children: (
         <div>
-          <p className="font-semibold">Expense Rejected</p>
+          <p className="font-semibold">{t('expenses.view.expenseRejected')}</p>
           <p className="text-sm text-gray-500">
-            By: {expense.rejectedByName}
+            {t('expenses.view.by')}: {expense.rejectedByName}
           </p>
           <p className="text-sm text-gray-500">
             {dayjs(expense.rejectedAt).format('MMM DD, YYYY hh:mm A')}
@@ -165,9 +166,9 @@ export function ExpenseViewPage({ role }: ExpenseViewPageProps) {
       dot: <BankOutlined />,
       children: (
         <div>
-          <p className="font-semibold">Payment Processed</p>
+          <p className="font-semibold">{t('expenses.view.paymentProcessed')}</p>
           <p className="text-sm text-gray-500">
-            By: {expense.paidByName}
+            {t('expenses.view.by')}: {expense.paidByName}
           </p>
           <p className="text-sm text-gray-500">
             {dayjs(expense.paidAt).format('MMM DD, YYYY hh:mm A')}
@@ -186,7 +187,7 @@ export function ExpenseViewPage({ role }: ExpenseViewPageProps) {
             title: (
               <Space>
                 <HomeOutlined />
-                <span>Dashboard</span>
+                <span>{t('common.dashboard')}</span>
               </Space>
             ),
             href: dashboardPath,
@@ -195,7 +196,7 @@ export function ExpenseViewPage({ role }: ExpenseViewPageProps) {
             title: (
               <Space>
                 <WalletOutlined />
-                <span>Expenses</span>
+                <span>{t('expenses.title')}</span>
               </Space>
             ),
             href: listPath,
@@ -204,7 +205,7 @@ export function ExpenseViewPage({ role }: ExpenseViewPageProps) {
             title: (
               <Space>
                 <EyeOutlined />
-                <span>Expense Details</span>
+                <span>{t('expenses.view.expenseDetails')}</span>
               </Space>
             ),
           },
@@ -220,7 +221,7 @@ export function ExpenseViewPage({ role }: ExpenseViewPageProps) {
             </div>
             <div>
               <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">
-                {expense.itemName || 'Expense Details'}
+                {expense.itemName || t('expenses.view.expenseDetails')}
               </h1>
               <div className="flex flex-wrap items-center gap-3 mb-3">
                 <span className="text-2xl font-bold text-green-600 dark:text-green-400">
@@ -256,7 +257,7 @@ export function ExpenseViewPage({ role }: ExpenseViewPageProps) {
               icon={<ArrowLeftOutlined />}
               onClick={() => handleNavigation(listPath)}
             >
-              Back
+              {t('common.back')}
             </EnhancedButton>
             {(role === 'admin' || expense.status === 'pending') && (
               <EnhancedButton
@@ -264,7 +265,7 @@ export function ExpenseViewPage({ role }: ExpenseViewPageProps) {
                 icon={<EditOutlined />}
                 onClick={() => handleNavigation(editPath)}
               >
-                Edit
+                {t('common.edit')}
               </EnhancedButton>
             )}
           </div>
@@ -281,21 +282,21 @@ export function ExpenseViewPage({ role }: ExpenseViewPageProps) {
                 <FileTextOutlined className="text-white text-lg" />
               </div>
               <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                Expense Information
+                {t('expenses.view.expenseInformation')}
               </h3>
             </div>
             <div className="space-y-4">
               <div className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                 <FileTextOutlined className="text-blue-500 mt-1" />
                 <div className="flex-1">
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Item Name</p>
-                  <p className="font-medium text-gray-900 dark:text-gray-100">{expense.itemName || 'N/A'}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{t('expenses.view.itemName')}</p>
+                  <p className="font-medium text-gray-900 dark:text-gray-100">{expense.itemName || t('expenses.na')}</p>
                 </div>
               </div>
               <div className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                 <DollarOutlined className="text-green-500 mt-1" />
                 <div className="flex-1">
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Amount</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{t('expenses.amount')}</p>
                   <p className="font-medium text-gray-900 dark:text-gray-100 text-lg">
                     ${Number(expense.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </p>
@@ -304,7 +305,7 @@ export function ExpenseViewPage({ role }: ExpenseViewPageProps) {
               <div className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                 <CalendarOutlined className="text-purple-500 mt-1" />
                 <div className="flex-1">
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Expense Date</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{t('expenses.view.expenseDate')}</p>
                   <p className="font-medium text-gray-900 dark:text-gray-100">
                     {dayjs(expense.date).format('MMMM DD, YYYY')}
                   </p>
@@ -313,7 +314,7 @@ export function ExpenseViewPage({ role }: ExpenseViewPageProps) {
               <div className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                 <UserOutlined className="text-orange-500 mt-1" />
                 <div className="flex-1">
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Submitted By</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{t('expenses.submittedBy')}</p>
                   <p className="font-medium text-gray-900 dark:text-gray-100">{expense.userName}</p>
                 </div>
               </div>
@@ -329,23 +330,23 @@ export function ExpenseViewPage({ role }: ExpenseViewPageProps) {
                 <TeamOutlined className="text-white text-lg" />
               </div>
               <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                Additional Details
+                {t('expenses.view.additionalInformation')}
               </h3>
             </div>
             <div className="space-y-4">
               <div className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                 <TeamOutlined className="text-blue-500 mt-1" />
                 <div className="flex-1">
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Department</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{t('expenses.department')}</p>
                   <p className="font-medium text-gray-900 dark:text-gray-100">
-                    {expense.departmentName || 'Company-wide'}
+                    {expense.departmentName || t('expenses.view.companyWide')}
                   </p>
                 </div>
               </div>
               <div className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                 <ClockCircleOutlined className="text-purple-500 mt-1" />
                 <div className="flex-1">
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Submitted On</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{t('expenses.createdAt')}</p>
                   <p className="font-medium text-gray-900 dark:text-gray-100">
                     {dayjs(expense.createdAt).format('MMM DD, YYYY hh:mm A')}
                   </p>
@@ -354,7 +355,7 @@ export function ExpenseViewPage({ role }: ExpenseViewPageProps) {
               <div className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                 <AuditOutlined className="text-green-500 mt-1" />
                 <div className="flex-1">
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Status</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{t('expenses.status')}</p>
                   <div className="mt-1">
                     <StatusBadge status={expense.status} size="default" />
                   </div>
@@ -374,7 +375,7 @@ export function ExpenseViewPage({ role }: ExpenseViewPageProps) {
                 <FileTextOutlined className="text-white text-lg" />
               </div>
               <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                Reason/Description
+                {t('expenses.reason')}
               </h3>
             </div>
             <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
@@ -394,7 +395,7 @@ export function ExpenseViewPage({ role }: ExpenseViewPageProps) {
                   <AuditOutlined className="text-white text-lg" />
                 </div>
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                  Action Details
+                  {t('expenses.view.actionDetails')}
                 </h3>
               </div>
               <div className="space-y-4">
@@ -402,7 +403,7 @@ export function ExpenseViewPage({ role }: ExpenseViewPageProps) {
                   <div className="flex items-start gap-3 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
                     <CheckCircleOutlined className="text-green-500 mt-1 text-lg" />
                     <div className="flex-1">
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Approved By</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{t('expenses.approvedBy')}</p>
                       <p className="font-medium text-gray-900 dark:text-gray-100">{expense.approvedByName}</p>
                       <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                         {dayjs(expense.approvedAt).format('MMM DD, YYYY hh:mm A')}
@@ -414,7 +415,7 @@ export function ExpenseViewPage({ role }: ExpenseViewPageProps) {
                   <div className="flex items-start gap-3 p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
                     <CloseCircleOutlined className="text-red-500 mt-1 text-lg" />
                     <div className="flex-1">
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Rejected By</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{t('expenses.rejectedBy')}</p>
                       <p className="font-medium text-gray-900 dark:text-gray-100">{expense.rejectedByName}</p>
                       <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                         {dayjs(expense.rejectedAt).format('MMM DD, YYYY hh:mm A')}
@@ -426,7 +427,7 @@ export function ExpenseViewPage({ role }: ExpenseViewPageProps) {
                   <div className="flex items-start gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
                     <BankOutlined className="text-blue-500 mt-1 text-lg" />
                     <div className="flex-1">
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Payment Processed By</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{t('expenses.view.paymentProcessedBy')}</p>
                       <p className="font-medium text-gray-900 dark:text-gray-100">{expense.paidByName}</p>
                       <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                         {dayjs(expense.paidAt).format('MMM DD, YYYY hh:mm A')}
@@ -447,7 +448,7 @@ export function ExpenseViewPage({ role }: ExpenseViewPageProps) {
                 <ClockCircleOutlined className="text-white text-lg" />
               </div>
               <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                Status History
+                {t('expenses.view.statusTimeline')}
               </h3>
             </div>
             <Timeline items={timelineItems} />

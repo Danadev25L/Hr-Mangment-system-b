@@ -29,7 +29,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/lib/api'
 import { useParams } from 'next/navigation'
-import { useLocale } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import dayjs from 'dayjs'
 import { EnhancedCard, EnhancedButton, CustomSpinner } from '@/components/ui'
 import { ExpensesIllustration } from '@/components/ui/illustrations'
@@ -41,6 +41,7 @@ interface ExpenseEditPageProps {
 }
 
 export function ExpenseEditPage({ role }: ExpenseEditPageProps) {
+  const t = useTranslations()
   const params = useParams()
   const locale = useLocale()
   const id = params.id as string
@@ -90,13 +91,13 @@ export function ExpenseEditPage({ role }: ExpenseEditPageProps) {
   const updateExpenseMutation = useMutation({
     mutationFn: (values: any) => apiClient.updateExpense(id, values),
     onSuccess: () => {
-      message.success('Expense updated successfully')
+      message.success(t('expenses.updateSuccess'))
       queryClient.invalidateQueries({ queryKey: ['expense', id] })
       queryClient.invalidateQueries({ queryKey: ['expenses'] })
       handleNavigation(viewPath)
     },
     onError: (error: any) => {
-      message.error(error.response?.data?.message || 'Failed to update expense')
+      message.error(error.response?.data?.message || t('expenses.updateError'))
     },
   })
 
@@ -112,13 +113,13 @@ export function ExpenseEditPage({ role }: ExpenseEditPageProps) {
   if (isLoadingExpense) {
     return (
       <div className="flex items-center justify-center h-64">
-        <CustomSpinner size="large" text="Loading expense..." />
+        <CustomSpinner size="large" text={t('expenses.view.loading')} />
       </div>
     )
   }
 
   if (!expenseData) {
-    return <div className="text-center text-gray-500">Expense not found</div>
+    return <div className="text-center text-gray-500">{t('expenses.view.notFound')}</div>
   }
 
   return (
@@ -130,7 +131,7 @@ export function ExpenseEditPage({ role }: ExpenseEditPageProps) {
             title: (
               <Space>
                 <HomeOutlined />
-                <span>Dashboard</span>
+                <span>{t('common.dashboard')}</span>
               </Space>
             ),
             href: dashboardPath,
@@ -139,13 +140,13 @@ export function ExpenseEditPage({ role }: ExpenseEditPageProps) {
             title: (
               <Space>
                 <WalletOutlined />
-                <span>Expenses</span>
+                <span>{t('expenses.title')}</span>
               </Space>
             ),
             href: listPath,
           },
           {
-            title: 'Edit Expense',
+            title: t('expenses.editExpense'),
           },
         ]}
       />
@@ -159,10 +160,10 @@ export function ExpenseEditPage({ role }: ExpenseEditPageProps) {
             </div>
             <div>
               <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">
-                Edit Expense
+                {t('expenses.editExpense')}
               </h1>
               <p className="text-gray-600 dark:text-gray-400">
-                Update the expense details below
+                {t('expenses.edit.subtitle')}
               </p>
             </div>
           </div>
@@ -171,7 +172,7 @@ export function ExpenseEditPage({ role }: ExpenseEditPageProps) {
             icon={<ArrowLeftOutlined />}
             onClick={() => handleNavigation(listPath)}
           >
-            Back to Expenses
+            {t('expenses.backToList')}
           </EnhancedButton>
         </div>
       </EnhancedCard>
@@ -186,32 +187,32 @@ export function ExpenseEditPage({ role }: ExpenseEditPageProps) {
                   <FileTextOutlined className="text-white text-lg" />
                 </div>
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                  Basic Information
+                  {t('expenses.form.basicInfo')}
                 </h3>
               </div>
               <Form.Item
-                label="Item Name"
+                label={t('expenses.form.itemName')}
                 name="itemName"
                 rules={[
-                  { required: true, message: 'Please enter item name' },
-                  { max: 255, message: 'Item name cannot exceed 255 characters' },
+                  { required: true, message: t('expenses.form.itemNameRequired') },
+                  { max: 255, message: t('expenses.form.itemNameMaxLength') },
                 ]}
               >
                 <Input 
-                  placeholder="e.g., Office Supplies, Travel Expenses"
+                  placeholder={t('expenses.form.itemNamePlaceholder')}
                   prefix={<FileTextOutlined />}
                 />
               </Form.Item>
 
               <Form.Item
-                label="Amount"
+                label={t('expenses.amount')}
                 name="amount"
                 rules={[
-                  { required: true, message: 'Please enter amount' },
+                  { required: true, message: t('expenses.form.amountRequired') },
                   { 
                     type: 'number', 
                     min: 0.01, 
-                    message: 'Amount must be greater than 0' 
+                    message: t('expenses.form.amountMin')
                   },
                 ]}
               >
@@ -227,10 +228,10 @@ export function ExpenseEditPage({ role }: ExpenseEditPageProps) {
               </Form.Item>
 
               <Form.Item
-                label="Expense Date"
+                label={t('expenses.view.expenseDate')}
                 name="date"
                 rules={[
-                  { required: true, message: 'Please select expense date' },
+                  { required: true, message: t('expenses.form.dateRequired') },
                 ]}
               >
                 <DatePicker
@@ -250,23 +251,23 @@ export function ExpenseEditPage({ role }: ExpenseEditPageProps) {
                   <TeamOutlined className="text-white text-lg" />
                 </div>
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                  Department & Details
+                  {t('expenses.form.departmentDetails')}
                 </h3>
               </div>
               {role === 'admin' && (
                 <Form.Item
-                  label="Department"
+                  label={t('expenses.department')}
                   name="departmentId"
                   rules={[
-                    { required: true, message: 'Please select a department' },
+                    { required: true, message: t('expenses.form.departmentRequired') },
                   ]}
                 >
                   <Select
-                    placeholder="Select Department"
+                    placeholder={t('expenses.form.selectDepartment')}
                     loading={isLoadingDepartments}
                     suffixIcon={<TeamOutlined />}
                     options={[
-                      { label: 'Company-wide', value: 0 },
+                      { label: t('expenses.view.companyWide'), value: 0 },
                       ...(departments?.map((dept: any) => ({
                         label: dept.departmentName,
                         value: dept.id,
@@ -277,16 +278,16 @@ export function ExpenseEditPage({ role }: ExpenseEditPageProps) {
               )}
 
               <Form.Item
-                label="Reason/Description"
+                label={t('expenses.reason')}
                 name="reason"
                 rules={[
-                  { required: true, message: 'Please enter reason for expense' },
-                  { max: 1000, message: 'Reason cannot exceed 1000 characters' },
+                  { required: true, message: t('expenses.form.reasonRequired') },
+                  { max: 1000, message: t('expenses.form.reasonMaxLength') },
                 ]}
               >
                 <TextArea
                   rows={role === 'admin' ? 8 : 12}
-                  placeholder="Provide a detailed description of the expense..."
+                  placeholder={t('expenses.form.reasonPlaceholder')}
                   showCount
                   maxLength={1000}
                 />
@@ -298,7 +299,7 @@ export function ExpenseEditPage({ role }: ExpenseEditPageProps) {
         <EnhancedCard>
           <div className="flex justify-end gap-4">
             <EnhancedButton variant="ghost" onClick={() => handleNavigation(listPath)}>
-              Cancel
+              {t('common.cancel')}
             </EnhancedButton>
             <EnhancedButton
               variant="primary"
@@ -306,7 +307,7 @@ export function ExpenseEditPage({ role }: ExpenseEditPageProps) {
               icon={<SaveOutlined />}
               loading={updateExpenseMutation.isPending}
             >
-              Save Changes
+              {t('expenses.saveChanges')}
             </EnhancedButton>
           </div>
         </EnhancedCard>

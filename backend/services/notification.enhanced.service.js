@@ -69,6 +69,9 @@ export const NotificationTypes = {
   ANNOUNCEMENT_UPDATED: 'announcement_updated',
   ANNOUNCEMENT_DELETED: 'announcement_deleted',
   
+  // Holidays
+  HOLIDAY_ADDED: 'holiday_added',
+  
   // Department
   DEPARTMENT_CREATED: 'department_created',
   DEPARTMENT_UPDATED: 'department_updated',
@@ -101,9 +104,8 @@ export const createNotification = async (userId, title, message, type, relatedId
         type,
         relatedId,
         metadata: metadata ? JSON.stringify(metadata) : null,
-        isRead: false,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        isRead: false
+        // Let database handle createdAt and updatedAt with defaultNow()
       })
       .returning();
 
@@ -127,9 +129,8 @@ export const createBulkNotifications = async (userIds, title, message, type, rel
       type,
       relatedId,
       metadata: metadata ? JSON.stringify(metadata) : null,
-      isRead: false,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      isRead: false
+      // Let database handle createdAt and updatedAt with defaultNow()
     }));
 
     const result = await db.insert(notifications).values(notificationData).returning();
@@ -563,6 +564,39 @@ export const notifyAnnouncementUpdated = async (userIds, announcementId, title) 
   );
 };
 
+// ==================== HOLIDAY NOTIFICATIONS ====================
+
+export const notifyNewHoliday = async (holidayId, holidayName, holidayDate) => {
+  try {
+    // Get all users (employees, managers, and admins)
+    const allUsers = await db.select({ id: users.id }).from(users);
+    const userIds = allUsers.map(u => u.id);
+    
+    const formattedDate = new Date(holidayDate).toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
+    
+    return createBulkNotifications(
+      userIds,
+      'notification.holiday_added.title',
+      'notification.holiday_added.message',
+      NotificationTypes.HOLIDAY_ADDED,
+      holidayId,
+      { 
+        holidayName, 
+        holidayDate,
+        formattedDate,
+        translatable: true // Flag to indicate frontend should translate
+      }
+    );
+  } catch (error) {
+    console.error('Error notifying new holiday:', error);
+    return [];
+  }
+};
+
 // ==================== DEPARTMENT NOTIFICATIONS ====================
 
 export const notifyDepartmentAssigned = async (userId, departmentId, departmentName, assignedBy) => {
@@ -753,6 +787,7 @@ export default {
   notifyExpensePaid,
   notifyNewAnnouncement,
   notifyAnnouncementUpdated,
+  notifyNewHoliday,
   notifyDepartmentAssigned,
   notifyDepartmentChanged,
   notifyDepartment,

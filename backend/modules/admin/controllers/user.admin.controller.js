@@ -26,6 +26,11 @@ import {
 } from '../../../db/schema.js';
 import { validatePasswordStrength, checkCommonPasswords } from '../../../utils/passwordValidator.js';
 import { generateEmployeeCode } from '../../../utils/employeeCodeGenerator.js';
+import { 
+    notifyExpenseApproved, 
+    notifyExpenseRejected, 
+    notifyExpensePaid 
+} from '../../../services/notification.enhanced.service.js';
 
 // Admin: Create new user
 export const createUser = async (req, res) => {
@@ -165,13 +170,55 @@ export const createUser = async (req, res) => {
         
         // Security: Only admins can create other admins (extra check)
         if (roleToUse === 'ROLE_ADMIN') {
-            console.log(`⚠️ Admin ${adminUser.username} is creating another admin account: ${req.body.username}`);
+            console.log(`⚠️ SECURITY ALERT: Admin ${adminUser.username} is creating another admin account: ${req.body.username}`);
+            // Log this critical action for audit purposes
+        }
+
+        // CRITICAL SECURITY: Prevent role escalation
+        // No one can change their own role to admin or create admins unless they already are admin
+        if (roleToUse === 'ROLE_ADMIN' && adminUser.role !== 'ROLE_ADMIN') {
+            console.error(`🚨 SECURITY BREACH ATTEMPT: User ${adminUser.username} (Role: ${adminUser.role}) tried to create an admin account!`);
+            return res.status(403).json({
+                success: false,
+                message: "Forbidden: Only administrators can create admin accounts"
+            });
         }
 
         // Validation: Admin should not have a department
         if (roleToUse === 'ROLE_ADMIN' && req.body.departmentId) {
             console.log(`⚠️ Attempting to assign department to admin - this will be ignored`);
             req.body.departmentId = null; // Force null for admins
+        }
+
+        // Validation: Require department for non-admin users
+        if (roleToUse !== 'ROLE_ADMIN' && !req.body.departmentId) {
+            return res.status(400).json({
+                success: false,
+                message: "Department is required for employees and managers"
+            });
+        }
+
+        // Validation: Require gender field (Male or Female only)
+        if (!req.body.gender) {
+            return res.status(400).json({
+                success: false,
+                message: "Gender is required"
+            });
+        }
+
+        if (req.body.gender !== 'Male' && req.body.gender !== 'Female') {
+            return res.status(400).json({
+                success: false,
+                message: "Gender must be either 'Male' or 'Female'"
+            });
+        }
+
+        // Validation: Require base salary (standard wages)
+        if (!req.body.baseSalary || parseInt(req.body.baseSalary) <= 0) {
+            return res.status(400).json({
+                success: false,
+                message: "Valid base salary is required"
+            });
         }
 
         // Validation: Check if department already has a manager (if creating a manager)
@@ -189,10 +236,15 @@ export const createUser = async (req, res) => {
                 .limit(1);
 
             if (existingManager.length > 0) {
-                console.log(`❌ Department already has manager: ${existingManager[0].fullName}`);
+                console.log(`❌ Department already has manager: ${existingManager[0].fullName} (ID: ${existingManager[0].id})`);
                 return res.status(400).json({
                     success: false,
-                    message: `This department already has a manager: ${existingManager[0].fullName}. A department can only have one active manager.`
+                    message: `This department already has a manager: ${existingManager[0].fullName}. A department can only have one active manager.`,
+                    existingManager: {
+                        id: existingManager[0].id,
+                        fullName: existingManager[0].fullName,
+                        employeeCode: existingManager[0].employeeCode
+                    }
                 });
             } else {
                 console.log('✅ No existing manager found in department');
@@ -805,21 +857,52 @@ export const updateUser = async (req, res) => {
 
         // ADMIN ONLY: Security checks for admin operations
         if (requesterRole === 'ROLE_ADMIN') {
+            // CRITICAL SECURITY: Prevent role escalation to admin by non-admin
+            if (req.body.role === 'ROLE_ADMIN' && targetUser.role !== 'ROLE_ADMIN') {
+                console.log(`🚨 CRITICAL: Admin ${requester.username} is promoting ${targetUser.username} to ADMIN role`);
+                // This is allowed but logged heavily for audit
+            }
+
             // Prevent admin from removing their own admin role
             if (id === requesterId && req.body.role && req.body.role !== 'ROLE_ADMIN') {
+                console.error(`🚨 SECURITY ALERT: Admin ${requester.username} attempted to remove own admin privileges!`);
                 return res.status(403).json({
                     success: false,
-                    message: "Forbidden: You cannot change your own admin role"
+                    message: "Forbidden: You cannot change your own admin role. This action requires another administrator."
                 });
             }
 
             // Prevent admin from deactivating themselves
             if (id === requesterId && req.body.active === false) {
+                console.error(`🚨 SECURITY ALERT: Admin ${requester.username} attempted to deactivate own account!`);
                 return res.status(403).json({
                     success: false,
-                    message: "Forbidden: You cannot deactivate your own account"
+                    message: "Forbidden: You cannot deactivate your own account. This action requires another administrator."
                 });
             }
+
+            // Admin role should not have department
+            if (req.body.role === 'ROLE_ADMIN') {
+                req.body.departmentId = null;
+                console.log(`✓ Enforcing no-department rule for admin role`);
+            }
+        } else {
+            // NON-ADMIN USERS: Absolutely cannot change roles
+            if (req.body.role) {
+                console.error(`🚨 SECURITY BREACH ATTEMPT: Non-admin user ${requester.username} (${requesterRole}) tried to change role!`);
+                return res.status(403).json({
+                    success: false,
+                    message: "Forbidden: Only administrators can modify user roles"
+                });
+            }
+        }
+
+        // Validation: Gender must be Male or Female if provided
+        if (req.body.gender && req.body.gender !== 'Male' && req.body.gender !== 'Female') {
+            return res.status(400).json({
+                success: false,
+                message: "Gender must be either 'Male' or 'Female'"
+            });
         }
 
         // Validation: Check if changing to manager and department already has a manager
@@ -838,9 +921,15 @@ export const updateUser = async (req, res) => {
                 .limit(1);
 
             if (existingManager.length > 0) {
+                console.log(`❌ Department already has manager: ${existingManager[0].fullName} (ID: ${existingManager[0].id})`);
                 return res.status(400).json({
                     success: false,
-                    message: `This department already has a manager: ${existingManager[0].fullName}. A department can only have one active manager.`
+                    message: `This department already has a manager: ${existingManager[0].fullName}. A department can only have one active manager.`,
+                    existingManager: {
+                        id: existingManager[0].id,
+                        fullName: existingManager[0].fullName,
+                        employeeCode: existingManager[0].employeeCode
+                    }
                 });
             }
         }
@@ -1881,7 +1970,7 @@ export const getExpenseById = async (req, res) => {
 export const updateExpenseStatus = async (req, res) => {
     try {
         const expenseId = parseInt(req.params.id);
-        const { status } = req.body;
+        const { status, adminNote } = req.body;
         const adminId = req.userId; // Get admin ID from auth middleware
 
         if (!status) {
@@ -1890,11 +1979,30 @@ export const updateExpenseStatus = async (req, res) => {
             });
         }
 
+        // First, get the expense details before updating
+        const existingExpense = await db.select()
+            .from(expenses)
+            .where(eq(expenses.id, expenseId))
+            .limit(1);
+
+        if (existingExpense.length === 0) {
+            return res.status(404).json({
+                message: "Expense not found"
+            });
+        }
+
+        const expense = existingExpense[0];
+
         // Prepare update data based on status
         const updateData = { 
             status: status,
             updatedAt: new Date()
         };
+
+        // Add admin note if provided
+        if (adminNote) {
+            updateData.adminNote = adminNote;
+        }
 
         // Track who approved/rejected/paid and when
         if (status === 'approved') {
@@ -1917,6 +2025,25 @@ export const updateExpenseStatus = async (req, res) => {
             return res.status(404).json({
                 message: "Expense not found"
             });
+        }
+
+        // Send notifications based on status change
+        try {
+            const amount = parseFloat(expense.amount);
+            const itemName = expense.itemName || 'expense item';
+            const userId = expense.userId || expense.createdBy;
+
+            if (status === 'approved') {
+                await notifyExpenseApproved(userId, expenseId, itemName, amount, adminId);
+            } else if (status === 'rejected') {
+                const rejectionReason = adminNote || 'No reason provided';
+                await notifyExpenseRejected(userId, expenseId, itemName, amount, adminId, rejectionReason);
+            } else if (status === 'paid') {
+                await notifyExpensePaid(userId, expenseId, itemName, amount, adminId);
+            }
+        } catch (notificationError) {
+            // Log but don't fail the request if notification fails
+            console.error('Error sending expense notification:', notificationError);
         }
 
         res.json({

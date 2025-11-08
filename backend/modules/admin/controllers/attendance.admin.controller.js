@@ -44,7 +44,11 @@ export const getAllAttendance = async (req, res) => {
       status: attendanceRecords.status,
       isLate: attendanceRecords.isLate,
       lateMinutes: attendanceRecords.lateMinutes,
+      isEarlyDeparture: attendanceRecords.isEarlyDeparture,
+      earlyDepartureMinutes: attendanceRecords.earlyDepartureMinutes,
       overtimeMinutes: attendanceRecords.overtimeMinutes,
+      notes: attendanceRecords.notes,
+      location: attendanceRecords.location,
       user: {
         id: users.id,
         fullName: users.fullName,
@@ -226,6 +230,23 @@ export const createManualAttendance = async (req, res) => {
 export const updateAttendance = async (req, res) => {
   try {
     const recordId = parseInt(req.params.id);
+
+    // Validate recordId
+    if (isNaN(recordId) || recordId <= 0) {
+      console.error('ERROR: Invalid recordId in GENERIC updateAttendance!', {
+        originalId: req.params.id,
+        recordId: recordId,
+        typeof: typeof recordId
+      });
+      return res.status(400).json({
+        message: "Invalid attendance record ID"
+      });
+    }
+
+    console.log('=== GENERIC UPDATE ATTENDANCE CALLED ===');
+    console.log('recordId:', recordId);
+    console.log('req.body:', req.body);
+
     const { checkIn, checkOut, status, notes } = req.body;
 
     const updateData = {

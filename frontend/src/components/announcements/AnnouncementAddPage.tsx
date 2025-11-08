@@ -52,7 +52,7 @@ export function AnnouncementAddPage({ role, title, description }: AnnouncementAd
   }
 
   // Fetch departments
-  const { data: departments, isLoading: isLoadingDepartments } = useQuery({
+  const { data: departments, isLoading: isLoadingDepartments } = useQuery<any>({
     queryKey: ['departments'],
     queryFn: () => apiClient.getDepartments(),
   })
@@ -87,12 +87,12 @@ export function AnnouncementAddPage({ role, title, description }: AnnouncementAd
   const createAnnouncementMutation = useMutation({
     mutationFn: (values: any) => apiClient.createAnnouncement(values),
     onSuccess: () => {
-      message.success(t('announcements.createSuccess') || 'Announcement created successfully')
+      message.success(t('announcements.createSuccess'))
       queryClient.invalidateQueries({ queryKey: ['announcements'] })
       handleNavigation(`/${locale}${basePath}`)
     },
     onError: (error: any) => {
-      message.error(error.response?.data?.message || t('announcements.createError') || 'Failed to create announcement')
+      message.error(error.response?.data?.message || t('announcements.createError'))
     },
   })
 
@@ -156,16 +156,16 @@ export function AnnouncementAddPage({ role, title, description }: AnnouncementAd
           {role === 'admin' && (
             <>
               <Form.Item
-                label={t('announcements.scope') || "Announcement Scope"}
-                tooltip={t('announcements.scopeTooltip') || "Choose if this announcement is for the entire company or a specific department"}
+                label={t('announcements.scope')}
+                tooltip={t('announcements.scopeTooltip')}
               >
                 <Space>
-                  <span>{t('announcements.departmentSpecific') || "Department-specific"}</span>
+                  <span>{t('announcements.departmentSpecific')}</span>
                   <Switch 
                     checked={isCompanyWide}
                     onChange={handleCompanyWideChange}
                   />
-                  <span>{t('announcements.companyWide') || "Company-wide"}</span>
+                  <span>{t('announcements.companyWide')}</span>
                 </Space>
               </Form.Item>
 
@@ -175,10 +175,10 @@ export function AnnouncementAddPage({ role, title, description }: AnnouncementAd
                     <Form.Item
                       name="departmentId"
                       label={t('announcements.department')}
-                      rules={[{ required: !isCompanyWide, message: t('announcements.departmentRequired') || 'Please select a department' }]}
+                      rules={[{ required: !isCompanyWide, message: t('announcements.departmentRequired') }]}
                     >
                       <Select
-                        placeholder={t('announcements.selectDepartment') || "Select department"}
+                        placeholder={t('announcements.selectDepartment')}
                         loading={isLoadingDepartments}
                         onChange={handleDepartmentChange}
                         showSearch
@@ -205,12 +205,12 @@ export function AnnouncementAddPage({ role, title, description }: AnnouncementAd
           {((role === 'admin' && selectedDepartment && !isCompanyWide) || role === 'manager') && (
             <Form.Item
               name="recipientUserIds"
-              label={t('announcements.recipients') || "Select Recipients (Optional)"}
-              tooltip={t('announcements.recipientsTooltip') || "Leave empty to send to all users in the department"}
+              label={t('announcements.recipients')}
+              tooltip={t('announcements.recipientsTooltip')}
             >
               <Select
                 mode="multiple"
-                placeholder={t('announcements.selectRecipients') || "Select specific users (or leave empty for all)"}
+                placeholder={t('announcements.selectRecipients')}
                 loading={role === 'admin' ? isLoadingUsers : isLoadingManagerUsers}
                 showSearch
                 filterOption={(input, option) =>
@@ -234,11 +234,11 @@ export function AnnouncementAddPage({ role, title, description }: AnnouncementAd
                 name="title"
                 label={t('announcements.announcementTitle')}
                 rules={[
-                  { required: true, message: t('announcements.titleRequired') || 'Please enter announcement title' },
-                  { max: 255, message: t('announcements.titleMaxLength') || 'Title cannot exceed 255 characters' },
+                  { required: true, message: t('announcements.titleRequired') },
+                  { max: 255, message: t('announcements.titleMaxLength') },
                 ]}
               >
-                <Input placeholder={t('announcements.titlePlaceholder') || "e.g., Office Closure Notice"} />
+                <Input placeholder={t('announcements.titlePlaceholder')} />
               </Form.Item>
             </Col>
 
@@ -246,7 +246,7 @@ export function AnnouncementAddPage({ role, title, description }: AnnouncementAd
               <Form.Item
                 name="date"
                 label={t('announcements.date')}
-                rules={[{ required: true, message: t('announcements.dateRequired') || 'Please select announcement date' }]}
+                rules={[{ required: true, message: t('announcements.dateRequired') }]}
               >
                 <DatePicker
                   style={{ width: '100%' }}
@@ -260,13 +260,13 @@ export function AnnouncementAddPage({ role, title, description }: AnnouncementAd
             name="description"
             label={t('announcements.description')}
             rules={[
-              { required: true, message: t('announcements.descriptionRequired') || 'Please enter announcement description' },
-              { max: 2000, message: t('announcements.descriptionMaxLength') || 'Description cannot exceed 2000 characters' },
+              { required: true, message: t('announcements.descriptionRequired') },
+              { max: 2000, message: t('announcements.descriptionMaxLength') },
             ]}
           >
             <TextArea
               rows={6}
-              placeholder={t('announcements.descriptionPlaceholder') || "Enter the full announcement details..."}
+              placeholder={t('announcements.descriptionPlaceholder')}
               showCount
               maxLength={2000}
             />

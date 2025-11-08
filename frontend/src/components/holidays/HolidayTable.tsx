@@ -18,7 +18,6 @@ export interface Holiday {
   name: string
   date: string
   description?: string
-  isRecurring: boolean
   createdAt?: string
 }
 
@@ -82,22 +81,6 @@ export function HolidayTable({
           {text || 'No description'}
         </span>
       ),
-    },
-    {
-      title: 'Type',
-      dataIndex: 'isRecurring',
-      key: 'isRecurring',
-      width: 120,
-      render: (isRecurring: boolean) => (
-        <Tag color={isRecurring ? 'blue' : 'default'} className="font-medium">
-          {isRecurring ? 'RECURRING' : 'ONE-TIME'}
-        </Tag>
-      ),
-      filters: [
-        { text: 'Recurring', value: true },
-        { text: 'One-time', value: false },
-      ],
-      onFilter: (value: any, record: Holiday) => record.isRecurring === value,
     },
     {
       title: 'Status',

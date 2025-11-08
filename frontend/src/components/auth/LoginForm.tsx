@@ -30,10 +30,13 @@ export const LoginForm: React.FC = () => {
   const handleSubmit = async (values: LoginFormData) => {
     try {
       setLoading(true)
-      const result = await login(values.username, values.password)
+      await login(values.username, values.password)
       message.success(t('auth.loginSuccess'))
 
-      // Get role and redirect immediately - cookies are already set by apiClient
+      // Small delay to ensure localStorage and cookies are set
+      await new Promise(resolve => setTimeout(resolve, 100))
+
+      // Get role from localStorage after it's been set by the login function
       const role = localStorage.getItem('userRole') || 'ROLE_EMPLOYEE'
       
       let dashboardPath = ''

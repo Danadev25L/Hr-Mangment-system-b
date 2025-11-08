@@ -10,9 +10,6 @@ import * as adminAnnouncementController from '../controllers/announcement.admin.
 import * as adminHolidayController from '../controllers/holidays.admin.controller.js';
 import * as adminAttendanceController from '../controllers/attendance.admin.controller.js';
 import * as advancedAttendanceController from '../controllers/attendance.advanced.admin.controller.js';
-import * as attendanceReportsController from '../controllers/attendance.reports.admin.controller.js';
-import * as attendanceFeaturesController from '../controllers/attendance.features.admin.controller.js';
-import * as enhancedAttendanceController from '../controllers/attendance.enhanced.admin.controller.js';
 
 const router = express.Router();
 
@@ -131,73 +128,42 @@ router.delete('/holidays/:id', adminHolidayController.deleteHoliday);
 
 // ==================== ADVANCED ATTENDANCE SYSTEM ====================
 
-// Basic Attendance Management Routes
-router.get('/attendance', adminAttendanceController.getAllAttendance);
+// Basic Attendance Management Routes - GET routes first
 router.get('/attendance/summaries', adminAttendanceController.getAllAttendanceSummaries);
 router.get('/attendance/corrections', adminAttendanceController.getAllCorrectionRequests);
-router.post('/attendance', adminAttendanceController.createManualAttendance);
-router.put('/attendance/:id', adminAttendanceController.updateAttendance);
-router.delete('/attendance/:id', adminAttendanceController.deleteAttendance);
-router.post('/attendance/generate-summaries', adminAttendanceController.generateMonthlySummaries);
+router.get('/attendance', adminAttendanceController.getAllAttendance);
 
 // Employee Selection & Viewing
 router.get('/attendance/employees', advancedAttendanceController.getAllEmployeesWithAttendance);
 router.get('/attendance/employee/:employeeId/details', advancedAttendanceController.getEmployeeAttendanceDetails);
-router.get('/attendance/employee/details', enhancedAttendanceController.getEmployeeAttendanceDetails);
 
-// Enhanced Reports & Export
-router.get('/attendance/report', enhancedAttendanceController.getAttendanceReport);
-router.get('/attendance/export/csv', enhancedAttendanceController.exportAttendanceCSV);
+// Reports & Export
+router.get('/attendance/report', advancedAttendanceController.getAttendanceReport);
+router.get('/attendance/export/csv', advancedAttendanceController.exportAttendanceCSV);
+router.get('/attendance/check-leave', adminAttendanceController.checkEmployeeLeave);
 
-// Attendance Marking & Management
+// POST routes - specific routes first
 router.post('/attendance/checkin', advancedAttendanceController.markEmployeeCheckIn);
 router.post('/attendance/checkout', advancedAttendanceController.markEmployeeCheckOut);
 router.post('/attendance/mark-absent', advancedAttendanceController.markEmployeeAbsent);
+router.post('/attendance/add-break', advancedAttendanceController.addBreakDuration);
 router.post('/attendance/bulk-mark', advancedAttendanceController.bulkMarkAttendance);
-
-// New Comprehensive Attendance Features
 router.post('/attendance/add-latency', adminAttendanceController.addLatency);
 router.post('/attendance/add-early-departure', adminAttendanceController.addEarlyDeparture);
 router.post('/attendance/add-partial-leave', adminAttendanceController.addPartialLeave);
-router.get('/attendance/check-leave', adminAttendanceController.checkEmployeeLeave);
+router.post('/attendance/generate-summaries', adminAttendanceController.generateMonthlySummaries);
+router.post('/attendance', adminAttendanceController.createManualAttendance);
 
-// Comprehensive Attendance Reports
-router.post('/attendance/reports/daily', attendanceReportsController.generateDailyReport);
-router.get('/attendance/reports/weekly', attendanceReportsController.getWeeklyReport);
-router.get('/attendance/reports/monthly', attendanceReportsController.getMonthlyReport);
-router.get('/attendance/reports/employee-wise', attendanceReportsController.getEmployeeWiseReport);
-router.get('/attendance/reports/department-wise', attendanceReportsController.getDepartmentWiseReport);
-router.get('/attendance/reports/trends', attendanceReportsController.getAttendanceTrends);
-router.get('/attendance/reports/export', attendanceReportsController.exportAttendanceData);
+// PUT routes - specific routes BEFORE :id route
+router.put('/attendance/edit-checkin', advancedAttendanceController.editCheckInTime);
+router.put('/attendance/edit-checkout', advancedAttendanceController.editCheckOutTime);
+router.put('/attendance/edit-break', advancedAttendanceController.editBreakDuration);
+router.put('/attendance/add-overtime', advancedAttendanceController.addOvertimeHours);
+router.put('/attendance/update-record', advancedAttendanceController.updateAttendanceRecord);
+router.put('/attendance/:id', adminAttendanceController.updateAttendance); // ⚠️ MUST BE LAST!
 
-// Shift Management
-router.get('/shifts', attendanceFeaturesController.getAllShifts);
-router.post('/shifts', attendanceFeaturesController.createShift);
-router.put('/shifts/:id', attendanceFeaturesController.updateShift);
-router.post('/shifts/assign', attendanceFeaturesController.assignShiftToEmployee);
-router.post('/shifts/bulk-assign', attendanceFeaturesController.bulkAssignShifts);
-router.get('/shifts/employee/:userId', attendanceFeaturesController.getEmployeeShifts);
-
-// Attendance Policies
-router.get('/attendance/policies', attendanceFeaturesController.getAllPolicies);
-router.post('/attendance/policies', attendanceFeaturesController.createPolicy);
-router.put('/attendance/policies/:id', attendanceFeaturesController.updatePolicy);
-router.post('/attendance/policies/assign', attendanceFeaturesController.assignPolicyToDepartment);
-
-// Overtime Management
-router.get('/overtime/requests', attendanceFeaturesController.getAllOvertimeRequests);
-router.put('/overtime/requests/:id/approve', attendanceFeaturesController.approveOvertimeRequest);
-router.put('/overtime/requests/:id/reject', attendanceFeaturesController.rejectOvertimeRequest);
-router.get('/overtime/tracking', attendanceFeaturesController.getOvertimeTracking);
-router.put('/overtime/tracking/:id/approve', attendanceFeaturesController.approveOvertimeTracking);
-
-// Geofence Management
-router.get('/geofences', attendanceFeaturesController.getAllGeofences);
-router.post('/geofences', attendanceFeaturesController.createGeofence);
-router.put('/geofences/:id', attendanceFeaturesController.updateGeofence);
-
-// Break Types Management
-router.get('/break-types', attendanceFeaturesController.getAllBreakTypes);
-router.post('/break-types', attendanceFeaturesController.createBreakType);
+// DELETE routes - specific routes BEFORE :id route
+router.delete('/attendance/delete-record', advancedAttendanceController.deleteAttendanceRecord);
+router.delete('/attendance/:id', adminAttendanceController.deleteAttendance); // ⚠️ MUST BE LAST!
 
 export default router;

@@ -1,4 +1,5 @@
 import { eq, and, gte, lte, desc, sql, inArray, or } from 'drizzle-orm';
+
 import { db } from '../../../db/index.js';
 import { 
   attendanceRecords, 
@@ -81,56 +82,16 @@ export const getAllEmployeesWithAttendance = async (req, res) => {
       ));
 
     // Auto-mark as present for past dates (if date is before today and no record exists)
+    // DISABLED: This should NOT auto-create attendance records
+    // Admin must manually mark attendance for each employee
     const now = new Date();
     now.setHours(0, 0, 0, 0);
     const isPastDate = targetDate < now;
 
-    if (isPastDate && userIds.length > 0) {
-      // Find users without attendance records
-      const usersWithoutAttendance = filteredUsers.filter(user => 
-        !attendanceData.find(a => a.userId === user.id)
-      );
-
-      // Create default attendance records for users without records
-      if (usersWithoutAttendance.length > 0) {
-        const defaultCheckInTime = new Date(targetDate);
-        defaultCheckInTime.setHours(8, 0, 0, 0); // Default 8:00 AM check-in
-        
-        const defaultCheckOutTime = new Date(targetDate);
-        defaultCheckOutTime.setHours(17, 0, 0, 0); // Default 5:00 PM check-out
-
-        const workingMinutes = 9 * 60; // 9 hours = 540 minutes
-
-        const newRecords = [];
-        for (const user of usersWithoutAttendance) {
-          const [newRecord] = await db.insert(attendanceRecords)
-            .values({
-              userId: user.id,
-              date: targetDate,
-              checkIn: defaultCheckInTime,
-              checkOut: defaultCheckOutTime,
-              workingHours: workingMinutes,
-              status: 'present',
-              isLate: false,
-              lateMinutes: 0,
-              isEarlyDeparture: false,
-              earlyDepartureMinutes: 0,
-              overtimeMinutes: 0,
-              breakDuration: 0,
-              location: 'Auto-marked',
-              notes: 'Automatically marked as present for past date',
-              createdAt: new Date(),
-              updatedAt: new Date()
-            })
-            .returning();
-          
-          newRecords.push(newRecord);
-        }
-
-        // Add newly created records to attendanceData
-        attendanceData = [...attendanceData, ...newRecords];
-      }
-    }
+    // NOTE: Auto-marking disabled to prevent incorrect attendance records
+    // if (isPastDate && userIds.length > 0) {
+    //   // This was creating false "present" records for all employees
+    // }
 
     // Get current shifts for users - Simplified to avoid SQL errors
     let shiftsData = [];
@@ -334,16 +295,81 @@ export const getEmployeeAttendanceDetails = async (req, res) => {
 // Mark attendance for employee (check-in)
 export const markEmployeeCheckIn = async (req, res) => {
   try {
-    const { employeeId, checkInTime, expectedCheckInTime, location, latitude, longitude, notes } = req.body;
+    const { employeeId, checkInTime, expectedCheckInTime, location, latitude, longitude, notes, date } = req.body;
 
+    // Validation
     if (!employeeId) {
-      return res.status(400).json({ message: "Employee ID is required" });
+      return res.status(400).json({ 
+        success: false,
+        message: "Employee ID is required" 
+      });
     }
 
     const userId = parseInt(employeeId);
+    
+    // Validate userId is a number
+    if (isNaN(userId)) {
+      return res.status(400).json({ 
+        success: false,
+        message: "Invalid Employee ID format. Employee ID must be a valid number." 
+      });
+    }
+
+    // Verify the user exists
+    const [userExists] = await db.select({ id: users.id })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+    
+    if (!userExists) {
+      return res.status(404).json({ 
+        success: false,
+        message: `Employee with ID ${userId} not found in the system` 
+      });
+    }
+
     const checkIn = checkInTime ? new Date(checkInTime) : new Date();
-    const today = new Date(checkIn);
-    today.setHours(0, 0, 0, 0);
+    
+    // Validate checkIn is a valid date
+    if (isNaN(checkIn.getTime())) {
+      return res.status(400).json({ 
+        success: false,
+        message: "Invalid check-in time format" 
+      });
+    }
+
+    // VALIDATE: Check-in must be within reasonable working hours
+    if (expectedCheckInTime) {
+      const expectedTime = new Date(expectedCheckInTime);
+      const checkInHour = checkIn.getHours();
+      const checkInMinute = checkIn.getMinutes();
+      const expectedHour = expectedTime.getHours();
+      const expectedMinute = expectedTime.getMinutes();
+      
+      // Allow check-in from 1 hour before default time to 1 hour after default check-out time
+      // Example: if default is 8 AM - 5 PM, allow 7 AM - 6 PM
+      const earliestAllowed = (expectedHour - 1) * 60 + expectedMinute;
+      const latestAllowed = (expectedHour + 9) * 60 + expectedMinute; // 9 hours = work day
+      const checkInTimeInMinutes = checkInHour * 60 + checkInMinute;
+      
+      if (checkInTimeInMinutes < earliestAllowed || checkInTimeInMinutes > latestAllowed) {
+        const expectedTimeStr = expectedTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+        return res.status(400).json({ 
+          success: false,
+          message: `Check-in time must be within working hours (expected check-in: ${expectedTimeStr})` 
+        });
+      }
+    }
+
+    // Use the date from the request if provided, otherwise calculate from checkInTime
+    let today;
+    if (date) {
+      today = new Date(date);
+      today.setHours(0, 0, 0, 0);
+    } else {
+      today = new Date(checkIn);
+      today.setHours(0, 0, 0, 0);
+    }
 
     // Check if already checked in today
     const [existing] = await db.select()
@@ -356,7 +382,8 @@ export const markEmployeeCheckIn = async (req, res) => {
 
     if (existing && existing.checkIn) {
       return res.status(400).json({ 
-        message: "Employee has already checked in today",
+        success: false,
+        message: "Employee has already checked in today. Cannot check-in twice.",
         existingRecord: existing
       });
     }
@@ -369,8 +396,16 @@ export const markEmployeeCheckIn = async (req, res) => {
     // First, try to use the expected check-in time from the frontend (default check-in time)
     if (expectedCheckInTime) {
       expectedTime = new Date(expectedCheckInTime);
-      const diffMs = checkIn - expectedTime;
-      const diffMinutes = Math.floor(diffMs / 60000);
+      const diffMs = checkIn - expectedTime; // Positive means late, negative means early
+      const diffMinutes = Math.floor(diffMs / (1000 * 60)); // Convert milliseconds to minutes
+      
+      // DEBUG LOGGING
+      console.log('=== CHECK-IN CALCULATION ===');
+      console.log('Expected Check-In:', expectedTime.toISOString());
+      console.log('Actual Check-In:', checkIn.toISOString());
+      console.log('Difference (ms):', diffMs);
+      console.log('Difference (minutes):', diffMinutes);
+      console.log('Is Late?:', diffMinutes > 0);
       
       if (diffMinutes > 0) { // Late if check-in is after expected time
         isLate = true;
@@ -522,7 +557,13 @@ export const markEmployeeCheckIn = async (req, res) => {
       });
     }
 
+    console.log('=== FINAL RESPONSE ===');
+    console.log('Status:', record.status);
+    console.log('isLate:', record.isLate);
+    console.log('lateMinutes:', record.lateMinutes);
+
     res.json({
+      success: true,
       message: `Check-in recorded successfully${isLate ? ' (Late arrival)' : ''}`,
       attendance: record,
       isLate,
@@ -532,6 +573,7 @@ export const markEmployeeCheckIn = async (req, res) => {
   } catch (error) {
     console.error('Check-in error:', error);
     res.status(500).json({
+      success: false,
       message: error.message || "Error occurred while marking check-in"
     });
   }
@@ -540,16 +582,81 @@ export const markEmployeeCheckIn = async (req, res) => {
 // Mark checkout for employee
 export const markEmployeeCheckOut = async (req, res) => {
   try {
-    const { employeeId, checkOutTime, expectedCheckOutTime, location, latitude, longitude, notes } = req.body;
+    const { employeeId, checkOutTime, expectedCheckOutTime, location, latitude, longitude, notes, date } = req.body;
 
+    // Validation
     if (!employeeId) {
-      return res.status(400).json({ message: "Employee ID is required" });
+      return res.status(400).json({ 
+        success: false,
+        message: "Employee ID is required" 
+      });
     }
 
     const userId = parseInt(employeeId);
+    
+    // Validate userId is a number
+    if (isNaN(userId)) {
+      return res.status(400).json({ 
+        success: false,
+        message: "Invalid Employee ID format. Employee ID must be a valid number." 
+      });
+    }
+
+    // Verify the user exists
+    const [userExists] = await db.select({ id: users.id })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+    
+    if (!userExists) {
+      return res.status(404).json({ 
+        success: false,
+        message: `Employee with ID ${userId} not found in the system` 
+      });
+    }
+
     const checkOut = checkOutTime ? new Date(checkOutTime) : new Date();
-    const today = new Date(checkOut);
-    today.setHours(0, 0, 0, 0);
+    
+    // Validate checkOut is a valid date
+    if (isNaN(checkOut.getTime())) {
+      return res.status(400).json({ 
+        success: false,
+        message: "Invalid check-out time format" 
+      });
+    }
+
+    // VALIDATE: Check-out must be within reasonable working hours
+    if (expectedCheckOutTime) {
+      const expectedTime = new Date(expectedCheckOutTime);
+      const checkOutHour = checkOut.getHours();
+      const checkOutMinute = checkOut.getMinutes();
+      const expectedHour = expectedTime.getHours();
+      const expectedMinute = expectedTime.getMinutes();
+      
+      // Allow check-out from 1 hour before default time to 2 hours after
+      // Example: if default is 5 PM, allow 4 PM - 7 PM
+      const earliestAllowed = (expectedHour - 1) * 60 + expectedMinute;
+      const latestAllowed = (expectedHour + 2) * 60 + expectedMinute;
+      const checkOutTimeInMinutes = checkOutHour * 60 + checkOutMinute;
+      
+      if (checkOutTimeInMinutes < earliestAllowed || checkOutTimeInMinutes > latestAllowed) {
+        const expectedTimeStr = expectedTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+        return res.status(400).json({ 
+          success: false,
+          message: `Check-out time must be within working hours (expected check-out: ${expectedTimeStr})` 
+        });
+      }
+    }
+
+    // Use the date from the request if provided, otherwise calculate from checkOutTime
+    let today;
+    if (date) {
+      today = new Date(date);
+      today.setHours(0, 0, 0, 0);
+    } else {
+      today = new Date(checkOut);
+      today.setHours(0, 0, 0, 0);
+    }
 
     // Find today's attendance record
     const [record] = await db.select()
@@ -562,19 +669,37 @@ export const markEmployeeCheckOut = async (req, res) => {
 
     if (!record) {
       return res.status(404).json({ 
-        message: "No check-in record found for today. Please check-in first."
+        success: false,
+        message: "No check-in record found for today. Employee must check-in first before checking out."
       });
     }
 
     if (record.checkOut) {
       return res.status(400).json({ 
-        message: "Employee has already checked out today"
+        success: false,
+        message: "Employee has already checked out today. Cannot check-out twice."
       });
     }
 
-    // Calculate working hours
-    const checkInTime = new Date(record.checkIn);
-    const workingMinutes = Math.floor((checkOut - checkInTime) / 60000);
+    // Validate check-out is after check-in
+    const recordCheckInTime = new Date(record.checkIn);
+    if (checkOut <= recordCheckInTime) {
+      return res.status(400).json({ 
+        success: false,
+        message: "Check-out time must be after check-in time"
+      });
+    }
+
+    // Calculate working hours (just check-out - check-in, don't subtract breaks)
+    const workingMinutes = Math.floor((checkOut - recordCheckInTime) / 60000);
+    
+    // VALIDATE: Minimum working hours (at least 4 hours)
+    if (workingMinutes < 240) { // 4 hours minimum
+      return res.status(400).json({ 
+        success: false,
+        message: "Must work at least 4 hours before checking out"
+      });
+    }
     
     // Calculate early departure and overtime - PRIORITY: use expectedCheckOutTime from frontend
     let isEarlyDeparture = false;
@@ -584,8 +709,17 @@ export const markEmployeeCheckOut = async (req, res) => {
     if (expectedCheckOutTime) {
       // Use the expected check-out time from frontend (default check-out time)
       const expectedTime = new Date(expectedCheckOutTime);
-      const diffMs = expectedTime - checkOut;
-      const diffMinutes = Math.floor(diffMs / 60000);
+      const diffMs = expectedTime - checkOut; // Positive means early, negative means overtime
+      const diffMinutes = Math.floor(diffMs / (1000 * 60)); // Convert milliseconds to minutes
+      
+      // DEBUG LOGGING
+      console.log('=== CHECK-OUT CALCULATION ===');
+      console.log('Expected Check-Out:', expectedTime.toISOString());
+      console.log('Actual Check-Out:', checkOut.toISOString());
+      console.log('Difference (ms):', diffMs);
+      console.log('Difference (minutes):', diffMinutes);
+      console.log('Is Early Departure?:', diffMinutes > 0);
+      console.log('Is Overtime?:', diffMinutes < 0);
       
       if (diffMinutes > 0) { // Early if check-out is before expected time
         isEarlyDeparture = true;
@@ -657,6 +791,7 @@ export const markEmployeeCheckOut = async (req, res) => {
       updatedAt: new Date()
     };
 
+    console.log('About to update attendance (check-out). record.id:', record.id, 'type:', typeof record.id);
     const [updated] = await db.update(attendanceRecords)
       .set(updateData)
       .where(eq(attendanceRecords.id, record.id))
@@ -734,10 +869,26 @@ export const markEmployeeCheckOut = async (req, res) => {
       });
     }
 
+    console.log('=== FINAL CHECK-OUT RESPONSE ===');
+    console.log('Status:', updated.status);
+    console.log('isEarlyDeparture:', updated.isEarlyDeparture);
+    console.log('earlyDepartureMinutes:', updated.earlyDepartureMinutes);
+    console.log('overtimeMinutes:', updated.overtimeMinutes);
+    console.log('workingMinutes:', workingMinutes);
+
+    // Format working hours nicely
+    const workingHrs = Math.floor(workingMinutes / 60);
+    const workingMins = workingMinutes % 60;
+    const workingHoursFormatted = workingHrs > 0 
+      ? (workingMins > 0 ? `${workingHrs}h ${workingMins}m` : `${workingHrs}h`)
+      : `${workingMins}m`;
+
     res.json({
+      success: true,
       message: `Check-out recorded successfully`,
       attendance: updated,
-      workingHours: Math.floor(workingMinutes / 60) + 'h ' + (workingMinutes % 60) + 'm',
+      workingHours: workingHoursFormatted,
+      workingMinutes,
       overtimeMinutes,
       isEarlyDeparture,
       earlyDepartureMinutes
@@ -746,6 +897,7 @@ export const markEmployeeCheckOut = async (req, res) => {
   } catch (error) {
     console.error('Check-out error:', error);
     res.status(500).json({
+      success: false,
       message: error.message || "Error occurred while marking check-out"
     });
   }
@@ -830,13 +982,660 @@ export const markEmployeeAbsent = async (req, res) => {
     }
 
     res.json({
+      success: true,
       message: "Employee marked as absent successfully",
       attendance: record
     });
 
   } catch (error) {
     res.status(500).json({
+      success: false,
       message: error.message || "Error occurred while marking absent"
+    });
+  }
+};
+
+/**
+ * ==================== EDIT/UPDATE OPERATIONS ====================
+ */
+
+// Edit check-in time
+export const editCheckInTime = async (req, res) => {
+  try {
+    const { attendanceId, employeeId, date, checkInTime, expectedCheckInTime, reason } = req.body;
+
+    // DEBUG LOGGING
+    console.log('=== EDIT CHECK-IN DEBUG ===');
+    console.log('Request body:', JSON.stringify(req.body, null, 2));
+    console.log('attendanceId:', attendanceId, 'type:', typeof attendanceId);
+    console.log('employeeId:', employeeId, 'type:', typeof employeeId);
+    console.log('date:', date);
+
+    // Validation
+    if (!checkInTime) {
+      console.log('ERROR: No checkInTime provided');
+      return res.status(400).json({ 
+        success: false, 
+        message: "Check-in time is required" 
+      });
+    }
+
+    // CRITICAL: Make sure we have SOMETHING to search with
+    if (!attendanceId && (!employeeId || !date)) {
+      console.log('ERROR: Missing search parameters');
+      console.log('attendanceId:', attendanceId);
+      console.log('employeeId:', employeeId);
+      console.log('date:', date);
+      return res.status(400).json({ 
+        success: false, 
+        message: "Either attendanceId OR (employeeId + date) is required",
+        debug: { 
+          receivedAttendanceId: attendanceId,
+          receivedEmployeeId: employeeId,
+          receivedDate: date,
+          bodyKeys: Object.keys(req.body)
+        }
+      });
+    }
+
+    // Find the attendance record
+    let record;
+    if (attendanceId) {
+      console.log('Searching by attendanceId:', attendanceId);
+      const results = await db.select()
+        .from(attendanceRecords)
+        .where(eq(attendanceRecords.id, parseInt(attendanceId)));
+      
+      console.log('Results from attendanceId search:', results.length, 'records found');
+      if (results.length > 0) {
+        console.log('First result:', JSON.stringify(results[0], null, 2));
+      }
+      [record] = results;
+    } else {
+      const userId = parseInt(employeeId);
+      console.log('Searching by employeeId:', userId, 'and date:', date);
+      
+      // Verify user exists
+      const [userExists] = await db.select({ id: users.id })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+      
+      if (!userExists) {
+        console.log('User not found:', userId);
+        return res.status(404).json({ 
+          success: false,
+          message: `Employee with ID ${userId} not found` 
+        });
+      }
+
+      const targetDate = new Date(date);
+      targetDate.setHours(0, 0, 0, 0);
+      const endDate = new Date(targetDate.getTime() + 86400000);
+
+      console.log('Date range:', targetDate, 'to', endDate);
+
+      const results = await db.select()
+        .from(attendanceRecords)
+        .where(and(
+          eq(attendanceRecords.userId, userId),
+          gte(attendanceRecords.date, targetDate),
+          lte(attendanceRecords.date, endDate)
+        ));
+      
+      console.log('Results from date search:', results.length, 'records found');
+      if (results.length > 0) {
+        console.log('First result:', JSON.stringify(results[0], null, 2));
+      }
+      [record] = results;
+    }
+
+    if (!record) {
+      console.log('NO RECORD FOUND!');
+      return res.status(404).json({ 
+        success: false, 
+        message: "Attendance record not found",
+        debug: {
+          searchedBy: attendanceId ? 'attendanceId' : 'employeeId+date',
+          attendanceId,
+          employeeId,
+          date
+        }
+      });
+    }
+
+    console.log('Found record with ID:', record.id);
+
+    const newCheckIn = new Date(checkInTime);
+    
+    // Validate check-in is a valid date
+    if (isNaN(newCheckIn.getTime())) {
+      return res.status(400).json({ 
+        success: false,
+        message: "Invalid check-in time format" 
+      });
+    }
+
+    // Calculate working hours if checkout exists
+    let workingMinutes = record.workingHours || 0;
+    if (record.checkOut) {
+      workingMinutes = Math.floor((new Date(record.checkOut) - newCheckIn) / 60000);
+      if (workingMinutes < 0) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Check-in time cannot be after check-out time" 
+        });
+      }
+    }
+
+    // Recalculate late status
+    let isLate = false;
+    let lateMinutes = 0;
+    
+    if (expectedCheckInTime) {
+      const expectedTime = new Date(expectedCheckInTime);
+      const diffMs = newCheckIn - expectedTime;
+      const diffMinutes = Math.floor(diffMs / (1000 * 60));
+      
+      if (diffMinutes > 0) {
+        isLate = true;
+        lateMinutes = diffMinutes;
+      }
+    }
+
+    // Determine status
+    let status = 'present';
+    if (isLate) status = 'late';
+    if (record.isEarlyDeparture) status = 'early_departure';
+
+    const updateData = {
+      checkIn: newCheckIn,
+      workingHours: workingMinutes,
+      isLate,
+      lateMinutes,
+      status,
+      updatedAt: new Date()
+    };
+
+    // Store old values for audit
+    const oldValues = {
+      checkIn: record.checkIn,
+      workingHours: record.workingHours,
+      isLate: record.isLate,
+      lateMinutes: record.lateMinutes,
+      status: record.status
+    };
+
+    const [updated] = await db.update(attendanceRecords)
+      .set(updateData)
+      .where(eq(attendanceRecords.id, record.id))
+      .returning();
+
+    // Create audit log
+    await db.insert(attendanceAuditLog).values({
+      attendanceId: record.id,
+      userId: record.userId,
+      actionType: 'update',
+      actionBy: req.authData.id,
+      oldValues,
+      newValues: updateData,
+      reason: reason || 'Admin edited check-in time',
+      ipAddress: req.ip || null,
+      userAgent: req.headers['user-agent'] || null
+    });
+
+    res.json({ 
+      success: true, 
+      message: "Check-in time updated successfully", 
+      attendance: updated 
+    });
+  } catch (error) {
+    console.error('Edit check-in error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: error.message || "Error updating check-in time" 
+    });
+  }
+};
+
+// Edit check-out time
+export const editCheckOutTime = async (req, res) => {
+  try {
+    const { attendanceId, employeeId, date, checkOutTime, expectedCheckOutTime, reason } = req.body;
+
+    // Validation
+    if (!checkOutTime) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Check-out time is required" 
+      });
+    }
+
+    if (!attendanceId && (!employeeId || !date)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Either attendanceId OR (employeeId + date) is required" 
+      });
+    }
+
+    // Find the attendance record
+    let record;
+    if (attendanceId) {
+      [record] = await db.select()
+        .from(attendanceRecords)
+        .where(eq(attendanceRecords.id, parseInt(attendanceId)));
+    } else {
+      const userId = parseInt(employeeId);
+      
+      // Verify user exists
+      const [userExists] = await db.select({ id: users.id })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+      
+      if (!userExists) {
+        return res.status(404).json({ 
+          success: false,
+          message: `Employee with ID ${userId} not found` 
+        });
+      }
+
+      const targetDate = new Date(date);
+      targetDate.setHours(0, 0, 0, 0);
+      const endDate = new Date(targetDate.getTime() + 86400000);
+
+      [record] = await db.select()
+        .from(attendanceRecords)
+        .where(and(
+          eq(attendanceRecords.userId, userId),
+          gte(attendanceRecords.date, targetDate),
+          lte(attendanceRecords.date, endDate)
+        ));
+    }
+
+    if (!record) {
+      return res.status(404).json({ 
+        success: false, 
+        message: "Attendance record not found" 
+      });
+    }
+
+    if (!record.checkIn) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Cannot edit check-out: No check-in time exists" 
+      });
+    }
+
+    const newCheckOut = new Date(checkOutTime);
+    
+    // Validate check-out is a valid date
+    if (isNaN(newCheckOut.getTime())) {
+      return res.status(400).json({ 
+        success: false,
+        message: "Invalid check-out time format" 
+      });
+    }
+
+    // Calculate working hours
+    const workingMinutes = Math.floor((newCheckOut - new Date(record.checkIn)) / 60000);
+
+    if (workingMinutes < 0) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Check-out time cannot be before check-in time" 
+      });
+    }
+
+    // Recalculate early departure and overtime
+    let isEarlyDeparture = false;
+    let earlyDepartureMinutes = 0;
+    let overtimeMinutes = 0;
+    
+    if (expectedCheckOutTime) {
+      const expectedTime = new Date(expectedCheckOutTime);
+      const diffMs = expectedTime - newCheckOut;
+      const diffMinutes = Math.floor(diffMs / (1000 * 60));
+      
+      if (diffMinutes > 0) {
+        isEarlyDeparture = true;
+        earlyDepartureMinutes = diffMinutes;
+      } else if (diffMinutes < 0) {
+        overtimeMinutes = Math.abs(diffMinutes);
+      }
+    }
+
+    // Determine status
+    let status = 'present';
+    if (record.isLate) status = 'late';
+    if (isEarlyDeparture) status = 'early_departure';
+
+    const updateData = {
+      checkOut: newCheckOut,
+      workingHours: workingMinutes,
+      isEarlyDeparture,
+      earlyDepartureMinutes,
+      overtimeMinutes,
+      status,
+      updatedAt: new Date()
+    };
+
+    // Store old values for audit
+    const oldValues = {
+      checkOut: record.checkOut,
+      workingHours: record.workingHours,
+      isEarlyDeparture: record.isEarlyDeparture,
+      earlyDepartureMinutes: record.earlyDepartureMinutes,
+      overtimeMinutes: record.overtimeMinutes,
+      status: record.status
+    };
+
+    const [updated] = await db.update(attendanceRecords)
+      .set(updateData)
+      .where(eq(attendanceRecords.id, record.id))
+      .returning();
+
+    // Update overtime tracking if applicable
+    if (overtimeMinutes > 0) {
+      // Check if overtime record exists
+      const [existingOT] = await db.select()
+        .from(overtimeTracking)
+        .where(eq(overtimeTracking.attendanceId, record.id));
+
+      if (existingOT) {
+        await db.update(overtimeTracking)
+          .set({
+            overtimeMinutes,
+            updatedAt: new Date()
+          })
+          .where(eq(overtimeTracking.id, existingOT.id));
+      } else {
+        const recordDate = new Date(record.date);
+        recordDate.setHours(0, 0, 0, 0);
+        
+        await db.insert(overtimeTracking).values({
+          userId: record.userId,
+          attendanceId: record.id,
+          date: recordDate,
+          overtimeMinutes,
+          overtimeRate: '1.5',
+          isApproved: false
+        });
+      }
+    } else if (overtimeMinutes === 0) {
+      // Remove overtime tracking if no longer overtime
+      await db.delete(overtimeTracking)
+        .where(eq(overtimeTracking.attendanceId, record.id));
+    }
+
+    // Create audit log
+    await db.insert(attendanceAuditLog).values({
+      attendanceId: record.id,
+      userId: record.userId,
+      actionType: 'update',
+      actionBy: req.authData.id,
+      oldValues,
+      newValues: updateData,
+      reason: reason || 'Admin edited check-out time',
+      ipAddress: req.ip || null,
+      userAgent: req.headers['user-agent'] || null
+    });
+
+    res.json({ 
+      success: true, 
+      message: "Check-out time updated successfully", 
+      attendance: updated 
+    });
+  } catch (error) {
+    console.error('Edit check-out error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: error.message || "Error updating check-out time" 
+    });
+  }
+};
+
+// Edit break duration (REPLACES the total break duration)
+export const editBreakDuration = async (req, res) => {
+  try {
+    const { attendanceId, employeeId, date, breakDurationHours, reason } = req.body;
+
+    // Validation
+    if (breakDurationHours === undefined || breakDurationHours === null) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Break duration is required" 
+      });
+    }
+
+    if (!attendanceId && (!employeeId || !date)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Either attendanceId OR (employeeId + date) is required" 
+      });
+    }
+
+    // Find the attendance record
+    let record;
+    if (attendanceId) {
+      [record] = await db.select()
+        .from(attendanceRecords)
+        .where(eq(attendanceRecords.id, parseInt(attendanceId)));
+    } else {
+      const userId = parseInt(employeeId);
+      
+      // Verify user exists
+      const [userExists] = await db.select({ id: users.id })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+      
+      if (!userExists) {
+        return res.status(404).json({ 
+          success: false,
+          message: `Employee with ID ${userId} not found` 
+        });
+      }
+
+      const targetDate = new Date(date);
+      targetDate.setHours(0, 0, 0, 0);
+      const endDate = new Date(targetDate.getTime() + 86400000);
+
+      [record] = await db.select()
+        .from(attendanceRecords)
+        .where(and(
+          eq(attendanceRecords.userId, userId),
+          gte(attendanceRecords.date, targetDate),
+          lte(attendanceRecords.date, endDate)
+        ));
+    }
+
+    if (!record) {
+      return res.status(404).json({ 
+        success: false, 
+        message: "Attendance record not found" 
+      });
+    }
+
+    // Validate break duration
+    if (parseFloat(breakDurationHours) < 0) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Break duration cannot be negative" 
+      });
+    }
+
+    const breakMinutes = Math.floor(parseFloat(breakDurationHours) * 60);
+
+    // Store old values for audit
+    const oldValues = {
+      breakDuration: record.breakDuration
+    };
+
+    const updateData = {
+      breakDuration: breakMinutes,
+      updatedAt: new Date()
+    };
+
+    const [updated] = await db.update(attendanceRecords)
+      .set(updateData)
+      .where(eq(attendanceRecords.id, record.id))
+      .returning();
+
+    // Create audit log
+    await db.insert(attendanceAuditLog).values({
+      attendanceId: record.id,
+      userId: record.userId,
+      actionType: 'update',
+      actionBy: req.authData.id,
+      oldValues,
+      newValues: updateData,
+      reason: reason || 'Admin edited break duration',
+      ipAddress: req.ip || null,
+      userAgent: req.headers['user-agent'] || null
+    });
+
+    // Format break duration nicely
+    const hours = Math.floor(breakMinutes / 60);
+    const mins = breakMinutes % 60;
+    const durationText = hours > 0 
+      ? (mins > 0 ? `${hours}h ${mins}m` : `${hours}h`)
+      : `${mins}m`;
+
+    res.json({ 
+      success: true, 
+      message: `Break duration updated to ${durationText}`, 
+      attendance: updated,
+      breakDuration: durationText
+    });
+  } catch (error) {
+    console.error('Edit break duration error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: error.message || "Error updating break duration" 
+    });
+  }
+};
+
+// Add/Edit overtime hours
+export const addOvertimeHours = async (req, res) => {
+  try {
+    const { attendanceId, employeeId, date, overtimeHours, reason } = req.body;
+
+    // Validation
+    if (overtimeHours === undefined || overtimeHours === null) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Overtime hours is required" 
+      });
+    }
+
+    if (!attendanceId && (!employeeId || !date)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Either attendanceId OR (employeeId + date) is required" 
+      });
+    }
+
+    // Find the attendance record
+    let record;
+    if (attendanceId) {
+      [record] = await db.select()
+        .from(attendanceRecords)
+        .where(eq(attendanceRecords.id, parseInt(attendanceId)));
+    } else {
+      const userId = parseInt(employeeId);
+      
+      // Verify user exists
+      const [userExists] = await db.select({ id: users.id })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+      
+      if (!userExists) {
+        return res.status(404).json({ 
+          success: false,
+          message: `Employee with ID ${userId} not found` 
+        });
+      }
+
+      const targetDate = new Date(date);
+      targetDate.setHours(0, 0, 0, 0);
+      const endDate = new Date(targetDate.getTime() + 86400000);
+
+      [record] = await db.select()
+        .from(attendanceRecords)
+        .where(and(
+          eq(attendanceRecords.userId, userId),
+          gte(attendanceRecords.date, targetDate),
+          lte(attendanceRecords.date, endDate)
+        ));
+    }
+
+    if (!record) {
+      return res.status(404).json({ 
+        success: false, 
+        message: "Attendance record not found" 
+      });
+    }
+
+    // Validate overtime hours
+    if (parseFloat(overtimeHours) < 0) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Overtime hours cannot be negative" 
+      });
+    }
+
+    const overtimeMinutes = Math.floor(parseFloat(overtimeHours) * 60);
+
+    // Store old values for audit
+    const oldValues = {
+      overtimeMinutes: record.overtimeMinutes
+    };
+
+    // Keep working hours and overtime separate - don't add overtime to working hours
+    const updateData = {
+      overtimeMinutes: overtimeMinutes,
+      updatedAt: new Date()
+    };
+
+    const [updated] = await db.update(attendanceRecords)
+      .set(updateData)
+      .where(eq(attendanceRecords.id, record.id))
+      .returning();
+
+    // Create audit log
+    await db.insert(attendanceAuditLog).values({
+      attendanceId: record.id,
+      userId: record.userId,
+      actionType: 'update',
+      actionBy: req.authData.id,
+      oldValues,
+      newValues: updateData,
+      reason: reason || 'Admin added/edited overtime hours',
+      ipAddress: req.ip || null,
+      userAgent: req.headers['user-agent'] || null
+    });
+
+    // Format overtime nicely
+    const hours = Math.floor(overtimeMinutes / 60);
+    const mins = overtimeMinutes % 60;
+    const overtimeText = hours > 0 
+      ? (mins > 0 ? `${hours}h ${mins}m` : `${hours}h`)
+      : `${mins}m`;
+
+    res.json({ 
+      success: true, 
+      message: `Overtime updated to ${overtimeText}`, 
+      attendance: updated,
+      overtime: overtimeText
+    });
+  } catch (error) {
+    console.error('Add overtime error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: error.message || "Error adding/updating overtime" 
     });
   }
 };
@@ -844,6 +1643,418 @@ export const markEmployeeAbsent = async (req, res) => {
 /**
  * ==================== BULK OPERATIONS ====================
  */
+
+// Update entire attendance record (comprehensive edit)
+export const updateAttendanceRecord = async (req, res) => {
+  try {
+    const { 
+      attendanceId, 
+      employeeId, 
+      date, 
+      checkInTime, 
+      checkOutTime, 
+      breakDurationHours,
+      status,
+      notes,
+      reason 
+    } = req.body;
+
+    // Validation
+    if (!attendanceId && (!employeeId || !date)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Either attendanceId OR (employeeId + date) is required" 
+      });
+    }
+
+    // Find the attendance record
+    let record;
+    if (attendanceId) {
+      [record] = await db.select()
+        .from(attendanceRecords)
+        .where(eq(attendanceRecords.id, parseInt(attendanceId)));
+    } else {
+      const userId = parseInt(employeeId);
+      
+      // Verify user exists
+      const [userExists] = await db.select({ id: users.id })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+      
+      if (!userExists) {
+        return res.status(404).json({ 
+          success: false,
+          message: `Employee with ID ${userId} not found` 
+        });
+      }
+
+      const targetDate = new Date(date);
+      targetDate.setHours(0, 0, 0, 0);
+      const endDate = new Date(targetDate.getTime() + 86400000);
+
+      [record] = await db.select()
+        .from(attendanceRecords)
+        .where(and(
+          eq(attendanceRecords.userId, userId),
+          gte(attendanceRecords.date, targetDate),
+          lte(attendanceRecords.date, endDate)
+        ));
+    }
+
+    if (!record) {
+      return res.status(404).json({ 
+        success: false, 
+        message: "Attendance record not found" 
+      });
+    }
+
+    // Store old values for audit
+    const oldValues = { ...record };
+
+    // Build update data
+    const updateData = {
+      updatedAt: new Date()
+    };
+
+    // Update check-in if provided
+    if (checkInTime) {
+      const newCheckIn = new Date(checkInTime);
+      if (isNaN(newCheckIn.getTime())) {
+        return res.status(400).json({ 
+          success: false,
+          message: "Invalid check-in time format" 
+        });
+      }
+      updateData.checkIn = newCheckIn;
+    }
+
+    // Update check-out if provided
+    if (checkOutTime) {
+      const newCheckOut = new Date(checkOutTime);
+      if (isNaN(newCheckOut.getTime())) {
+        return res.status(400).json({ 
+          success: false,
+          message: "Invalid check-out time format" 
+        });
+      }
+      updateData.checkOut = newCheckOut;
+    }
+
+    // Calculate working hours if both times are available
+    const finalCheckIn = updateData.checkIn || record.checkIn;
+    const finalCheckOut = updateData.checkOut || record.checkOut;
+    
+    if (finalCheckIn && finalCheckOut) {
+      const workingMinutes = Math.floor((new Date(finalCheckOut) - new Date(finalCheckIn)) / 60000);
+      
+      if (workingMinutes < 0) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Check-out time cannot be before check-in time" 
+        });
+      }
+      
+      updateData.workingHours = workingMinutes;
+    }
+
+    // Update break duration if provided
+    if (breakDurationHours !== undefined && breakDurationHours !== null) {
+      updateData.breakDuration = Math.floor(parseFloat(breakDurationHours) * 60);
+    }
+
+    // Update status if provided
+    if (status) {
+      updateData.status = status;
+    }
+
+    // Update notes if provided
+    if (notes !== undefined) {
+      updateData.notes = notes;
+    }
+
+    const [updated] = await db.update(attendanceRecords)
+      .set(updateData)
+      .where(eq(attendanceRecords.id, record.id))
+      .returning();
+
+    // Create audit log
+    await db.insert(attendanceAuditLog).values({
+      attendanceId: record.id,
+      userId: record.userId,
+      actionType: 'update',
+      actionBy: req.authData.id,
+      oldValues,
+      newValues: updateData,
+      reason: reason || 'Admin updated attendance record',
+      ipAddress: req.ip || null,
+      userAgent: req.headers['user-agent'] || null
+    });
+
+    res.json({ 
+      success: true, 
+      message: "Attendance record updated successfully", 
+      attendance: updated 
+    });
+  } catch (error) {
+    console.error('Update attendance record error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: error.message || "Error updating attendance record" 
+    });
+  }
+};
+
+// Delete attendance record
+export const deleteAttendanceRecord = async (req, res) => {
+  try {
+    const { attendanceId, employeeId, date, reason } = req.body;
+
+    // Validation
+    if (!attendanceId && (!employeeId || !date)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Either attendanceId OR (employeeId + date) is required" 
+      });
+    }
+
+    // Find the attendance record
+    let record;
+    if (attendanceId) {
+      [record] = await db.select()
+        .from(attendanceRecords)
+        .where(eq(attendanceRecords.id, parseInt(attendanceId)));
+    } else {
+      const userId = parseInt(employeeId);
+      
+      // Verify user exists
+      const [userExists] = await db.select({ id: users.id })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+      
+      if (!userExists) {
+        return res.status(404).json({ 
+          success: false,
+          message: `Employee with ID ${userId} not found` 
+        });
+      }
+
+      const targetDate = new Date(date);
+      targetDate.setHours(0, 0, 0, 0);
+      const endDate = new Date(targetDate.getTime() + 86400000);
+
+      [record] = await db.select()
+        .from(attendanceRecords)
+        .where(and(
+          eq(attendanceRecords.userId, userId),
+          gte(attendanceRecords.date, targetDate),
+          lte(attendanceRecords.date, endDate)
+        ));
+    }
+
+    if (!record) {
+      return res.status(404).json({ 
+        success: false, 
+        message: "Attendance record not found" 
+      });
+    }
+
+    // Create audit log before deletion
+    await db.insert(attendanceAuditLog).values({
+      attendanceId: record.id,
+      userId: record.userId,
+      actionType: 'delete',
+      actionBy: req.authData.id,
+      oldValues: record,
+      newValues: null,
+      reason: reason || 'Admin deleted attendance record',
+      ipAddress: req.ip || null,
+      userAgent: req.headers['user-agent'] || null
+    });
+
+    // Delete related records first (foreign key constraints)
+    await db.delete(attendanceBreaks)
+      .where(eq(attendanceBreaks.attendanceId, record.id));
+    
+    await db.delete(attendanceLocationLogs)
+      .where(eq(attendanceLocationLogs.attendanceId, record.id));
+    
+    await db.delete(overtimeTracking)
+      .where(eq(overtimeTracking.attendanceId, record.id));
+
+    // Delete the attendance record
+    await db.delete(attendanceRecords)
+      .where(eq(attendanceRecords.id, record.id));
+
+    res.json({ 
+      success: true, 
+      message: "Attendance record deleted successfully"
+    });
+  } catch (error) {
+    console.error('Delete attendance record error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: error.message || "Error deleting attendance record" 
+    });
+  }
+};
+
+/**
+ * ==================== BULK OPERATIONS (CONTINUED) ====================
+ */
+
+// Add break duration to employee's attendance
+export const addBreakDuration = async (req, res) => {
+  try {
+    const { employeeId, date, breakDurationHours, breakType, reason } = req.body;
+
+    // Validation
+    if (!employeeId) {
+      return res.status(400).json({ 
+        success: false,
+        message: "Employee ID is required" 
+      });
+    }
+
+    const userId = parseInt(employeeId);
+    
+    // Validate userId is a number
+    if (isNaN(userId)) {
+      return res.status(400).json({ 
+        success: false,
+        message: "Invalid Employee ID format. Employee ID must be a valid number." 
+      });
+    }
+
+    // Verify the user exists
+    const [userExists] = await db.select({ id: users.id })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+    
+    if (!userExists) {
+      return res.status(404).json({ 
+        success: false,
+        message: `Employee with ID ${userId} not found in the system` 
+      });
+    }
+
+    if (!date) {
+      return res.status(400).json({ 
+        success: false,
+        message: "Date is required" 
+      });
+    }
+
+    if (!breakDurationHours || breakDurationHours <= 0) {
+      return res.status(400).json({ 
+        success: false,
+        message: "Break duration must be greater than 0" 
+      });
+    }
+
+    if (!breakType) {
+      return res.status(400).json({ 
+        success: false,
+        message: "Break type is required" 
+      });
+    }
+
+    const targetDate = new Date(date);
+    targetDate.setHours(0, 0, 0, 0);
+
+    // BACKEND CALCULATION: Convert hours to minutes
+    const breakMinutes = Math.floor(parseFloat(breakDurationHours) * 60);
+
+    console.log('=== ADD BREAK CALCULATION ===');
+    console.log('Input hours:', breakDurationHours);
+    console.log('Calculated minutes:', breakMinutes);
+
+    // Find today's attendance record
+    const [record] = await db.select()
+      .from(attendanceRecords)
+      .where(and(
+        eq(attendanceRecords.userId, userId),
+        gte(attendanceRecords.date, targetDate),
+        lte(attendanceRecords.date, new Date(targetDate.getTime() + 24 * 60 * 60 * 1000))
+      ));
+
+    if (!record) {
+      return res.status(404).json({ 
+        success: false,
+        message: "No attendance record found for this date. Employee must check-in first." 
+      });
+    }
+
+    if (!record.checkIn) {
+      return res.status(400).json({ 
+        success: false,
+        message: "Employee must check-in before adding break time." 
+      });
+    }
+
+    // Format break note
+    const hours = Math.floor(breakMinutes / 60);
+    const mins = breakMinutes % 60;
+    const durationText = hours > 0 
+      ? (mins > 0 ? `${hours}h ${mins}m` : `${hours}h`)
+      : `${mins}m`;
+    
+    const breakNote = `Break: ${breakType} - ${durationText}${reason ? ` (${reason})` : ''}`;
+    const existingNotes = record.notes || '';
+    const updatedNotes = existingNotes ? `${existingNotes}\n${breakNote}` : breakNote;
+
+    // Calculate new total break duration
+    const currentBreakDuration = record.breakDuration || 0;
+    const newTotalBreakDuration = currentBreakDuration + breakMinutes;
+
+    // Update attendance record
+    const updateData = {
+      breakDuration: newTotalBreakDuration,
+      notes: updatedNotes,
+      updatedAt: new Date()
+    };
+
+    const [updated] = await db.update(attendanceRecords)
+      .set(updateData)
+      .where(eq(attendanceRecords.id, record.id))
+      .returning();
+
+    // Create audit log
+    await db.insert(attendanceAuditLog).values({
+      attendanceId: record.id,
+      userId,
+      actionType: 'update',
+      actionBy: req.authData.id,
+      oldValues: { breakDuration: currentBreakDuration, notes: record.notes },
+      newValues: updateData,
+      reason: `Admin added break: ${breakType} - ${durationText}`,
+      ipAddress: req.ip || null,
+      userAgent: req.headers['user-agent'] || null
+    });
+
+    console.log('=== BREAK ADDED SUCCESSFULLY ===');
+    console.log('Previous break duration:', currentBreakDuration, 'minutes');
+    console.log('Added break duration:', breakMinutes, 'minutes');
+    console.log('New total break duration:', newTotalBreakDuration, 'minutes');
+
+    res.json({
+      success: true,
+      message: `Break of ${durationText} added successfully`,
+      attendance: updated,
+      breakAdded: durationText,
+      totalBreakDuration: newTotalBreakDuration
+    });
+
+  } catch (error) {
+    console.error('Add break error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Error occurred while adding break duration"
+    });
+  }
+};
 
 // Bulk mark attendance for multiple employees
 export const bulkMarkAttendance = async (req, res) => {
@@ -923,6 +2134,198 @@ export const bulkMarkAttendance = async (req, res) => {
   }
 };
 
+/**
+ * Export attendance to CSV
+ */
+export const exportAttendanceCSV = async (req, res) => {
+  try {
+    const { startDate, endDate, departmentId } = req.query;
+
+    const start = startDate ? new Date(startDate) : new Date();
+    start.setHours(0, 0, 0, 0);
+    
+    const end = endDate ? new Date(endDate) : new Date();
+    end.setHours(23, 59, 59, 999);
+
+    // Get attendance records with user details
+    const records = await db.select({
+      date: attendanceRecords.date,
+      employeeName: users.fullName,
+      employeeCode: users.employeeCode,
+      department: users.department,
+      checkIn: attendanceRecords.checkIn,
+      checkOut: attendanceRecords.checkOut,
+      workingHours: attendanceRecords.workingHours,
+      status: attendanceRecords.status,
+      isLate: attendanceRecords.isLate,
+      lateMinutes: attendanceRecords.lateMinutes,
+      isEarlyDeparture: attendanceRecords.isEarlyDeparture,
+      earlyDepartureMinutes: attendanceRecords.earlyDepartureMinutes,
+      overtimeMinutes: attendanceRecords.overtimeMinutes,
+      location: attendanceRecords.location,
+      notes: attendanceRecords.notes
+    })
+    .from(attendanceRecords)
+    .leftJoin(users, eq(attendanceRecords.userId, users.id))
+    .where(and(
+      gte(attendanceRecords.date, start),
+      lte(attendanceRecords.date, end)
+    ))
+    .orderBy(desc(attendanceRecords.date), users.fullName);
+
+    // Filter by department if specified
+    let filteredRecords = records;
+    if (departmentId) {
+      filteredRecords = records.filter(r => r.department === departmentId);
+    }
+
+    // Generate CSV
+    const csvRows = [];
+    csvRows.push([
+      'Date',
+      'Employee Name',
+      'Employee Code',
+      'Department',
+      'Check In',
+      'Check Out',
+      'Working Hours',
+      'Status',
+      'Late (mins)',
+      'Early Departure (mins)',
+      'Overtime (mins)',
+      'Location',
+      'Notes'
+    ].join(','));
+
+    filteredRecords.forEach(record => {
+      const workingHoursFormatted = record.workingHours 
+        ? `${Math.floor(record.workingHours / 60)}h ${record.workingHours % 60}m`
+        : '-';
+      
+      csvRows.push([
+        new Date(record.date).toISOString().split('T')[0],
+        record.employeeName || '-',
+        record.employeeCode || '-',
+        record.department || '-',
+        record.checkIn ? new Date(record.checkIn).toLocaleTimeString() : '-',
+        record.checkOut ? new Date(record.checkOut).toLocaleTimeString() : '-',
+        workingHoursFormatted,
+        record.status || '-',
+        record.lateMinutes || 0,
+        record.earlyDepartureMinutes || 0,
+        record.overtimeMinutes || 0,
+        record.location || '-',
+        (record.notes || '').replace(/,/g, ';')
+      ].join(','));
+    });
+
+    const csv = csvRows.join('\n');
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="attendance_${start.toISOString().split('T')[0]}.csv"`);
+    res.send(csv);
+
+  } catch (error) {
+    console.error('Error exporting attendance CSV:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to export attendance data'
+    });
+  }
+};
+
+/**
+ * Get attendance report (daily/monthly/yearly)
+ */
+export const getAttendanceReport = async (req, res) => {
+  try {
+    const { type = 'daily', date, month, year, departmentId } = req.query;
+
+    let startDate, endDate;
+
+    if (type === 'daily') {
+      startDate = date ? new Date(date) : new Date();
+      startDate.setHours(0, 0, 0, 0);
+      endDate = new Date(startDate.getTime() + 24 * 60 * 60 * 1000);
+    } else if (type === 'monthly') {
+      const targetMonth = month ? parseInt(month) : new Date().getMonth() + 1;
+      const targetYear = year ? parseInt(year) : new Date().getFullYear();
+      startDate = new Date(targetYear, targetMonth - 1, 1);
+      endDate = new Date(targetYear, targetMonth, 0, 23, 59, 59);
+    } else if (type === 'yearly') {
+      const targetYear = year ? parseInt(year) : new Date().getFullYear();
+      startDate = new Date(targetYear, 0, 1);
+      endDate = new Date(targetYear, 11, 31, 23, 59, 59);
+    }
+
+    // Get attendance records
+    const records = await db.select({
+      id: attendanceRecords.id,
+      date: attendanceRecords.date,
+      userId: attendanceRecords.userId,
+      checkIn: attendanceRecords.checkIn,
+      checkOut: attendanceRecords.checkOut,
+      workingHours: attendanceRecords.workingHours,
+      status: attendanceRecords.status,
+      isLate: attendanceRecords.isLate,
+      lateMinutes: attendanceRecords.lateMinutes,
+      isEarlyDeparture: attendanceRecords.isEarlyDeparture,
+      earlyDepartureMinutes: attendanceRecords.earlyDepartureMinutes,
+      overtimeMinutes: attendanceRecords.overtimeMinutes,
+      fullName: users.fullName,
+      employeeCode: users.employeeCode,
+      department: users.department,
+      departmentId: users.departmentId
+    })
+    .from(attendanceRecords)
+    .leftJoin(users, eq(attendanceRecords.userId, users.id))
+    .where(and(
+      gte(attendanceRecords.date, startDate),
+      lte(attendanceRecords.date, endDate)
+    ))
+    .orderBy(desc(attendanceRecords.date));
+
+    // Filter by department
+    let filteredRecords = records;
+    if (departmentId) {
+      filteredRecords = records.filter(r => r.departmentId === parseInt(departmentId));
+    }
+
+    // Calculate statistics
+    const stats = {
+      totalRecords: filteredRecords.length,
+      present: filteredRecords.filter(r => r.status === 'present' || r.status === 'late').length,
+      absent: filteredRecords.filter(r => r.status === 'absent').length,
+      late: filteredRecords.filter(r => r.isLate).length,
+      earlyDepartures: filteredRecords.filter(r => r.isEarlyDeparture).length,
+      totalWorkingHours: Math.floor(filteredRecords.reduce((sum, r) => sum + (r.workingHours || 0), 0) / 60),
+      totalOvertimeHours: Math.floor(filteredRecords.reduce((sum, r) => sum + (r.overtimeMinutes || 0), 0) / 60),
+      totalLateMinutes: filteredRecords.reduce((sum, r) => sum + (r.lateMinutes || 0), 0),
+      totalEarlyDepartureMinutes: filteredRecords.reduce((sum, r) => sum + (r.earlyDepartureMinutes || 0), 0)
+    };
+
+    res.json({
+      success: true,
+      data: {
+        type,
+        period: {
+          startDate: startDate.toISOString(),
+          endDate: endDate.toISOString()
+        },
+        records: filteredRecords,
+        statistics: stats
+      }
+    });
+
+  } catch (error) {
+    console.error('Error generating attendance report:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to generate report'
+    });
+  }
+};
+
 // Utility function to calculate distance between two coordinates
 function calculateDistance(lat1, lon1, lat2, lon2) {
   const R = 6371e3; // Earth's radius in meters
@@ -945,5 +2348,14 @@ export default {
   markEmployeeCheckIn,
   markEmployeeCheckOut,
   markEmployeeAbsent,
-  bulkMarkAttendance
+  addBreakDuration,
+  editCheckInTime,
+  editCheckOutTime,
+  editBreakDuration,
+  addOvertimeHours,
+  updateAttendanceRecord,
+  deleteAttendanceRecord,
+  bulkMarkAttendance,
+  exportAttendanceCSV,
+  getAttendanceReport
 };

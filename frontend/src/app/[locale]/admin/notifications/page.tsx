@@ -8,7 +8,7 @@ export default function AdminNotificationsPage() {
   return (
     <ProtectedRoute requiredRole="ROLE_ADMIN">
       <DashboardLayout role="ROLE_ADMIN">
-        <NotificationsPage />
+        <NotificationsPage role="ROLE_ADMIN" />
       </DashboardLayout>
     </ProtectedRoute>
   )

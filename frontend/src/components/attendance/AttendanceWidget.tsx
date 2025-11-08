@@ -15,7 +15,7 @@ import {
   TrophyOutlined
 } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { api } from '@/lib/api'
+import apiClient from '@/lib/api'
 import { usePathname } from 'next/navigation'
 import dayjs from 'dayjs'
 import { createLocalizedPath, getCurrentLocale } from '@/lib/localized-routes'
@@ -58,32 +58,35 @@ export function AttendanceWidget() {
   const [correctionForm] = Form.useForm()
   const queryClient = useQueryClient()
 
-  // Get today's attendance
+  // Get Today&apos;s attendance
   const { data: todayAttendance, isLoading: todayLoading } = useQuery({
     queryKey: ['attendance', 'today'],
-    queryFn: () => api.employee.attendance.getToday(),
+    queryFn: () => apiClient.getTodayAttendance(),
     refetchInterval: 30000, // Refresh every 30 seconds
   })
 
   // Get attendance summary for current month
   const { data: monthlySummary, isLoading: summaryLoading } = useQuery({
     queryKey: ['attendance', 'summary', new Date().getMonth(), new Date().getFullYear()],
-    queryFn: () => api.employee.attendance.getSummary(new Date().getMonth() + 1, new Date().getFullYear()),
+    queryFn: () => apiClient.getMyAttendanceSummary({
+      month: new Date().getMonth() + 1,
+      year: new Date().getFullYear()
+    }),
   })
 
   // Get recent attendance records
   const { data: recentRecords } = useQuery({
     queryKey: ['attendance', 'recent'],
-    queryFn: () => api.employee.attendance.getRecords({
-      limit: 7,
-      offset: 0
+    queryFn: () => apiClient.getMyAttendance({
+      month: new Date().getMonth() + 1,
+      year: new Date().getFullYear()
     }),
   })
 
   // Check-in mutation
   const checkInMutation = useMutation({
     mutationFn: (data: { notes?: string; location?: string }) =>
-      api.employee.attendance.checkIn(data),
+      apiClient.checkIn(data),
     onSuccess: () => {
       message.success('Successfully checked in!')
       queryClient.invalidateQueries({ queryKey: ['attendance'] })
@@ -96,7 +99,7 @@ export function AttendanceWidget() {
   // Check-out mutation
   const checkOutMutation = useMutation({
     mutationFn: (data: { notes?: string; location?: string }) =>
-      api.employee.attendance.checkOut(data),
+      apiClient.checkOut(data),
     onSuccess: () => {
       message.success('Successfully checked out!')
       queryClient.invalidateQueries({ queryKey: ['attendance'] })
@@ -108,7 +111,7 @@ export function AttendanceWidget() {
 
   // Correction request mutation
   const correctionMutation = useMutation({
-    mutationFn: (data: any) => api.employee.attendance.requestCorrection(data),
+    mutationFn: (data: any) => apiClient.requestAttendanceCorrection(data),
     onSuccess: () => {
       message.success('Correction request submitted successfully!')
       setCorrectionModalVisible(false)
@@ -208,12 +211,12 @@ export function AttendanceWidget() {
 
   return (
     <>
-      {/* Today's Attendance Card */}
+      {/* Today&apos;s Attendance Card */}
       <Card
         title={
           <div className="flex items-center space-x-2">
             <ClockCircleOutlined className="text-blue-500" />
-            <span>Today's Attendance</span>
+            <span>Today&apos;s Attendance</span>
             <Badge
               status={todayAttendance?.status === 'present' ? 'success' : 'processing'}
               text={todayAttendance?.status?.replace('_', ' ').toUpperCase() || 'NOT RECORDED'}
@@ -456,7 +459,7 @@ export function AttendanceWidget() {
             rules={[{ required: true, message: 'Please select the date' }]}
             initialValue={dayjs()}
           >
-            <input type="date" className="w-full p-2 border rounded" />
+            <input type="date" className="w-full p-2 border rounded" aria-label="Date" />
           </Form.Item>
 
           <Form.Item
@@ -464,7 +467,7 @@ export function AttendanceWidget() {
             label="Correction Type"
             rules={[{ required: true, message: 'Please select correction type' }]}
           >
-            <select className="w-full p-2 border rounded">
+            <select className="w-full p-2 border rounded" aria-label="Correction Type">
               <option value="check_in">Check In Time</option>
               <option value="check_out">Check Out Time</option>
               <option value="both">Both Check In and Check Out</option>
@@ -473,11 +476,11 @@ export function AttendanceWidget() {
           </Form.Item>
 
           <Form.Item name="checkIn" label="Requested Check In Time">
-            <input type="time" className="w-full p-2 border rounded" />
+            <input type="time" className="w-full p-2 border rounded" aria-label="Requested Check In Time" />
           </Form.Item>
 
           <Form.Item name="checkOut" label="Requested Check Out Time">
-            <input type="time" className="w-full p-2 border rounded" />
+            <input type="time" className="w-full p-2 border rounded" aria-label="Requested Check Out Time" />
           </Form.Item>
 
           <Form.Item
@@ -489,6 +492,7 @@ export function AttendanceWidget() {
               className="w-full p-2 border rounded"
               rows={3}
               placeholder="Please explain why you need this correction..."
+              aria-label="Reason for Correction"
             />
           </Form.Item>
 

@@ -125,37 +125,24 @@ export const getMenuItems = (locale: string, t: any) => ({
       key: 'attendance',
       icon: <ClockCircleOutlined />,
       label: t('navigation.attendanceManagement'),
-      children: [
-        {
-          key: 'attendance-list',
-          icon: <ClockCircleOutlined />,
-          label: t('navigation.viewAttendance'),
-          href: createLocalizedPath(locale, '/admin/attendance'),
-        },
-        {
-          key: 'attendance-mark',
-          icon: <PlusOutlined />,
-          label: t('navigation.markAttendance'),
-          href: createLocalizedPath(locale, '/admin/attendance/mark'),
-        },
-      ],
+      href: createLocalizedPath(locale, '/admin/attendance'),
     },
     {
-      key: 'payroll',
+      key: 'salary',
       icon: <PayCircleOutlined />,
-      label: t('navigation.payrollManagement'),
+      label: t('navigation.salaryManagement'),
       children: [
         {
-          key: 'payroll-list',
+          key: 'salary-list',
           icon: <PayCircleOutlined />,
-          label: t('navigation.viewPayroll'),
-          href: createLocalizedPath(locale, '/admin/payroll'),
+          label: t('navigation.salaryList'),
+          href: createLocalizedPath(locale, '/admin/salary'),
         },
         {
-          key: 'payroll-generate',
+          key: 'salary-adjustments',
           icon: <ThunderboltOutlined />,
-          label: t('navigation.generatePayroll'),
-          href: createLocalizedPath(locale, '/admin/payroll/generate'),
+          label: t('navigation.salaryAdjustments'),
+          href: createLocalizedPath(locale, '/admin/salary/adjustments'),
         },
       ],
     },
@@ -168,33 +155,21 @@ export const getMenuItems = (locale: string, t: any) => ({
     {
       key: 'holidays',
       icon: <CalendarOutlined />,
-      label: t('navigation.holidays'),
-      href: createLocalizedPath(locale, '/admin/holidays'),
-    },
-    {
-      key: 'jobs',
-      icon: <ShopOutlined />,
-      label: t('navigation.jobManagement'),
+      label: t('navigation.holidayManagement'),
       children: [
         {
-          key: 'jobs-list',
-          icon: <ShopOutlined />,
-          label: t('navigation.allJobs'),
-          href: createLocalizedPath(locale, '/admin/jobs'),
+          key: 'holidays-list',
+          icon: <CalendarOutlined />,
+          label: t('navigation.allHolidays'),
+          href: createLocalizedPath(locale, '/admin/holidays'),
         },
         {
-          key: 'jobs-add',
+          key: 'holidays-add',
           icon: <PlusOutlined />,
-          label: t('navigation.createJob'),
-          href: createLocalizedPath(locale, '/admin/jobs/add'),
+          label: t('navigation.addHoliday'),
+          href: createLocalizedPath(locale, '/admin/holidays/add'),
         },
       ],
-    },
-    {
-      key: 'analytics',
-      icon: <BarChartOutlined />,
-      label: t('navigation.analytics'),
-      href: createLocalizedPath(locale, '/admin/analytics'),
     },
   ],
   manager: [
@@ -244,8 +219,21 @@ export const getMenuItems = (locale: string, t: any) => ({
     {
       key: 'expenses',
       icon: <DollarOutlined />,
-      label: t('navigation.expenses'),
-      href: createLocalizedPath(locale, '/manager/expenses'),
+      label: t('navigation.expenseManagement'),
+      children: [
+        {
+          key: 'expenses-list',
+          icon: <FileTextOutlined />,
+          label: t('navigation.allExpenses'),
+          href: createLocalizedPath(locale, '/manager/expenses'),
+        },
+        {
+          key: 'expenses-add',
+          icon: <DollarOutlined />,
+          label: t('navigation.addExpense'),
+          href: createLocalizedPath(locale, '/manager/expenses/add'),
+        },
+      ],
     },
     {
       key: 'announcements',
@@ -273,10 +261,10 @@ export const getMenuItems = (locale: string, t: any) => ({
       href: createLocalizedPath(locale, '/manager/attendance'),
     },
     {
-      key: 'payroll',
+      key: 'salary',
       icon: <PayCircleOutlined />,
-      label: t('navigation.payroll'),
-      href: createLocalizedPath(locale, '/manager/payroll'),
+      label: t('navigation.salary'),
+      href: createLocalizedPath(locale, '/manager/salary'),
     },
     {
       key: 'holidays',
@@ -334,12 +322,6 @@ export const getMenuItems = (locale: string, t: any) => ({
       icon: <ClockCircleOutlined />,
       label: t('navigation.myAttendance'),
       href: createLocalizedPath(locale, '/employee/attendance'),
-    },
-    {
-      key: 'payslips',
-      icon: <FileSearchOutlined />,
-      label: t('navigation.myPayslips'),
-      href: createLocalizedPath(locale, '/employee/payslips'),
     },
     {
       key: 'holidays',

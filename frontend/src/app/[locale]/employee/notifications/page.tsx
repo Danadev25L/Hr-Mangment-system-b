@@ -8,7 +8,7 @@ export default function EmployeeNotificationsPage() {
   return (
     <ProtectedRoute requiredRole="ROLE_EMPLOYEE">
       <DashboardLayout role="ROLE_EMPLOYEE">
-        <NotificationsPage />
+        <NotificationsPage role="ROLE_EMPLOYEE" />
       </DashboardLayout>
     </ProtectedRoute>
   )

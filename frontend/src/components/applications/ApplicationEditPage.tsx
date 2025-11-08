@@ -78,24 +78,139 @@ export function ApplicationEditPage({ role }: ApplicationEditPageProps) {
   const updateApplicationMutation = useMutation({
     mutationFn: (values: any) => apiClient.updateApplication(id, values),
     onSuccess: () => {
-      message.success('Application updated successfully')
+      message.success({
+        content: (
+          <div>
+            <div className="font-semibold">✅ Application Updated</div>
+            <div className="text-xs mt-1">Changes have been saved successfully</div>
+          </div>
+        ),
+        duration: 3,
+      })
       queryClient.invalidateQueries({ queryKey: ['application', id] })
       queryClient.invalidateQueries({ queryKey: ['applications'] })
-      router.push(viewPath)
+      setTimeout(() => router.push(viewPath), 1000)
     },
     onError: (error: any) => {
-      message.error(error.response?.data?.message || 'Failed to update application')
+      const errorMessage = error.response?.data?.message || 'Failed to update application'
+      
+      if (errorMessage.includes('End date must be after start date') || 
+          errorMessage.includes('endDate') || 
+          errorMessage.includes('startDate')) {
+        message.error({
+          content: (
+            <div>
+              <div className="font-semibold">📅 Invalid Date Range</div>
+              <div>End date must be after or equal to start date</div>
+              <div className="text-xs mt-1">Please check your date selection</div>
+            </div>
+          ),
+          duration: 5,
+        })
+      } else if (errorMessage.includes('only update pending applications') || 
+                 errorMessage.includes('Cannot update processed application')) {
+        message.error({
+          content: (
+            <div>
+              <div className="font-semibold">🚫 Cannot Update Processed Application</div>
+              <div>Only pending applications can be edited</div>
+              <div className="text-xs mt-1">This application has already been approved or rejected</div>
+            </div>
+          ),
+          duration: 6,
+        })
+      } else if (errorMessage.includes('not found') || errorMessage.includes('Not found')) {
+        message.error({
+          content: (
+            <div>
+              <div className="font-semibold">❌ Application Not Found</div>
+              <div>This application may have been deleted</div>
+            </div>
+          ),
+          duration: 4,
+        })
+      } else if (errorMessage.includes('Forbidden') || errorMessage.includes('permission')) {
+        message.error({
+          content: (
+            <div>
+              <div className="font-semibold">🚫 Access Denied</div>
+              <div>You don't have permission to edit this application</div>
+            </div>
+          ),
+          duration: 5,
+        })
+      } else if (errorMessage.includes('overlapping') || errorMessage.includes('already has')) {
+        message.error({
+          content: (
+            <div>
+              <div className="font-semibold">🔄 Conflicting Application</div>
+              <div>{errorMessage}</div>
+              <div className="text-xs mt-1">Check for overlapping dates with other applications</div>
+            </div>
+          ),
+          duration: 6,
+        })
+      } else {
+        message.error({
+          content: (
+            <div>
+              <div className="font-semibold">❌ Update Failed</div>
+              <div>{errorMessage}</div>
+            </div>
+          ),
+          duration: 5,
+        })
+      }
     },
   })
 
   const handleSubmit = async (values: any) => {
-    const payload = {
-      ...values,
-      startDate: values.startDate.format('YYYY-MM-DD'),
-      endDate: values.endDate.format('YYYY-MM-DD'),
-      departmentId: values.departmentId === 0 ? null : values.departmentId,
+    try {
+      // Validate dates before submission
+      const startDate = values.startDate
+      const endDate = values.endDate
+
+      if (!startDate || !endDate) {
+        message.error({
+          content: (
+            <div>
+              <div className="font-semibold">⚠️ Missing Dates</div>
+              <div>Both start date and end date are required</div>
+            </div>
+          ),
+          duration: 4,
+        })
+        return
+      }
+
+      // Check if end date is before start date
+      if (endDate.isBefore(startDate, 'day')) {
+        message.error({
+          content: (
+            <div>
+              <div className="font-semibold">📅 Invalid Date Range</div>
+              <div>End date cannot be before start date</div>
+              <div className="text-xs mt-1">
+                Start: {startDate.format('MMM DD, YYYY')} | End: {endDate.format('MMM DD, YYYY')}
+              </div>
+            </div>
+          ),
+          duration: 5,
+        })
+        return
+      }
+
+      const payload = {
+        ...values,
+        startDate: values.startDate.format('YYYY-MM-DD'),
+        endDate: values.endDate.format('YYYY-MM-DD'),
+        departmentId: values.departmentId === 0 ? null : values.departmentId,
+      }
+      updateApplicationMutation.mutate(payload)
+    } catch (error) {
+      console.error('Error in handleSubmit:', error)
+      message.error('An unexpected error occurred. Please try again.')
     }
-    updateApplicationMutation.mutate(payload)
   }
 
   if (isLoadingApplication) {

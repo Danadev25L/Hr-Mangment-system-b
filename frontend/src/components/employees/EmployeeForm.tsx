@@ -28,6 +28,7 @@ import {
   SaveOutlined
 } from '@ant-design/icons'
 import type { FormInstance } from 'antd'
+import { useTranslations } from 'next-intl'
 
 const { Option } = Select
 
@@ -38,7 +39,7 @@ interface EmployeeFormProps {
   onCancel: () => void
   isAdmin?: boolean
   userDepartment?: string
-  departments?: Array<{ id: number; departmentName: string }>
+  departments?: Array<{ id: number; departmentName: string; manager?: { id: number; fullName: string } | null }>
   isEditMode?: boolean
 }
 
@@ -52,15 +53,32 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({
   departments = [],
   isEditMode = false,
 }) => {
+  const t = useTranslations()
   const [selectedRole, setSelectedRole] = useState<string>('')
+  const [selectedDepartment, setSelectedDepartment] = useState<number | null>(null)
 
   const handleRoleChange = (value: string) => {
     setSelectedRole(value)
     // Clear department if admin is selected
     if (value === 'ROLE_ADMIN') {
       form.setFieldValue('departmentId', null)
+      setSelectedDepartment(null)
     }
   }
+
+  const handleDepartmentChange = (value: number) => {
+    setSelectedDepartment(value)
+  }
+
+  // Find the selected department's manager
+  const getSelectedDepartmentManager = () => {
+    if (!selectedDepartment) return null
+    const dept = departments.find(d => d.id === selectedDepartment)
+    return dept?.manager || null
+  }
+
+  const selectedDeptManager = getSelectedDepartmentManager()
+  const showManagerWarning = selectedRole === 'ROLE_MANAGER' && selectedDeptManager
 
   return (
     <Form
@@ -79,10 +97,10 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({
           </div>
           <div>
             <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 m-0">
-              Basic Information
+              {t('employees.formSections.basicInformation')}
             </h3>
             <p className="text-sm text-gray-500 dark:text-gray-400 m-0">
-              Personal identification and account details
+              {t('employees.formSections.basicInformationDesc')}
             </p>
           </div>
         </div>
@@ -92,18 +110,18 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({
               label={
                 <span className="flex items-center gap-2 font-medium">
                   <UserOutlined className="text-blue-500" />
-                  Full Name
+                  {t('employees.form.fullName')}
                 </span>
               }
               name="fullName"
               rules={[
-                { required: true, message: 'Please enter full name' },
-                { min: 3, message: 'Name must be at least 3 characters' }
+                { required: true, message: t('employees.form.fullNameRequired') },
+                { min: 3, message: t('employees.form.fullNameMinLength') }
               ]}
             >
               <Input
                 prefix={<UserOutlined className="text-gray-400" />}
-                placeholder="John Doe"
+                placeholder={t('employees.form.fullNamePlaceholder')}
                 size="large"
                 className="rounded-lg"
               />
@@ -115,29 +133,29 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({
               label={
                 <span className="flex items-center gap-2 font-medium">
                   <ContactsOutlined className="text-blue-500" />
-                  Username
+                  {t('employees.form.username')}
                 </span>
               }
               name="username"
               rules={[
-                { required: true, message: 'Please enter username' },
-                { min: 4, message: 'Username must be at least 4 characters' },
+                { required: true, message: t('employees.form.usernameRequired') },
+                { min: 4, message: t('employees.form.usernameMinLength') },
                 {
                   pattern: /^[a-zA-Z0-9._]+$/,
-                  message: 'Username can only contain letters, numbers, dots, and underscores'
+                  message: t('employees.form.usernamePattern')
                 }
               ]}
             >
               <Input
                 prefix={<ContactsOutlined className="text-gray-400" />}
-                placeholder="john.doe"
+                placeholder={t('employees.form.usernamePlaceholder')}
                 size="large"
                 disabled={isEditMode}
                 className="rounded-lg"
                 suffix={
                   isEditMode && (
                     <Tag color="orange" className="m-0">
-                      <SafetyCertificateOutlined /> Cannot Edit
+                      <SafetyCertificateOutlined /> {t('employees.form.usernameCannotEdit')}
                     </Tag>
                   )
                 }
@@ -153,32 +171,32 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({
                 label={
                   <span className="flex items-center gap-2 font-medium">
                     <LockOutlined className="text-blue-500" />
-                    Password
+                    {t('employees.form.password')}
                   </span>
                 }
                 name="password"
                 rules={[
-                  { required: true, message: 'Please enter password' },
-                  { min: 8, message: 'Password must be at least 8 characters' },
-                  { max: 128, message: 'Password must not exceed 128 characters' },
+                  { required: true, message: t('employees.form.passwordRequired') },
+                  { min: 8, message: t('employees.form.passwordMinLength') },
+                  { max: 128, message: t('employees.form.passwordMaxLength') },
                   {
                     pattern: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&^#()])[\w@$!%*?&^#()]+$/,
-                    message: 'Password must contain uppercase, lowercase, number, and special character (@$!%*?&^#())'
+                    message: t('employees.form.passwordPattern')
                   }
                 ]}
               >
                 <Input.Password
                   prefix={<LockOutlined className="text-gray-400" />}
-                  placeholder="Enter secure password (min 8 chars: Aa1@)"
+                  placeholder={t('employees.form.passwordPlaceholder')}
                   size="large"
                   className="rounded-lg"
                 />
               </Form.Item>
               <div className="flex flex-wrap gap-2 -mt-2 mb-2">
-                <Tag icon={<SafetyCertificateOutlined />} color="success">Uppercase</Tag>
-                <Tag icon={<SafetyCertificateOutlined />} color="processing">Lowercase</Tag>
-                <Tag icon={<SafetyCertificateOutlined />} color="warning">Number</Tag>
-                <Tag icon={<SafetyCertificateOutlined />} color="error">Special Char</Tag>
+                <Tag icon={<SafetyCertificateOutlined />} color="success">{t('employees.form.passwordRequirements.uppercase')}</Tag>
+                <Tag icon={<SafetyCertificateOutlined />} color="processing">{t('employees.form.passwordRequirements.lowercase')}</Tag>
+                <Tag icon={<SafetyCertificateOutlined />} color="warning">{t('employees.form.passwordRequirements.number')}</Tag>
+                <Tag icon={<SafetyCertificateOutlined />} color="error">{t('employees.form.passwordRequirements.specialChar')}</Tag>
               </div>
             </Col>
           </Row>
@@ -193,10 +211,10 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({
           </div>
           <div>
             <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 m-0">
-              Job Information
+              {t('employees.formSections.jobInformation')}
             </h3>
             <p className="text-sm text-gray-500 dark:text-gray-400 m-0">
-              Employment details and work arrangements
+              {t('employees.formSections.jobInformationDesc')}
             </p>
           </div>
         </div>
@@ -206,15 +224,15 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({
               label={
                 <span className="flex items-center gap-2 font-medium">
                   <StarOutlined className="text-green-500" />
-                  Job Title
+                  {t('employees.form.jobTitle')}
                 </span>
               }
               name="jobTitle"
-              rules={[{ required: true, message: 'Please enter job title' }]}
+              rules={[{ required: true, message: t('employees.form.jobTitleRequired') }]}
             >
               <Input
                 prefix={<StarOutlined className="text-gray-400" />}
-                placeholder="e.g., Software Engineer"
+                placeholder={t('employees.form.jobTitlePlaceholder')}
                 size="large"
                 className="rounded-lg"
               />
@@ -226,21 +244,21 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({
               label={
                 <span className="flex items-center gap-2 font-medium">
                   <DollarOutlined className="text-green-500" />
-                  Base Salary
+                  {t('employees.form.baseSalary')}
                 </span>
               }
               name="baseSalary"
               rules={[
-                { required: true, message: 'Please enter base salary' },
+                { required: true, message: t('employees.form.baseSalaryRequired') },
                 {
                   pattern: /^\d+(\.\d{1,2})?$/,
-                  message: 'Please enter a valid salary amount'
+                  message: t('employees.form.baseSalaryPattern')
                 }
               ]}
             >
               <Input
                 prefix={<DollarOutlined className="text-gray-400" />}
-                placeholder="50,000.00"
+                placeholder={t('employees.form.baseSalaryPlaceholder')}
                 size="large"
                 type="number"
                 className="rounded-lg"
@@ -255,35 +273,35 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({
               label={
                 <span className="flex items-center gap-2 font-medium">
                   <ClockCircleOutlined className="text-green-500" />
-                  Employment Type
+                  {t('employees.form.employmentType')}
                 </span>
               }
               name="employmentType"
               initialValue="Full-time"
             >
-              <Select placeholder="Select employment type" size="large" className="rounded-lg">
+              <Select placeholder={t('employees.form.employmentTypePlaceholder')} size="large" className="rounded-lg">
                 <Option value="Full-time">
                   <Space>
                     <ClockCircleOutlined />
-                    Full-time
+                    {t('employees.form.fullTime')}
                   </Space>
                 </Option>
                 <Option value="Part-time">
                   <Space>
                     <ClockCircleOutlined />
-                    Part-time
+                    {t('employees.form.partTime')}
                   </Space>
                 </Option>
                 <Option value="Contract">
                   <Space>
                     <AuditOutlined />
-                    Contract
+                    {t('employees.form.contract')}
                   </Space>
                 </Option>
                 <Option value="Intern">
                   <Space>
                     <StarOutlined />
-                    Intern
+                    {t('employees.form.intern')}
                   </Space>
                 </Option>
               </Select>
@@ -295,29 +313,29 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({
               label={
                 <span className="flex items-center gap-2 font-medium">
                   <EnvironmentOutlined className="text-green-500" />
-                  Work Location
+                  {t('employees.form.workLocation')}
                 </span>
               }
               name="workLocation"
               initialValue="Office"
             >
-              <Select placeholder="Select work location" size="large" className="rounded-lg">
+              <Select placeholder={t('employees.form.workLocationPlaceholder')} size="large" className="rounded-lg">
                 <Option value="Office">
                   <Space>
                     <BankOutlined />
-                    Office
+                    {t('employees.form.office')}
                   </Space>
                 </Option>
                 <Option value="Remote">
                   <Space>
                     <HomeOutlined />
-                    Remote
+                    {t('employees.form.remote')}
                   </Space>
                 </Option>
                 <Option value="Hybrid">
                   <Space>
                     <GlobalOutlined />
-                    Hybrid
+                    {t('employees.form.hybrid')}
                   </Space>
                 </Option>
               </Select>
@@ -331,16 +349,16 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({
               label={
                 <span className="flex items-center gap-2 font-medium">
                   <CalendarOutlined className="text-green-500" />
-                  Start Date
+                  {t('employees.form.startDate')}
                 </span>
               }
               name="startDate"
-              rules={[{ required: true, message: 'Please select start date' }]}
+              rules={[{ required: true, message: t('employees.form.startDateRequired') }]}
             >
               <DatePicker
                 style={{ width: '100%' }}
                 size="large"
-                placeholder="Select start date"
+                placeholder={t('employees.form.startDatePlaceholder')}
                 className="rounded-lg"
                 suffixIcon={<CalendarOutlined className="text-gray-400" />}
               />
@@ -352,7 +370,7 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({
               label={
                 <span className="flex items-center gap-2 font-medium">
                   <CalendarOutlined className="text-green-500" />
-                  End Date <Tag color="default" className="ml-2">Optional</Tag>
+                  {t('employees.form.endDate')} <Tag color="default" className="ml-2">{t('employees.form.optional')}</Tag>
                 </span>
               }
               name="endDate"
@@ -360,7 +378,7 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({
               <DatePicker
                 style={{ width: '100%' }}
                 size="large"
-                placeholder="Select end date (if applicable)"
+                placeholder={t('employees.form.endDatePlaceholder')}
                 className="rounded-lg"
                 suffixIcon={<CalendarOutlined className="text-gray-400" />}
               />
@@ -371,59 +389,82 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({
         <Row gutter={[16, 16]}>
           <Col xs={24} md={12}>
             {isAdmin ? (
-              <Form.Item
-                label={
-                  <span className="flex items-center gap-2 font-medium">
-                    <BankOutlined className="text-green-500" />
-                    Department
-                  </span>
-                }
-                name="departmentId"
-                rules={selectedRole !== 'ROLE_ADMIN' ? [{ required: true, message: 'Please select department' }] : []}
-                help={selectedRole === 'ROLE_ADMIN' ? '🔒 Admin users do not belong to any department' : ''}
-              >
-                <Select
-                  placeholder="Select department"
-                  size="large"
-                  showSearch
-                  optionFilterProp="children"
-                  disabled={selectedRole === 'ROLE_ADMIN'}
-                  className="rounded-lg"
-                  suffixIcon={<BankOutlined className="text-gray-400" />}
+              <>
+                <Form.Item
+                  label={
+                    <span className="flex items-center gap-2 font-medium">
+                      <BankOutlined className="text-green-500" />
+                      {t('employees.form.department')}
+                    </span>
+                  }
+                  name="departmentId"
+                  rules={selectedRole !== 'ROLE_ADMIN' ? [{ required: true, message: t('employees.form.departmentRequired') }] : []}
+                  help={selectedRole === 'ROLE_ADMIN' ? t('employees.form.departmentAdminNote') : ''}
                 >
-                  {departments.map((dept) => (
-                    <Option key={dept.id} value={dept.id}>
-                      <Space>
-                        <BankOutlined />
-                        {dept.departmentName}
-                      </Space>
-                    </Option>
-                  ))}
-                </Select>
-              </Form.Item>
+                  <Select
+                    placeholder={t('employees.form.departmentPlaceholder')}
+                    size="large"
+                    showSearch
+                    optionFilterProp="children"
+                    disabled={selectedRole === 'ROLE_ADMIN'}
+                    className="rounded-lg"
+                    suffixIcon={<BankOutlined className="text-gray-400" />}
+                    onChange={handleDepartmentChange}
+                  >
+                    {departments.map((dept) => (
+                      <Option key={dept.id} value={dept.id}>
+                        <Space>
+                          <BankOutlined />
+                          {dept.departmentName}
+                          {dept.manager && (
+                            <Tag color="blue" className="ml-2">
+                              {t('employees.manager')}: {dept.manager.fullName}
+                            </Tag>
+                          )}
+                        </Space>
+                      </Option>
+                    ))}
+                  </Select>
+                </Form.Item>
+                {showManagerWarning && (
+                  <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 -mt-2 mb-2">
+                    <div className="flex items-start gap-2">
+                      <SafetyCertificateOutlined className="text-red-500 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-semibold text-red-700 dark:text-red-400 m-0">
+                          {t('employees.form.managerAlreadyExists')}
+                        </p>
+                        <p className="text-xs text-red-600 dark:text-red-400 m-0 mt-1">
+                          {t('employees.form.managerWarning', { manager: selectedDeptManager.fullName })}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
             ) : (
               <>
                 <Form.Item
                   label={
                     <span className="flex items-center gap-2 font-medium">
                       <BankOutlined className="text-green-500" />
-                      Department
+                      {t('employees.form.department')}
                     </span>
                   }
                   name="department"
                 >
                   <Input
                     prefix={<BankOutlined className="text-gray-400" />}
-                    value={userDepartment || 'Your Department'}
+                    value={userDepartment || t('employees.form.yourDepartment')}
                     disabled
                     size="large"
-                    placeholder={userDepartment || 'Your Department'}
+                    placeholder={userDepartment || t('employees.form.yourDepartment')}
                     className="bg-gray-100 dark:bg-gray-800 rounded-lg"
                   />
                 </Form.Item>
                 <p className="text-xs text-blue-600 dark:text-blue-400 -mt-2 flex items-center gap-1">
                   <SafetyCertificateOutlined />
-                  Employee will be assigned to your department automatically
+                  {t('employees.form.departmentAutoAssign')}
                 </p>
               </>
             )}
@@ -435,14 +476,14 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({
                 label={
                   <span className="flex items-center gap-2 font-medium">
                     <TeamOutlined className="text-green-500" />
-                    Role
+                    {t('employees.form.role')}
                   </span>
                 }
                 name="role"
-                rules={[{ required: true, message: 'Please select role' }]}
+                rules={[{ required: true, message: t('employees.form.roleRequired') }]}
               >
                 <Select 
-                  placeholder="Select role" 
+                  placeholder={t('employees.form.rolePlaceholder')} 
                   size="large" 
                   onChange={handleRoleChange}
                   className="rounded-lg"
@@ -451,19 +492,19 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({
                   <Option value="ROLE_ADMIN">
                     <Space>
                       <SafetyCertificateOutlined className="text-red-500" />
-                      Admin
+                      {t('employees.form.admin')}
                     </Space>
                   </Option>
                   <Option value="ROLE_MANAGER">
                     <Space>
                       <TeamOutlined className="text-blue-500" />
-                      Manager
+                      {t('employees.form.manager')}
                     </Space>
                   </Option>
                   <Option value="ROLE_EMPLOYEE">
                     <Space>
                       <UserOutlined className="text-green-500" />
-                      Employee
+                      {t('employees.form.employee')}
                     </Space>
                   </Option>
                 </Select>
@@ -474,23 +515,23 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({
                   label={
                     <span className="flex items-center gap-2 font-medium">
                       <TeamOutlined className="text-green-500" />
-                      Role
+                      {t('employees.form.role')}
                     </span>
                   }
                   name="role"
                 >
                   <Input
                     prefix={<UserOutlined className="text-gray-400" />}
-                    value="Employee"
+                    value={t('employees.form.employee')}
                     disabled
                     size="large"
-                    placeholder="Employee"
+                    placeholder={t('employees.form.employee')}
                     className="bg-gray-100 dark:bg-gray-800 rounded-lg"
                   />
                 </Form.Item>
                 <p className="text-xs text-blue-600 dark:text-blue-400 -mt-2 flex items-center gap-1">
                   <SafetyCertificateOutlined />
-                  Managers can only create employee accounts
+                  {t('employees.form.employeeAutoRole')}
                 </p>
               </>
             )}
@@ -506,10 +547,10 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({
           </div>
           <div>
             <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 m-0">
-              Contact Information
+              {t('employees.formSections.contactInformation')}
             </h3>
             <p className="text-sm text-gray-500 dark:text-gray-400 m-0">
-              Communication and personal details
+              {t('employees.formSections.contactInformationDesc')}
             </p>
           </div>
         </div>
@@ -519,17 +560,17 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({
               label={
                 <span className="flex items-center gap-2 font-medium">
                   <MailOutlined className="text-purple-500" />
-                  Email Address
+                  {t('employees.form.emailAddress')}
                 </span>
               }
               name="email"
               rules={[
-                { type: 'email', message: 'Please enter a valid email' }
+                { type: 'email', message: t('employees.form.emailInvalid') }
               ]}
             >
               <Input
                 prefix={<MailOutlined className="text-gray-400" />}
-                placeholder="john.doe@company.com"
+                placeholder={t('employees.form.emailPlaceholder')}
                 size="large"
                 className="rounded-lg"
               />
@@ -541,14 +582,14 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({
               label={
                 <span className="flex items-center gap-2 font-medium">
                   <PhoneOutlined className="text-purple-500" />
-                  Phone Number
+                  {t('employees.form.phoneNumber')}
                 </span>
               }
               name="phone"
             >
               <Input
                 prefix={<PhoneOutlined className="text-gray-400" />}
-                placeholder="+1 (555) 123-4567"
+                placeholder={t('employees.form.phonePlaceholder')}
                 size="large"
                 className="rounded-lg"
               />
@@ -562,7 +603,7 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({
               label={
                 <span className="flex items-center gap-2 font-medium">
                   <CalendarOutlined className="text-purple-500" />
-                  Date of Birth
+                  {t('employees.form.dateOfBirth')}
                 </span>
               }
               name="dateOfBirth"
@@ -570,7 +611,7 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({
               <DatePicker
                 style={{ width: '100%' }}
                 size="large"
-                placeholder="Select date of birth"
+                placeholder={t('employees.form.dateOfBirthPlaceholder')}
                 className="rounded-lg"
                 suffixIcon={<CalendarOutlined className="text-gray-400" />}
               />
@@ -582,34 +623,23 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({
               label={
                 <span className="flex items-center gap-2 font-medium">
                   <UserOutlined className="text-purple-500" />
-                  Gender
+                  {t('employees.form.gender')}
                 </span>
               }
               name="gender"
+              rules={[{ required: true, message: t('employees.form.genderRequired') }]}
             >
-              <Select placeholder="Select gender" size="large" allowClear className="rounded-lg">
+              <Select placeholder={t('employees.form.genderPlaceholder')} size="large" className="rounded-lg">
                 <Option value="Male">
                   <Space>
                     <ManOutlined className="text-blue-500" />
-                    Male
+                    {t('employees.form.male')}
                   </Space>
                 </Option>
                 <Option value="Female">
                   <Space>
                     <WomanOutlined className="text-pink-500" />
-                    Female
-                  </Space>
-                </Option>
-                <Option value="Other">
-                  <Space>
-                    <UserOutlined />
-                    Other
-                  </Space>
-                </Option>
-                <Option value="Prefer not to say">
-                  <Space>
-                    <SafetyOutlined />
-                    Prefer not to say
+                    {t('employees.form.female')}
                   </Space>
                 </Option>
               </Select>
@@ -623,34 +653,22 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({
               label={
                 <span className="flex items-center gap-2 font-medium">
                   <HeartOutlined className="text-purple-500" />
-                  Marital Status
+                  {t('employees.form.maritalStatus')}
                 </span>
               }
               name="maritalStatus"
             >
-              <Select placeholder="Select marital status" size="large" allowClear className="rounded-lg">
+              <Select placeholder={t('employees.form.maritalStatusPlaceholder')} size="large" allowClear className="rounded-lg">
                 <Option value="Single">
                   <Space>
                     <UserOutlined />
-                    Single
+                    {t('employees.form.single')}
                   </Space>
                 </Option>
                 <Option value="Married">
                   <Space>
                     <HeartOutlined className="text-red-500" />
-                    Married
-                  </Space>
-                </Option>
-                <Option value="Divorced">
-                  <Space>
-                    <UserOutlined />
-                    Divorced
-                  </Space>
-                </Option>
-                <Option value="Widowed">
-                  <Space>
-                    <UserOutlined />
-                    Widowed
+                    {t('employees.form.married')}
                   </Space>
                 </Option>
               </Select>
@@ -662,14 +680,14 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({
               label={
                 <span className="flex items-center gap-2 font-medium">
                   <HomeOutlined className="text-purple-500" />
-                  Address
+                  {t('employees.form.address')}
                 </span>
               }
               name="address"
             >
               <Input
                 prefix={<HomeOutlined className="text-gray-400" />}
-                placeholder="123 Main Street"
+                placeholder={t('employees.form.addressPlaceholder')}
                 size="large"
                 className="rounded-lg"
               />
@@ -683,15 +701,15 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({
               label={
                 <span className="flex items-center gap-2 font-medium">
                   <EnvironmentOutlined className="text-purple-500" />
-                  City
+                  {t('employees.form.city')}
                 </span>
               }
               name="city"
             >
-              <Input 
+              <Input
                 prefix={<EnvironmentOutlined className="text-gray-400" />}
-                placeholder="New York" 
-                size="large" 
+                placeholder={t('employees.form.cityPlaceholder')}
+                size="large"
                 className="rounded-lg"
               />
             </Form.Item>
@@ -702,15 +720,15 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({
               label={
                 <span className="flex items-center gap-2 font-medium">
                   <GlobalOutlined className="text-purple-500" />
-                  Country
+                  {t('employees.form.country')}
                 </span>
               }
               name="country"
             >
-              <Input 
+              <Input
                 prefix={<GlobalOutlined className="text-gray-400" />}
-                placeholder="United States" 
-                size="large" 
+                placeholder={t('employees.form.countryPlaceholder')}
+                size="large"
                 className="rounded-lg"
               />
             </Form.Item>
@@ -726,10 +744,10 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({
           </div>
           <div>
             <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 m-0">
-              Emergency Contact
+              {t('employees.formSections.emergencyContact')}
             </h3>
             <p className="text-sm text-gray-500 dark:text-gray-400 m-0">
-              Person to contact in case of emergency
+              {t('employees.formSections.emergencyContactDesc')}
             </p>
           </div>
         </div>
@@ -739,14 +757,14 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({
               label={
                 <span className="flex items-center gap-2 font-medium">
                   <ContactsOutlined className="text-red-500" />
-                  Emergency Contact Name
+                  {t('employees.form.emergencyContactName')}
                 </span>
               }
               name="emergencyContact"
             >
               <Input 
                 prefix={<ContactsOutlined className="text-gray-400" />}
-                placeholder="Jane Doe (Mother/Spouse/Friend)" 
+                placeholder={t('employees.form.emergencyContactNamePlaceholder')}
                 size="large" 
                 className="rounded-lg"
               />
@@ -758,14 +776,14 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({
               label={
                 <span className="flex items-center gap-2 font-medium">
                   <PhoneOutlined className="text-red-500" />
-                  Emergency Contact Phone
+                  {t('employees.form.emergencyContactPhone')}
                 </span>
               }
               name="emergencyPhone"
             >
               <Input
                 prefix={<PhoneOutlined className="text-gray-400" />}
-                placeholder="+1 (555) 987-6543"
+                placeholder={t('employees.form.emergencyContactPhonePlaceholder')}
                 size="large"
                 className="rounded-lg"
               />
@@ -782,7 +800,7 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({
           className="rounded-lg"
           icon={<CloseOutlined />}
         >
-          Cancel
+          {t('employees.form.cancel')}
         </Button>
         <Button
           type="primary"
@@ -792,7 +810,7 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({
           className="rounded-lg"
           icon={<SaveOutlined />}
         >
-          {isEditMode ? 'Update Employee' : 'Create Employee'}
+          {isEditMode ? t('employees.form.updateEmployee') : t('employees.form.createEmployee')}
         </Button>
       </div>
     </Form>

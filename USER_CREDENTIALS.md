@@ -6,7 +6,7 @@ This document contains the login credentials for all user accounts created in th
 
 ### Administrator Account
 - **Username:** `admin`
-- **Password:** c
+- **Password:** `Admin@2024!Secure
 - **Employee Code:** `ADM-0001` (Auto-generated)
 - **Role:** Admin
 - **Full Name:** Admin User
@@ -15,8 +15,7 @@ This document contains the login credentials for all user accounts created in th
 
 ### Manager Account
 - **Username:** `manager`
-- **Password:** 
-- Manager@2024!Strong
+- **Password:** `Manager@2024!Strong`
 - **Employee Code:** `MGR-0001` (Auto-generated)
 - **Role:** Manager
 - **Full Name:** Mike Johnson
@@ -27,8 +26,7 @@ This document contains the login credentials for all user accounts created in th
 
 #### Employee 1
 - **Username:** `john.doe`
-- **Password:** 
-- Employee@2024!John
+- **Password:** `Employee@2024!John`
 - **Employee Code:** `EMP-0001` (Auto-generated)
 - **Role:** Employee
 - **Full Name:** John Doe
@@ -37,9 +35,8 @@ This document contains the login credentials for all user accounts created in th
 - **Email:** john.doe@techsolutions.com
 
 #### Employee 2
-- **Username:** jane.smith
-- **Password:**
--  Employee@2024!Jane
+- **Username:** `jane.smith`
+- **Password:** `Employee@2024!Jane`
 - **Employee Code:** `EMP-0002` (Auto-generated)
 - **Role:** Employee
 - **Full Name:** Jane Smith

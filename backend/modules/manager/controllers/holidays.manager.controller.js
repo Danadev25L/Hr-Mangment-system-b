@@ -1,22 +1,19 @@
-import { eq } from 'drizzle-orm';
-import { db } from '../../../db/index.js';
-import { daysHoliday } from '../../../db/schema.js';
+import * as holidayService from '../../../services/holiday.service.js';
 
 /**
  * Manager Holiday Management Controller
  * Handles holiday management for department managers
+ * Uses centralized holiday service for business logic
  */
 
 // Get all holidays (manager can view holidays)
 export const getOrganizationHolidays = async (req, res) => {
   try {
-    const result = await db.select()
-    .from(daysHoliday)
-    .orderBy(daysHoliday.date);
+    const holidays = await holidayService.getAllHolidays();
     
     res.json({
       message: "Holidays retrieved successfully",
-      holidays: result
+      holidays
     });
   } catch (error) {
     res.status(500).json({
@@ -28,18 +25,11 @@ export const getOrganizationHolidays = async (req, res) => {
 // Get upcoming holidays
 export const getUpcomingHolidays = async (req, res) => {
   try {
-    const currentDate = new Date();
-    
-    const result = await db.select()
-    .from(daysHoliday)
-    .orderBy(daysHoliday.date);
-    
-    // Filter upcoming holidays
-    const upcomingHolidays = result.filter(holiday => new Date(holiday.date) >= currentDate);
+    const holidays = await holidayService.getUpcomingHolidays();
     
     res.json({
       message: "Upcoming holidays retrieved successfully",
-      holidays: upcomingHolidays
+      holidays
     });
   } catch (error) {
     res.status(500).json({
@@ -59,20 +49,11 @@ export const getHolidaysByMonth = async (req, res) => {
       });
     }
     
-    const result = await db.select()
-    .from(daysHoliday)
-    .orderBy(daysHoliday.date);
-    
-    // Filter by month and year
-    const filteredHolidays = result.filter(holiday => {
-      const holidayDate = new Date(holiday.date);
-      return holidayDate.getFullYear() === parseInt(year) && 
-             holidayDate.getMonth() === parseInt(month) - 1; // Month is 0-indexed
-    });
+    const holidays = await holidayService.getHolidaysByMonth(year, month);
     
     res.json({
       message: "Holidays for the month retrieved successfully",
-      holidays: filteredHolidays,
+      holidays,
       month: parseInt(month),
       year: parseInt(year)
     });
@@ -88,15 +69,12 @@ export const getHoliday = async (req, res) => {
   try {
     const holidayId = parseInt(req.params.id);
     
-    const result = await db.select()
-    .from(daysHoliday)
-    .where(eq(daysHoliday.id, holidayId))
-    .limit(1);
+    const holiday = await holidayService.getHolidayById(holidayId);
     
-    if (result.length > 0) {
+    if (holiday) {
       res.json({
         message: "Holiday retrieved successfully",
-        holiday: result[0]
+        holiday
       });
     } else {
       res.status(404).json({
@@ -119,36 +97,23 @@ export const suggestHoliday = async (req, res) => {
       });
     }
 
-    // Check if holiday already exists
-    const existingHoliday = await db.select()
-      .from(daysHoliday)
-      .where(eq(daysHoliday.date, req.body.date))
-      .limit(1);
-
-    if (existingHoliday.length > 0) {
-      return res.status(409).json({
-        message: "Holiday already exists for this date"
-      });
-    }
-
-    // Create holiday suggestion
     const suggestionData = {
-      date: new Date(req.body.date),
-      name: req.body.name?.trim() || 'Holiday Suggestion',
-      description: `Suggested by Manager: ${req.body.description?.trim() || 'No description provided'}`,
-      isRecurring: req.body.isRecurring || false,
-      createdAt: new Date()
+      date: req.body.date,
+      name: req.body.name,
+      description: req.body.description,
+      isRecurring: req.body.isRecurring
     };
 
-    const result = await db.insert(daysHoliday)
-      .values(suggestionData)
-      .returning();
+    const suggestion = await holidayService.suggestHoliday(suggestionData);
     
     res.json({
       message: "Holiday suggestion submitted successfully",
-      suggestion: result[0]
+      suggestion
     });
   } catch (error) {
+    if (error.message === 'Holiday already exists for this date') {
+      return res.status(409).json({ message: error.message });
+    }
     res.status(500).json({
       message: error.message || "Some error occurred while submitting holiday suggestion."
     });
@@ -158,39 +123,7 @@ export const suggestHoliday = async (req, res) => {
 // Get holiday statistics
 export const getOrganizationHolidayStats = async (req, res) => {
   try {
-    const currentDate = new Date();
-    
-    // Get all holidays
-    const allHolidays = await db.select()
-      .from(daysHoliday);
-
-    const totalHolidays = allHolidays.length;
-    const upcomingHolidays = allHolidays.filter(holiday => new Date(holiday.date) >= currentDate).length;
-    const pastHolidays = totalHolidays - upcomingHolidays;
-    const recurringHolidays = allHolidays.filter(holiday => holiday.isRecurring).length;
-
-    // Get holidays by month for current year
-    const currentYear = currentDate.getFullYear();
-    const holidaysByMonth = Array(12).fill(0);
-    
-    allHolidays.forEach(holiday => {
-      const holidayDate = new Date(holiday.date);
-      if (holidayDate.getFullYear() === currentYear) {
-        holidaysByMonth[holidayDate.getMonth()]++;
-      }
-    });
-
-    const statistics = {
-      summary: {
-        totalHolidays,
-        upcomingHolidays,
-        pastHolidays,
-        recurringHolidays
-      },
-      holidaysByMonth,
-      currentYear,
-      generatedAt: new Date()
-    };
+    const statistics = await holidayService.getHolidayStatistics();
 
     res.json({
       message: "Holiday statistics retrieved successfully",

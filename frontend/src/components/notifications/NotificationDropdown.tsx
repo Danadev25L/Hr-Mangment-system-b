@@ -8,7 +8,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import axios from 'axios'
 import { useAuth } from '@/hooks/useAuth'
 import { useTranslations } from 'next-intl'
-import { formatDistanceToNow } from 'date-fns'
+import { useRelativeTime } from '@/utils/relativeTime'
 
 interface Notification {
   id: number
@@ -34,6 +34,7 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ loca
   const router = useRouter()
   const { isAuthenticated } = useAuth()
   const t = useTranslations()
+  const { getRelativeTime, formatDate } = useRelativeTime()
   const queryClient = useQueryClient()
 
   // Get token from localStorage
@@ -68,28 +69,40 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ loca
   // Mark as read mutation
   const markAsReadMutation = useMutation({
     mutationFn: async (notificationId: number) => {
-      await axios.put(
+      console.log('Dropdown: Marking notification as read:', notificationId)
+      const response = await axios.put(
         `${process.env.NEXT_PUBLIC_API_URL}/api/shared/notifications/${notificationId}/read`,
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       )
+      console.log('Dropdown: Mark as read response:', response.data)
+      return response.data
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notifications'] })
+    },
+    onError: (error: any) => {
+      console.error('Dropdown: Error marking notification as read:', error)
     }
   })
 
   // Mark all as read mutation
   const markAllAsReadMutation = useMutation({
     mutationFn: async () => {
-      await axios.put(
+      console.log('Dropdown: Marking all notifications as read')
+      const response = await axios.put(
         `${process.env.NEXT_PUBLIC_API_URL}/api/shared/notifications/read-all`,
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       )
+      console.log('Dropdown: Mark all as read response:', response.data)
+      return response.data
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notifications'] })
+    },
+    onError: (error: any) => {
+      console.error('Dropdown: Error marking all notifications as read:', error)
     }
   })
 
@@ -143,6 +156,17 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ loca
     if (type.includes('submitted') || type.includes('request')) return 'blue'
     if (type.includes('bonus') || type.includes('salary')) return 'gold'
     return 'default'
+  }
+
+  const getNotificationTypeLabel = (type: string) => {
+    // First try exact match
+    const translated = t(`notifications.types.${type}`)
+    if (translated && translated !== `notifications.types.${type}`) {
+      return translated
+    }
+
+    // Fallback: replace underscores and capitalize
+    return type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
   }
 
   const handleNotificationClick = (notification: Notification) => {
@@ -210,41 +234,52 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ loca
             <div
               key={notification.id}
               onClick={() => handleNotificationClick(notification)}
-              className={`px-4 py-3 border-b border-gray-100 dark:border-gray-700 cursor-pointer transition-all hover:bg-gray-50 dark:hover:bg-gray-750 ${
-                !notification.isRead ? 'bg-blue-50 dark:bg-blue-900/10' : ''
+              className={`px-4 py-4 border-b border-gray-100 dark:border-gray-700 cursor-pointer transition-all hover:bg-gray-50 dark:hover:bg-gray-750 ${
+                !notification.isRead ? 'bg-blue-50 dark:bg-blue-900/10 border-l-4 border-l-blue-500' : ''
               }`}
             >
               <div className="flex items-start space-x-3">
                 {/* Icon */}
-                <div className="text-2xl flex-shrink-0 mt-1">
+                <div className={`text-2xl flex-shrink-0 mt-1 w-10 h-10 rounded-full flex items-center justify-center ${
+                  !notification.isRead
+                    ? 'bg-blue-100 dark:bg-blue-800/50'
+                    : 'bg-gray-100 dark:bg-gray-700'
+                }`}>
                   {getNotificationIcon(notification.type)}
                 </div>
 
                 {/* Content */}
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between mb-1">
-                    <h4 className={`text-sm font-medium ${
-                      !notification.isRead 
-                        ? 'text-gray-900 dark:text-white' 
-                        : 'text-gray-600 dark:text-gray-400'
+                  <div className="flex items-start justify-between mb-2">
+                    <h4 className={`text-sm font-semibold flex-1 pr-2 ${
+                      !notification.isRead
+                        ? 'text-gray-900 dark:text-white'
+                        : 'text-gray-700 dark:text-gray-300'
                     }`}>
                       {notification.title}
                     </h4>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      {!notification.isRead && (
+                        <Tag color="blue" className="!text-xs !py-0.5 !px-2 !m-0">
+                          {t('notifications.new')}
+                        </Tag>
+                      )}
+                    </div>
                   </div>
-                  
-                  <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2 mb-2">
+
+                  <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2 mb-2 leading-relaxed">
                     {notification.message}
                   </p>
 
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-gray-500 dark:text-gray-500">
-                      {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
-                    </span>
-                    {!notification.isRead && (
-                      <Tag color="blue" className="!text-xs !py-0 !px-2 !m-0">
-                        {t('notifications.new')}
+                    <div className="flex items-center gap-3">
+                      <Tag color={getNotificationColor(notification.type)} className="!text-xs !py-0.5 !px-2">
+                        {getNotificationTypeLabel(notification.type)}
                       </Tag>
-                    )}
+                      <span className="text-xs text-gray-500 dark:text-gray-500 font-medium">
+                        {getRelativeTime(notification.createdAt)}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -289,7 +324,7 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ loca
           </span>
         )}
         <span className="text-sm font-semibold text-gray-900 dark:text-white hidden md:inline">
-          {unreadCount > 0 ? `${unreadCount} New` : 'Notifications'}
+          {unreadCount > 0 ? `${unreadCount} ${t('notifications.new')}` : t('notifications.title')}
         </span>
       </button>
     </Dropdown>

@@ -157,7 +157,7 @@ export default function ExpenseListPage({ role, title, description }: ExpenseLis
       } else if (status === 'rejected') {
         message.success(t('expenses.rejectSuccess'))
       } else if (status === 'paid') {
-        message.success('Expense marked as paid successfully')
+        message.success(t('expenses.paidSuccess'))
       }
       queryClient.invalidateQueries({ queryKey: ['expenses'] })
     },
@@ -167,7 +167,7 @@ export default function ExpenseListPage({ role, title, description }: ExpenseLis
       } else if (status === 'rejected') {
         message.error(error.response?.data?.message || t('expenses.rejectError'))
       } else {
-        message.error(error.response?.data?.message || 'Failed to update expense')
+        message.error(error.response?.data?.message || t('expenses.updateError'))
       }
     },
   })
@@ -207,11 +207,11 @@ export default function ExpenseListPage({ role, title, description }: ExpenseLis
 
   const handleMarkPaid = (expense: Expense) => {
     Modal.confirm({
-      title: 'Mark as Paid',
-      content: `Mark expense of $${expense.amount} as paid?`,
-      okText: 'Mark Paid',
+      title: t('expenses.markAsPaid'),
+      content: t('expenses.markPaidConfirm', { amount: expense.amount }),
+      okText: t('expenses.markPaid'),
       okType: 'primary',
-      cancelText: 'Cancel',
+      cancelText: t('common.cancel'),
       onOk: () => updateStatusMutation.mutate({ id: expense.id, status: 'paid' }),
     })
   }
@@ -221,19 +221,19 @@ export default function ExpenseListPage({ role, title, description }: ExpenseLis
     const data = expensesData?.data || []
     const worksheet = XLSX.utils.json_to_sheet(
       data.map((expense: Expense) => ({
-        'Submitted By': expense.userName,
-        Department: expense.departmentName || 'N/A',
-        Reason: expense.reason,
-        Amount: `$${expense.amount}`,
-        Status: expense.status,
-        Date: dayjs(expense.date).format('YYYY-MM-DD'),
-        'Created At': dayjs(expense.createdAt).format('YYYY-MM-DD HH:mm'),
+        [t('expenses.submittedBy')]: expense.userName,
+        [t('expenses.department')]: expense.departmentName || t('expenses.na'),
+        [t('expenses.reason')]: expense.reason,
+        [t('expenses.amount')]: `$${expense.amount}`,
+        [t('expenses.status')]: expense.status,
+        [t('expenses.date')]: dayjs(expense.date).format('YYYY-MM-DD'),
+        [t('expenses.createdAt')]: dayjs(expense.createdAt).format('YYYY-MM-DD HH:mm'),
       }))
     )
     const workbook = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Expenses')
     XLSX.writeFile(workbook, `expenses_${dayjs().format('YYYY-MM-DD')}.xlsx`)
-    message.success('Expenses exported to Excel successfully')
+    message.success(t('expenses.exportedToExcel'))
   }
 
   const handleExportPDF = () => {
@@ -241,13 +241,13 @@ export default function ExpenseListPage({ role, title, description }: ExpenseLis
     const data = expensesData?.data || []
 
     doc.setFontSize(18)
-    doc.text('Expense Report', 14, 22)
+    doc.text(t('expenses.expenseReport'), 14, 22)
     doc.setFontSize(11)
-    doc.text(`Generated: ${dayjs().format('YYYY-MM-DD HH:mm')}`, 14, 30)
+    doc.text(`${t('expenses.generated')}: ${dayjs().format('YYYY-MM-DD HH:mm')}`, 14, 30)
 
     const tableData = data.map((expense: Expense) => [
       expense.userName,
-      expense.departmentName || 'N/A',
+      expense.departmentName || t('expenses.na'),
       expense.reason,
       `$${expense.amount}`,
       expense.status,
@@ -255,31 +255,38 @@ export default function ExpenseListPage({ role, title, description }: ExpenseLis
     ])
 
     autoTable(doc, {
-      head: [['Submitted By', 'Department', 'Reason', 'Amount', 'Status', 'Date']],
+      head: [[
+        t('expenses.submittedBy'),
+        t('expenses.department'),
+        t('expenses.reason'),
+        t('expenses.amount'),
+        t('expenses.status'),
+        t('expenses.date')
+      ]],
       body: tableData,
       startY: 35,
     })
 
     doc.save(`expenses_${dayjs().format('YYYY-MM-DD')}.pdf`)
-    message.success('Expenses exported to PDF successfully')
+    message.success(t('expenses.exportedToPDF'))
   }
 
   const handlePrint = () => {
     window.print()
-    message.success('Print dialog opened')
+    message.success(t('expenses.printDialogOpened'))
   }
 
   const exportMenuItems: MenuProps['items'] = [
     {
       key: 'excel',
       icon: <FileExcelOutlined />,
-      label: 'Export to Excel',
+      label: t('expenses.exportToExcel'),
       onClick: handleExportExcel,
     },
     {
       key: 'pdf',
       icon: <FilePdfOutlined />,
-      label: 'Export to PDF',
+      label: t('expenses.exportToPDF'),
       onClick: handleExportPDF,
     },
     {
@@ -288,7 +295,7 @@ export default function ExpenseListPage({ role, title, description }: ExpenseLis
     {
       key: 'print',
       icon: <PrinterOutlined />,
-      label: 'Print List',
+      label: t('expenses.printList'),
       onClick: handlePrint,
     },
   ]
@@ -301,7 +308,7 @@ export default function ExpenseListPage({ role, title, description }: ExpenseLis
     })
     setDateRange(null)
     setPagination({ current: 1, pageSize: 10 })
-    message.success('Filters reset successfully')
+    message.success(t('expenses.filtersResetSuccess'))
   }
 
   const handleTableChange = (newPagination: any) => {
@@ -335,7 +342,7 @@ export default function ExpenseListPage({ role, title, description }: ExpenseLis
                 variant="secondary"
                 icon={<ExportOutlined />}
               >
-                Export
+                {t('common.export')}
               </EnhancedButton>
             </Dropdown>
             <EnhancedButton
@@ -343,7 +350,7 @@ export default function ExpenseListPage({ role, title, description }: ExpenseLis
               icon={<PlusOutlined />}
               onClick={() => router.push(`/${locale}${basePath}/add`)}
             >
-              Add Expense
+              {t('expenses.addExpense')}
             </EnhancedButton>
           </div>
         }
@@ -359,7 +366,7 @@ export default function ExpenseListPage({ role, title, description }: ExpenseLis
 
       {/* Search */}
       <SearchInput
-        placeholder="Search by reason, name, or amount..."
+        placeholder={t('expenses.searchByReason')}
         value={searchText}
         onChange={(e) => {
           setSearchText(e.target.value)
@@ -370,12 +377,12 @@ export default function ExpenseListPage({ role, title, description }: ExpenseLis
       {/* Filters */}
       <FilterBar>
         <FilterSelect
-          placeholder="Status"
+          placeholder={t('expenses.status')}
           options={[
-            { label: 'Pending', value: 'pending' },
-            { label: 'Approved', value: 'approved' },
-            { label: 'Rejected', value: 'rejected' },
-            { label: 'Paid', value: 'paid' },
+            { label: t('expenses.pending'), value: 'pending' },
+            { label: t('expenses.approved'), value: 'approved' },
+            { label: t('expenses.rejected'), value: 'rejected' },
+            { label: t('expenses.paid'), value: 'paid' },
           ]}
           value={filters.status}
           onChange={(value) => {
@@ -386,9 +393,9 @@ export default function ExpenseListPage({ role, title, description }: ExpenseLis
 
         {role === 'admin' && (
           <FilterSelect
-            placeholder="Department"
+            placeholder={t('expenses.department')}
             options={[
-              { label: 'Company-wide', value: '0' },
+              { label: t('common.allDepartments') || 'Company-wide', value: '0' },
               ...(Array.isArray(departmentsData)
                 ? departmentsData.map((dept: any) => ({
                     label: dept.departmentName,
@@ -410,7 +417,7 @@ export default function ExpenseListPage({ role, title, description }: ExpenseLis
             setDateRange(dates as [dayjs.Dayjs, dayjs.Dayjs] | null)
             setPagination({ ...pagination, current: 1 })
           }}
-          placeholder={['Start Date', 'End Date']}
+          placeholder={[t('expenses.startDate'), t('expenses.endDate')]}
         />
 
         <div className="ml-auto flex gap-2">
@@ -420,14 +427,14 @@ export default function ExpenseListPage({ role, title, description }: ExpenseLis
             onClick={() => refetch()}
             loading={isLoading}
           >
-            Refresh
+            {t('common.refresh')}
           </EnhancedButton>
           <EnhancedButton
             variant="secondary"
             icon={<ClearOutlined />}
             onClick={handleResetFilters}
           >
-            Reset
+            {t('common.reset')}
           </EnhancedButton>
         </div>
       </FilterBar>

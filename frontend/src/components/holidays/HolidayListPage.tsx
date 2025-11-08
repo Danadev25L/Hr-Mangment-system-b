@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { message, Modal, Table, Tag, Space, Tooltip, Segmented, Calendar, Badge, Empty } from 'antd'
+import { message, Modal, Table, Tag, Space, Tooltip, Segmented, Calendar, Badge, Empty, Input, Dropdown } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import type { Dayjs } from 'dayjs'
 import type { BadgeProps } from 'antd'
@@ -13,13 +13,13 @@ import {
   FileExcelOutlined,
   FilePdfOutlined,
   ReloadOutlined,
-  ClearOutlined,
   PrinterOutlined,
   EyeOutlined,
   EditOutlined,
   DeleteOutlined,
   CalendarOutlined,
   UnorderedListOutlined,
+  SearchOutlined,
 } from '@ant-design/icons'
 import { useSearchParams } from 'next/navigation'
 import dayjs from 'dayjs'
@@ -29,8 +29,6 @@ import autoTable from 'jspdf-autotable'
 import apiClient from '@/lib/api'
 import {
   PageHeader,
-  SearchInput,
-  FilterBar,
   EnhancedButton,
   EnhancedCard,
 } from '@/components/ui'
@@ -52,7 +50,7 @@ export function HolidayListPage({ role, title, description }: HolidayListPagePro
   const searchParams = useSearchParams()
 
   const [searchText, setSearchText] = useState(searchParams?.get('search') || '')
-  const [viewMode, setViewMode] = useState<'table' | 'calendar'>((searchParams?.get('view') as any) || 'table')
+  const [viewMode, setViewMode] = useState<'table' | 'calendar'>((searchParams?.get('view') as any) || 'calendar')
   const [pagination, setPagination] = useState({
     current: parseInt(searchParams?.get('page') || '1'),
     pageSize: parseInt(searchParams?.get('pageSize') || '10'),
@@ -132,7 +130,6 @@ export function HolidayListPage({ role, title, description }: HolidayListPagePro
       dayjs(h.date).isAfter(today) || dayjs(h.date).isSame(today, 'day')
     ).length,
     past: filteredHolidays.filter((h: any) => dayjs(h.date).isBefore(today, 'day')).length,
-    recurring: filteredHolidays.filter((h: any) => h.isRecurring).length,
   }
 
   // Export functions
@@ -146,7 +143,6 @@ export function HolidayListPage({ role, title, description }: HolidayListPagePro
       [t('holidays.holidayName')]: holiday.name,
       [t('holidays.date')]: dayjs(holiday.date).format('MMM DD, YYYY'),
       [t('holidays.description')]: holiday.description || t('holidays.noDescription'),
-      [t('holidays.type')]: holiday.isRecurring ? t('holidays.recurring') : t('holidays.oneTime'),
     }))
 
     const ws = XLSX.utils.json_to_sheet(exportData)
@@ -171,17 +167,17 @@ export function HolidayListPage({ role, title, description }: HolidayListPagePro
       head: [[
         t('holidays.holidayName'),
         t('holidays.date'),
-        t('holidays.type'),
+        t('holidays.description'),
       ]],
       body: filteredHolidays.map((holiday: any) => [
         holiday.name,
         dayjs(holiday.date).format('MMM DD, YYYY'),
-        holiday.isRecurring ? t('holidays.recurring') : t('holidays.oneTime'),
+        holiday.description || t('holidays.noDescription'),
       ]),
     })
 
     doc.save(`holidays-${dayjs().format('YYYY-MM-DD')}.pdf`)
-    message.success('PDF exported successfully')
+    message.success(t('holidays.pdfExported'))
   }
 
   const handlePrint = () => {
@@ -189,28 +185,23 @@ export function HolidayListPage({ role, title, description }: HolidayListPagePro
     window.print()
   }
 
-  const handleClearFilters = () => {
-    setSearchText('')
-    setPagination({ current: 1, pageSize: 10 })
-  }
-
   const exportMenuItems: MenuProps['items'] = [
     {
       key: 'excel',
       icon: <FileExcelOutlined />,
-      label: 'Export to Excel',
+      label: t('holidays.exportToExcel'),
       onClick: exportToExcel,
     },
     {
       key: 'pdf',
       icon: <FilePdfOutlined />,
-      label: 'Export to PDF',
+      label: t('holidays.exportToPDF'),
       onClick: exportToPDF,
     },
     {
       key: 'print',
       icon: <PrinterOutlined />,
-      label: 'Print',
+      label: t('holidays.print'),
       onClick: handlePrint,
     },
   ]
@@ -220,7 +211,10 @@ export function HolidayListPage({ role, title, description }: HolidayListPagePro
     const listData: { type: BadgeProps['status']; content: string }[] = []
     
     holidays.forEach((holiday: any) => {
-      if (dayjs(holiday.date).isSame(value, 'day')) {
+      const holidayDate = dayjs(holiday.date)
+      const isSameDay = holidayDate.isSame(value, 'day')
+      
+      if (isSameDay) {
         listData.push({
           type: 'success',
           content: holiday.name || t('holidays.unnamedHoliday'),
@@ -263,9 +257,6 @@ export function HolidayListPage({ role, title, description }: HolidayListPagePro
         <Space>
           <CalendarOutlined className="text-green-500" />
           <span className="font-medium">{text || t('holidays.unnamedHoliday')}</span>
-          {record.isRecurring && (
-            <Tag color="cyan">{t('holidays.recurring')}</Tag>
-          )}
         </Space>
       ),
     },
@@ -307,7 +298,9 @@ export function HolidayListPage({ role, title, description }: HolidayListPagePro
               size="small"
               icon={<EyeOutlined />}
               onClick={() => handleView(record.id)}
-            />
+            >
+              {null}
+            </EnhancedButton>
           </Tooltip>
           {role === 'admin' && (
             <>
@@ -317,7 +310,9 @@ export function HolidayListPage({ role, title, description }: HolidayListPagePro
                   size="small"
                   icon={<EditOutlined />}
                   onClick={() => handleNavigation(`/${locale}${basePath}/${record.id}/edit`)}
-                />
+                >
+                  {null}
+                </EnhancedButton>
               </Tooltip>
               <Tooltip title={t('common.delete')}>
                 <EnhancedButton
@@ -326,7 +321,9 @@ export function HolidayListPage({ role, title, description }: HolidayListPagePro
                   danger
                   icon={<DeleteOutlined />}
                   onClick={() => handleDelete(record.id, record.name)}
-                />
+                >
+                  {null}
+                </EnhancedButton>
               </Tooltip>
             </>
           )}
@@ -353,19 +350,20 @@ export function HolidayListPage({ role, title, description }: HolidayListPagePro
                 {t('holidays.addHoliday')}
               </EnhancedButton>
             )}
-            <EnhancedButton
-              variant="secondary"
-              icon={<ExportOutlined />}
-              dropdown={{ menu: { items: exportMenuItems } }}
-            >
-              {t('common.export')}
-            </EnhancedButton>
+            <Dropdown menu={{ items: exportMenuItems }}>
+              <EnhancedButton
+                variant="secondary"
+                icon={<ExportOutlined />}
+              >
+                {t('common.export')}
+              </EnhancedButton>
+            </Dropdown>
           </div>
         }
       />
 
       {/* Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <EnhancedCard className="bg-gradient-to-br from-green-50 to-white dark:from-green-900/20 dark:to-gray-800">
           <div className="flex items-center justify-between">
             <div>
@@ -395,30 +393,21 @@ export function HolidayListPage({ role, title, description }: HolidayListPagePro
             <CalendarOutlined className="text-4xl text-gray-500 opacity-50" />
           </div>
         </EnhancedCard>
-
-        <EnhancedCard className="bg-gradient-to-br from-cyan-50 to-white dark:from-cyan-900/20 dark:to-gray-800">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">{t('holidays.recurring')}</p>
-              <p className="text-2xl font-bold text-cyan-600 dark:text-cyan-400">{stats.recurring}</p>
-            </div>
-            <ReloadOutlined className="text-4xl text-cyan-500 opacity-50" />
-          </div>
-        </EnhancedCard>
       </div>
 
-      {/* Filters and View Mode */}
+      {/* Search and View Mode */}
       <EnhancedCard>
-        <FilterBar
-          searchComponent={
-            <SearchInput
-              placeholder={t('holidays.searchPlaceholder')}
-              value={searchText}
-              onChange={setSearchText}
-              onClear={() => setSearchText('')}
-            />
-          }
-          filterComponents={
+        <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
+          <Input
+            placeholder={t('holidays.searchPlaceholder')}
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            prefix={<SearchOutlined className="text-gray-400" />}
+            allowClear
+            className="w-full sm:w-96"
+          />
+          
+          <div className="flex items-center gap-3">
             <Segmented
               value={viewMode}
               onChange={(value) => setViewMode(value as 'table' | 'calendar')}
@@ -436,26 +425,16 @@ export function HolidayListPage({ role, title, description }: HolidayListPagePro
                 },
               ]}
             />
-          }
-          actionButtons={
-            <>
-              <EnhancedButton
-                variant="ghost"
-                icon={<ReloadOutlined />}
-                onClick={() => refetch()}
-              >
-                {t('common.refresh')}
-              </EnhancedButton>
-              <EnhancedButton
-                variant="ghost"
-                icon={<ClearOutlined />}
-                onClick={handleClearFilters}
-              >
-                {t('common.cancel')}
-              </EnhancedButton>
-            </>
-          }
-        />
+            
+            <EnhancedButton
+              variant="ghost"
+              icon={<ReloadOutlined />}
+              onClick={() => refetch()}
+            >
+              {t('common.refresh')}
+            </EnhancedButton>
+          </div>
+        </div>
       </EnhancedCard>
 
       {/* Content - Table or Calendar */}

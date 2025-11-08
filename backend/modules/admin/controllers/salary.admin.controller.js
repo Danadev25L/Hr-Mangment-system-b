@@ -80,7 +80,8 @@ export const generateMonthlySalary = async (req, res) => {
       const overtimePay = totalOvertimeHours * overtimeRate;
       const grossSalary = (user.baseSalary || 0) + overtimePay;
       const taxDeduction = Math.round(grossSalary * 0.10); // 10% tax
-      const netSalary = grossSalary - taxDeduction;
+      // Ensure netSalary is never negative
+      const netSalary = Math.max(0, grossSalary - taxDeduction);
 
       const salaryRecord = {
         userId: user.id,

@@ -1,7 +1,7 @@
 ﻿'use client'
 
 import { useState, useEffect } from 'react'
-import { useLocale } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { message, Modal, Empty, Dropdown, Input } from 'antd'
 import {
@@ -38,6 +38,7 @@ interface ApplicationListPageProps {
 }
 
 export default function ApplicationListPage({ role, title, description }: ApplicationListPageProps) {
+  const t = useTranslations()
   const locale = useLocale()
   const queryClient = useQueryClient()
   const searchParams = useSearchParams()
@@ -103,22 +104,126 @@ export default function ApplicationListPage({ role, title, description }: Applic
   const deleteApplicationMutation = useMutation({
     mutationFn: (applicationId: number) => apiClient.deleteApplication(applicationId.toString()),
     onSuccess: () => {
-      message.success('Application deleted successfully')
+      message.success({
+        content: (
+          <div>
+            <div className="font-semibold">✅ {t('applications.applicationDeleted')}</div>
+            <div className="text-xs mt-1">{t('applications.applicationDeletedDesc')}</div>
+          </div>
+        ),
+        duration: 3,
+      })
       queryClient.invalidateQueries({ queryKey: ['applications'] })
     },
     onError: (error: any) => {
-      message.error(error.response?.data?.message || 'Failed to delete application')
+      const errorMessage = error.response?.data?.message || t('applications.deleteError')
+      
+      if (errorMessage.includes('only delete pending applications') || 
+          errorMessage.includes('Cannot delete processed application')) {
+        message.error({
+          content: (
+            <div>
+              <div className="font-semibold">🚫 {t('applications.cannotDeleteProcessed')}</div>
+              <div>{t('applications.onlyPendingCanDelete')}</div>
+              <div className="text-xs mt-1">{t('applications.alreadyProcessed')}</div>
+            </div>
+          ),
+          duration: 5,
+        })
+      } else if (errorMessage.includes('not found') || errorMessage.includes('Not found')) {
+        message.error({
+          content: (
+            <div>
+              <div className="font-semibold">❌ {t('applications.applicationNotFound')}</div>
+              <div>{t('applications.mayBeDeleted')}</div>
+            </div>
+          ),
+          duration: 4,
+        })
+      } else if (errorMessage.includes('Forbidden') || errorMessage.includes('permission')) {
+        message.error({
+          content: (
+            <div>
+              <div className="font-semibold">🚫 {t('applications.accessDenied')}</div>
+              <div>{t('applications.noPermissionDelete')}</div>
+            </div>
+          ),
+          duration: 4,
+        })
+      } else {
+        message.error({
+          content: (
+            <div>
+              <div className="font-semibold">❌ {t('applications.deleteFailed')}</div>
+              <div>{errorMessage}</div>
+            </div>
+          ),
+          duration: 4,
+        })
+      }
     },
   })
 
   const approveApplicationMutation = useMutation({
     mutationFn: (applicationId: number) => apiClient.approveApplication(applicationId.toString()),
     onSuccess: () => {
-      message.success('Application approved successfully')
+      message.success({
+        content: (
+          <div>
+            <div className="font-semibold">✅ {t('applications.applicationApproved')}</div>
+            <div className="text-xs mt-1">{t('applications.applicantNotifiedApproval')}</div>
+          </div>
+        ),
+        duration: 4,
+      })
       queryClient.invalidateQueries({ queryKey: ['applications'] })
     },
     onError: (error: any) => {
-      message.error(error.response?.data?.message || 'Failed to approve application')
+      const errorMessage = error.response?.data?.message || t('applications.approveError')
+      
+      if (errorMessage.includes('already processed') || 
+          errorMessage.includes('already approved') ||
+          errorMessage.includes('not pending')) {
+        message.error({
+          content: (
+            <div>
+              <div className="font-semibold">⚠️ {t('applications.alreadyProcessedTitle')}</div>
+              <div>{t('applications.alreadyApprovedOrRejected')}</div>
+            </div>
+          ),
+          duration: 5,
+        })
+      } else if (errorMessage.includes('not found') || errorMessage.includes('Not found')) {
+        message.error({
+          content: (
+            <div>
+              <div className="font-semibold">❌ {t('applications.applicationNotFound')}</div>
+              <div>{t('applications.mayNoLongerExist')}</div>
+            </div>
+          ),
+          duration: 4,
+        })
+      } else if (errorMessage.includes('Forbidden') || errorMessage.includes('permission')) {
+        message.error({
+          content: (
+            <div>
+              <div className="font-semibold">🚫 {t('applications.accessDenied')}</div>
+              <div>{t('applications.onlyManagersCanApprove')}</div>
+            </div>
+          ),
+          duration: 5,
+        })
+      } else {
+        message.error({
+          content: (
+            <div>
+              <div className="font-semibold">❌ {t('applications.approvalFailed')}</div>
+              <div>{errorMessage}</div>
+            </div>
+          ),
+          duration: 4,
+        })
+      }
     },
   })
 
@@ -126,11 +231,63 @@ export default function ApplicationListPage({ role, title, description }: Applic
     mutationFn: ({ applicationId, rejectionReason }: { applicationId: number; rejectionReason?: string }) =>
       apiClient.rejectApplication(applicationId.toString(), rejectionReason),
     onSuccess: () => {
-      message.success('Application rejected successfully')
+      message.success({
+        content: (
+          <div>
+            <div className="font-semibold">✅ {t('applications.applicationRejected')}</div>
+            <div className="text-xs mt-1">{t('applications.applicantNotifiedRejection')}</div>
+          </div>
+        ),
+        duration: 4,
+      })
       queryClient.invalidateQueries({ queryKey: ['applications'] })
     },
     onError: (error: any) => {
-      message.error(error.response?.data?.message || 'Failed to reject application')
+      const errorMessage = error.response?.data?.message || t('applications.rejectError')
+      
+      if (errorMessage.includes('already processed') || 
+          errorMessage.includes('already rejected') ||
+          errorMessage.includes('not pending')) {
+        message.error({
+          content: (
+            <div>
+              <div className="font-semibold">⚠️ {t('applications.alreadyProcessedTitle')}</div>
+              <div>{t('applications.alreadyApprovedOrRejected')}</div>
+            </div>
+          ),
+          duration: 5,
+        })
+      } else if (errorMessage.includes('not found') || errorMessage.includes('Not found')) {
+        message.error({
+          content: (
+            <div>
+              <div className="font-semibold">❌ {t('applications.applicationNotFound')}</div>
+              <div>{t('applications.mayNoLongerExist')}</div>
+            </div>
+          ),
+          duration: 4,
+        })
+      } else if (errorMessage.includes('Forbidden') || errorMessage.includes('permission')) {
+        message.error({
+          content: (
+            <div>
+              <div className="font-semibold">🚫 {t('applications.accessDenied')}</div>
+              <div>{t('applications.onlyManagersCanReject')}</div>
+            </div>
+          ),
+          duration: 5,
+        })
+      } else {
+        message.error({
+          content: (
+            <div>
+              <div className="font-semibold">❌ {t('applications.rejectionFailed')}</div>
+              <div>{errorMessage}</div>
+            </div>
+          ),
+          duration: 4,
+        })
+      }
     },
   })
 
@@ -144,22 +301,22 @@ export default function ApplicationListPage({ role, title, description }: Applic
 
   const handleDelete = (application: Application) => {
     Modal.confirm({
-      title: 'Delete Application',
-      content: 'Are you sure you want to delete this application?',
-      okText: 'Delete',
+      title: t('applications.deleteApplicationTitle'),
+      content: t('applications.deleteApplicationContent'),
+      okText: t('applications.delete'),
       okType: 'danger',
-      cancelText: 'Cancel',
+      cancelText: t('applications.cancel'),
       onOk: () => deleteApplicationMutation.mutate(application.id),
     })
   }
 
   const handleApprove = (application: Application) => {
     Modal.confirm({
-      title: 'Approve Application',
-      content: 'Approve this application?',
-      okText: 'Approve',
+      title: t('applications.approveApplicationTitle'),
+      content: t('applications.approveApplicationContent'),
+      okText: t('applications.approve'),
       okType: 'primary',
-      cancelText: 'Cancel',
+      cancelText: t('applications.cancel'),
       onOk: () => approveApplicationMutation.mutate(application.id),
     })
   }
@@ -167,21 +324,21 @@ export default function ApplicationListPage({ role, title, description }: Applic
   const handleReject = (application: Application) => {
     let rejectionReason = ''
     Modal.confirm({
-      title: 'Reject Application',
+      title: t('applications.rejectApplicationTitle'),
       content: (
         <div>
-          <p>Reject this application?</p>
+          <p>{t('applications.rejectApplicationContent')}</p>
           <Input.TextArea
-            placeholder="Reason for rejection (optional)"
+            placeholder={t('applications.reasonForRejection')}
             rows={3}
             onChange={(e) => (rejectionReason = e.target.value)}
             className="mt-2"
           />
         </div>
       ),
-      okText: 'Reject',
+      okText: t('applications.reject'),
       okType: 'danger',
-      cancelText: 'Cancel',
+      cancelText: t('applications.cancel'),
       onOk: () => rejectApplicationMutation.mutate({ applicationId: application.id, rejectionReason }),
     })
   }
@@ -190,22 +347,22 @@ export default function ApplicationListPage({ role, title, description }: Applic
     const data = applicationsData?.data || []
     const worksheet = XLSX.utils.json_to_sheet(
       data.map((application: Application) => ({
-        'Submitted By': application.userName,
-        Department: application.departmentName || 'N/A',
-        Title: application.title,
-        Type: application.applicationType,
-        Priority: application.priority,
-        Status: application.status,
-        'Start Date': dayjs(application.startDate).format('YYYY-MM-DD'),
-        'End Date': dayjs(application.endDate).format('YYYY-MM-DD'),
-        Reason: application.reason,
-        'Created At': dayjs(application.createdAt).format('YYYY-MM-DD HH:mm'),
+        [t('applications.submittedBy')]: application.userName,
+        [t('applications.department')]: application.departmentName || t('applications.na'),
+        [t('applications.title')]: application.title,
+        [t('applications.type')]: application.applicationType,
+        [t('applications.priority')]: application.priority,
+        [t('applications.status')]: application.status,
+        [t('applications.startDate')]: dayjs(application.startDate).format('YYYY-MM-DD'),
+        [t('applications.endDate')]: dayjs(application.endDate).format('YYYY-MM-DD'),
+        [t('applications.reason')]: application.reason,
+        [t('applications.createdAt')]: dayjs(application.createdAt).format('YYYY-MM-DD HH:mm'),
       }))
     )
     const workbook = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Applications')
+    XLSX.utils.book_append_sheet(workbook, worksheet, t('applications.title'))
     XLSX.writeFile(workbook, `applications_${dayjs().format('YYYY-MM-DD')}.xlsx`)
-    message.success('Applications exported to Excel successfully')
+    message.success(t('applications.exportedToExcel'))
   }
 
   const exportToPDF = () => {
@@ -213,13 +370,13 @@ export default function ApplicationListPage({ role, title, description }: Applic
     const data = applicationsData?.data || []
 
     doc.setFontSize(18)
-    doc.text('Application Report', 14, 22)
+    doc.text(t('applications.applicationReport'), 14, 22)
     doc.setFontSize(11)
-    doc.text(`Generated: ${dayjs().format('YYYY-MM-DD HH:mm')}`, 14, 30)
+    doc.text(`${t('applications.generated')}: ${dayjs().format('YYYY-MM-DD HH:mm')}`, 14, 30)
 
     const tableData = data.map((application: Application) => [
       application.userName,
-      application.departmentName || 'N/A',
+      application.departmentName || t('applications.na'),
       application.title,
       application.applicationType,
       application.priority,
@@ -228,18 +385,19 @@ export default function ApplicationListPage({ role, title, description }: Applic
     ])
 
     ;(doc as any).autoTable({
-      head: [['Submitted By', 'Department', 'Title', 'Type', 'Priority', 'Status', 'Start Date']],
+      head: [[t('applications.submittedBy'), t('applications.department'), t('applications.title'), 
+              t('applications.type'), t('applications.priority'), t('applications.status'), t('applications.startDate')]],
       body: tableData,
       startY: 35,
     })
 
     doc.save(`applications_${dayjs().format('YYYY-MM-DD')}.pdf`)
-    message.success('Applications exported to PDF successfully')
+    message.success(t('applications.exportedToPDF'))
   }
 
   const handlePrint = () => {
     window.print()
-    message.success('Print dialog opened')
+    message.success(t('applications.printDialogOpened'))
   }
 
   const handleResetFilters = () => {
@@ -251,7 +409,7 @@ export default function ApplicationListPage({ role, title, description }: Applic
       priority: undefined,
     })
     setPagination({ current: 1, pageSize: 10 })
-    message.success('Filters reset successfully')
+    message.success(t('applications.filtersResetSuccess'))
   }
 
   const handleTableChange = (newPagination: any) => {
@@ -272,13 +430,13 @@ export default function ApplicationListPage({ role, title, description }: Applic
     {
       key: 'excel',
       icon: <FileExcelOutlined />,
-      label: 'Export to Excel',
+      label: t('applications.exportToExcelBtn'),
       onClick: exportToExcel,
     },
     {
       key: 'pdf',
       icon: <FilePdfOutlined />,
-      label: 'Export to PDF',
+      label: t('applications.exportToPDFBtn'),
       onClick: exportToPDF,
     },
     {
@@ -287,7 +445,7 @@ export default function ApplicationListPage({ role, title, description }: Applic
     {
       key: 'print',
       icon: <PrinterOutlined />,
-      label: 'Print List',
+      label: t('applications.printList'),
       onClick: handlePrint,
     },
   ]
@@ -303,7 +461,7 @@ export default function ApplicationListPage({ role, title, description }: Applic
           <div className="flex items-center gap-3">
             <Dropdown menu={{ items: exportMenuItems }} placement="bottomRight">
               <EnhancedButton variant="secondary" icon={<ExportOutlined />}>
-                Export
+                {t('applications.export')}
               </EnhancedButton>
             </Dropdown>
             <EnhancedButton
@@ -311,7 +469,7 @@ export default function ApplicationListPage({ role, title, description }: Applic
               icon={<PlusOutlined />}
               onClick={() => handleNavigation(`/${locale}${basePath}/add`)}
             >
-              Add Application
+              {t('applications.addApplication')}
             </EnhancedButton>
           </div>
         }
@@ -325,7 +483,7 @@ export default function ApplicationListPage({ role, title, description }: Applic
       />
 
       <SearchInput
-        placeholder="Search by title, reason, or applicant name..."
+        placeholder={t('applications.searchByTitleReason')}
         value={searchText}
         onChange={(e) => {
           setSearchText(e.target.value)
@@ -335,11 +493,11 @@ export default function ApplicationListPage({ role, title, description }: Applic
 
       <FilterBar>
         <FilterSelect
-          placeholder="Status"
+          placeholder={t('applications.status')}
           options={[
-            { label: 'Pending', value: 'pending' },
-            { label: 'Approved', value: 'approved' },
-            { label: 'Rejected', value: 'rejected' },
+            { label: t('applications.pending'), value: 'pending' },
+            { label: t('applications.approved'), value: 'approved' },
+            { label: t('applications.rejected'), value: 'rejected' },
           ]}
           value={filters.status}
           onChange={(value) => {
@@ -349,12 +507,12 @@ export default function ApplicationListPage({ role, title, description }: Applic
         />
 
         <FilterSelect
-          placeholder="Application Type"
+          placeholder={t('applications.filterByType')}
           options={[
-            { label: 'Leave', value: 'leave' },
-            { label: 'Overtime', value: 'overtime' },
-            { label: 'Remote Work', value: 'remote' },
-            { label: 'Other', value: 'other' },
+            { label: t('applications.leave'), value: 'leave' },
+            { label: t('applications.overtime'), value: 'overtime' },
+            { label: t('applications.remoteWork'), value: 'remote' },
+            { label: t('applications.other'), value: 'other' },
           ]}
           value={filters.applicationType}
           onChange={(value) => {
@@ -364,12 +522,12 @@ export default function ApplicationListPage({ role, title, description }: Applic
         />
 
         <FilterSelect
-          placeholder="Priority"
+          placeholder={t('applications.filterByPriority')}
           options={[
-            { label: 'Low', value: 'low' },
-            { label: 'Medium', value: 'medium' },
-            { label: 'High', value: 'high' },
-            { label: 'Urgent', value: 'urgent' },
+            { label: t('applications.low'), value: 'low' },
+            { label: t('applications.medium'), value: 'medium' },
+            { label: t('applications.high'), value: 'high' },
+            { label: t('applications.urgent'), value: 'urgent' },
           ]}
           value={filters.priority}
           onChange={(value) => {
@@ -380,7 +538,7 @@ export default function ApplicationListPage({ role, title, description }: Applic
 
         {role === 'admin' && (
           <FilterSelect
-            placeholder="Department"
+            placeholder={t('applications.filterByDepartment')}
             options={
               Array.isArray(departmentsData)
                 ? departmentsData.map((dept: any) => ({
@@ -404,14 +562,14 @@ export default function ApplicationListPage({ role, title, description }: Applic
             onClick={() => refetch()}
             loading={isLoading}
           >
-            Refresh
+            {t('applications.refresh')}
           </EnhancedButton>
           <EnhancedButton
             variant="secondary"
             icon={<ClearOutlined />}
             onClick={handleResetFilters}
           >
-            Reset
+            {t('applications.clearFilters')}
           </EnhancedButton>
         </div>
       </FilterBar>
@@ -419,7 +577,7 @@ export default function ApplicationListPage({ role, title, description }: Applic
       {applicationsData?.data?.length === 0 && !isLoading ? (
         <Empty
           image={Empty.PRESENTED_IMAGE_SIMPLE}
-          description="No applications found"
+          description={t('applications.noApplicationsFound')}
           className="my-8"
         />
       ) : (

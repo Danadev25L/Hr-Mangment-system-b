@@ -164,41 +164,47 @@ export const createAnnouncement = async (req, res) => {
         if (recipientUserIds && recipientUserIds.length > 0) {
             // Specific users selected
             if (departmentId) {
-                // Verify all selected users belong to the specified department
+                // Verify all selected users belong to the specified department AND are active
                 const verifiedUsers = await db.select({ id: users.id })
                     .from(users)
                     .where(and(
                         eq(users.departmentId, departmentId),
                         inArray(users.id, recipientUserIds),
-                        inArray(users.role, ['ROLE_EMPLOYEE', 'ROLE_MANAGER'])
+                        inArray(users.role, ['ROLE_EMPLOYEE', 'ROLE_MANAGER']),
+                        eq(users.active, true)
                     ));
                 finalRecipientIds = verifiedUsers.map(u => u.id);
             } else {
-                // Company-wide: verify users exist and are employees/managers
+                // Company-wide: verify users exist and are employees/managers AND active
                 const verifiedUsers = await db.select({ id: users.id })
                     .from(users)
                     .where(and(
                         inArray(users.id, recipientUserIds),
-                        inArray(users.role, ['ROLE_EMPLOYEE', 'ROLE_MANAGER'])
+                        inArray(users.role, ['ROLE_EMPLOYEE', 'ROLE_MANAGER']),
+                        eq(users.active, true)
                     ));
                 finalRecipientIds = verifiedUsers.map(u => u.id);
             }
         } else {
             // No specific users: notify all eligible users
             if (departmentId) {
-                // All users in the specified department
+                // All ACTIVE users in the specified department
                 const departmentUsers = await db.select({ id: users.id })
                     .from(users)
                     .where(and(
                         eq(users.departmentId, departmentId),
-                        inArray(users.role, ['ROLE_EMPLOYEE', 'ROLE_MANAGER'])
+                        inArray(users.role, ['ROLE_EMPLOYEE', 'ROLE_MANAGER']),
+                        eq(users.active, true)
                     ));
                 finalRecipientIds = departmentUsers.map(u => u.id);
             } else {
-                // All users company-wide
+                // All ACTIVE users company-wide
                 const allUsers = await db.select({ id: users.id })
                     .from(users)
-                    .where(inArray(users.role, ['ROLE_EMPLOYEE', 'ROLE_MANAGER']));
+                    .where(and(
+                        inArray(users.role, ['ROLE_EMPLOYEE', 'ROLE_MANAGER']),
+                        eq(users.active, true)
+                    ));
                 finalRecipientIds = allUsers.map(u => u.id);
             }
         }

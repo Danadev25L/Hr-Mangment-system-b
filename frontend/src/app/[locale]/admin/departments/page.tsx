@@ -60,9 +60,23 @@ export default function DepartmentsPage() {
     queryFn: () => apiClient.getDepartments(),
   })
 
+  // Debug: Log the departments data
+  React.useEffect(() => {
+    if (departments) {
+      console.log('📊 Departments data received:', departments)
+      console.log('📊 Is array?', Array.isArray(departments))
+      console.log('📊 Length:', departments.length)
+      console.log('📊 First department:', departments[0])
+      if (departments[0]) {
+        console.log('📊 First dept employeeCount:', departments[0].employeeCount)
+        console.log('📊 First dept users:', departments[0].users)
+      }
+    }
+  }, [departments])
+
   const { data: departmentStats } = useQuery({
     queryKey: ['department-stats'],
-    queryFn: () => apiClient.get('/api/admin/departments/statistics'),
+    queryFn: () => apiClient.getDepartmentStatistics(),
   })
 
   const createDepartmentMutation = useMutation({
@@ -224,7 +238,7 @@ export default function DepartmentsPage() {
                   size="small"
                   icon={<UserOutlined />}
                   className="bg-gray-100 text-gray-600 border-2 border-white"
-                  title={user.username}
+                  alt={user.username}
                 />
               ))}
               {record.users.length > 3 && (
@@ -288,7 +302,7 @@ export default function DepartmentsPage() {
     },
   ]
 
-  const filteredDepartments = (departments?.data || departments || []).filter((dept: any) =>
+  const filteredDepartments = (departments || []).filter((dept: any) =>
     dept.departmentName?.toLowerCase().includes(searchText.toLowerCase()) ||
     dept.description?.toLowerCase().includes(searchText.toLowerCase())
   )

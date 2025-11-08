@@ -13,6 +13,7 @@ import {
   Tag,
   Divider,
   Alert,
+  Modal,
 } from 'antd'
 import {
   PlusOutlined,
@@ -33,6 +34,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/lib/api'
 import { useLocale } from 'next-intl'
+import dayjs from 'dayjs'
 import {
   PageHeader,
   EnhancedCard,
@@ -96,17 +98,164 @@ export function ApplicationAddPage({ role }: ApplicationAddPageProps) {
   // Create application mutation
   const createApplicationMutation = useMutation({
     mutationFn: (values: any) => apiClient.createApplication(values),
-    onSuccess: () => {
-      message.success('Application created successfully')
+    onSuccess: (response) => {
+      message.success({
+        content: (
+          <div>
+            <div className="font-semibold">✅ Application Created Successfully</div>
+            <div className="text-xs mt-1">{response.message || 'Your application has been submitted for approval'}</div>
+          </div>
+        ),
+        duration: 4,
+      })
       queryClient.invalidateQueries({ queryKey: ['applications'] })
-      handleNavigation(listPath)
+      form.resetFields()
+      setTimeout(() => handleNavigation(listPath), 1000)
     },
     onError: (error: any) => {
-      message.error(error.response?.data?.message || 'Failed to create application')
+      console.error('Error creating application:', error)
+      const errorMessage = error.response?.data?.message || 'Failed to create application'
+      
+      // Handle specific error cases
+      if (errorMessage.includes('End date must be after start date') || 
+          errorMessage.includes('endDate') || 
+          errorMessage.includes('startDate')) {
+        message.error({
+          content: (
+            <div>
+              <div className="font-semibold">📅 Invalid Date Range</div>
+              <div>End date must be after or equal to start date</div>
+              <div className="text-xs mt-1">Please check your date selection</div>
+            </div>
+          ),
+          duration: 5,
+        })
+      } else if (errorMessage.includes('Missing required fields')) {
+        message.error({
+          content: (
+            <div>
+              <div className="font-semibold">⚠️ Missing Required Information</div>
+              <div>{errorMessage}</div>
+              <div className="text-xs mt-1">Please fill in all required fields</div>
+            </div>
+          ),
+          duration: 5,
+        })
+      } else if (errorMessage.includes('Invalid date format')) {
+        message.error({
+          content: (
+            <div>
+              <div className="font-semibold">❌ Invalid Date Format</div>
+              <div>Please provide valid dates in the correct format</div>
+            </div>
+          ),
+          duration: 4,
+        })
+      } else if (errorMessage.includes('already has a pending application') || 
+                 errorMessage.includes('overlapping')) {
+        message.error({
+          content: (
+            <div>
+              <div className="font-semibold">🔄 Conflicting Application</div>
+              <div>{errorMessage}</div>
+              <div className="text-xs mt-1">Check existing applications for this period</div>
+            </div>
+          ),
+          duration: 6,
+        })
+      } else if (errorMessage.includes('Forbidden') || errorMessage.includes('permission')) {
+        message.error({
+          content: (
+            <div>
+              <div className="font-semibold">🚫 Access Denied</div>
+              <div>{errorMessage}</div>
+            </div>
+          ),
+          duration: 5,
+        })
+      } else if (errorMessage.includes('Cannot be empty') || errorMessage.includes('required')) {
+        message.error({
+          content: (
+            <div>
+              <div className="font-semibold">⚠️ Required Field Missing</div>
+              <div>Please fill in all required fields before submitting</div>
+            </div>
+          ),
+          duration: 4,
+        })
+      } else {
+        message.error({
+          content: (
+            <div>
+              <div className="font-semibold">❌ Error Creating Application</div>
+              <div>{errorMessage}</div>
+            </div>
+          ),
+          duration: 5,
+        })
+      }
     },
   })
 
   const handleSubmit = async (values: any) => {
+    try {
+      // Validate dates before submission
+      const startDate = values.startDate
+      const endDate = values.endDate
+
+      if (!startDate || !endDate) {
+        message.error({
+          content: (
+            <div>
+              <div className="font-semibold">⚠️ Missing Dates</div>
+              <div>Both start date and end date are required</div>
+            </div>
+          ),
+          duration: 4,
+        })
+        return
+      }
+
+      // Check if end date is before start date
+      if (endDate.isBefore(startDate, 'day')) {
+        message.error({
+          content: (
+            <div>
+              <div className="font-semibold">📅 Invalid Date Range</div>
+              <div>End date cannot be before start date</div>
+              <div className="text-xs mt-1">
+                Start: {startDate.format('MMM DD, YYYY')} | End: {endDate.format('MMM DD, YYYY')}
+              </div>
+            </div>
+          ),
+          duration: 5,
+        })
+        return
+      }
+
+      // Check if dates are too far in the past
+      const today = dayjs()
+      if (startDate.isBefore(today.subtract(30, 'days'), 'day')) {
+        Modal.confirm({
+          title: '⚠️ Old Date Warning',
+          content: `The start date is more than 30 days in the past (${startDate.format('MMM DD, YYYY')}). Are you sure you want to continue?`,
+          okText: 'Yes, Continue',
+          cancelText: 'Cancel',
+          onOk: () => {
+            submitApplication(values)
+          },
+        })
+        return
+      }
+
+      submitApplication(values)
+    } catch (error) {
+      console.error('Error in handleSubmit:', error)
+      message.error('An unexpected error occurred. Please try again.')
+    }
+  }
+
+  const submitApplication = (values: any) => {
     const payload = {
       ...values,
       startDate: values.startDate.format('YYYY-MM-DD'),

@@ -110,9 +110,10 @@ export const SalaryTable: React.FC<SalaryTableProps> = ({
       key: 'baseSalary',
       width: 130,
       align: 'right',
-      render: (value) => (
-        <span className="font-medium">${parseFloat(value).toLocaleString()}</span>
-      ),
+      render: (value) => {
+        const amount = Math.max(0, parseFloat(value) || 0);
+        return <span className="font-medium">${amount.toLocaleString()}</span>;
+      },
     },
     {
       title: 'Bonuses',
@@ -120,11 +121,14 @@ export const SalaryTable: React.FC<SalaryTableProps> = ({
       key: 'totalBonuses',
       width: 120,
       align: 'right',
-      render: (value) => (
-        <span className="text-green-600 dark:text-green-400 font-medium">
-          +${parseFloat(value).toLocaleString()}
-        </span>
-      ),
+      render: (value) => {
+        const amount = Math.max(0, parseFloat(value) || 0);
+        return (
+          <span className="text-green-600 dark:text-green-400 font-medium">
+            +${amount.toLocaleString()}
+          </span>
+        );
+      },
     },
     {
       title: 'Overtime',
@@ -132,11 +136,14 @@ export const SalaryTable: React.FC<SalaryTableProps> = ({
       key: 'overtimePay',
       width: 120,
       align: 'right',
-      render: (value) => (
-        <span className="text-blue-600 dark:text-blue-400 font-medium">
-          +${parseFloat(value).toLocaleString()}
-        </span>
-      ),
+      render: (value) => {
+        const amount = Math.max(0, parseFloat(value) || 0);
+        return (
+          <span className="text-blue-600 dark:text-blue-400 font-medium">
+            +${amount.toLocaleString()}
+          </span>
+        );
+      },
     },
     {
       title: 'Deductions',
@@ -144,10 +151,10 @@ export const SalaryTable: React.FC<SalaryTableProps> = ({
       width: 130,
       align: 'right',
       render: (_, record) => {
-        const total = parseFloat(record.totalDeductions)
-        const absence = parseFloat(record.absenceDeductions)
-        const latency = parseFloat(record.latencyDeductions)
-        const tax = parseFloat(record.taxDeduction)
+        const total = Math.max(0, parseFloat(record.totalDeductions) || 0);
+        const absence = Math.max(0, parseFloat(record.absenceDeductions) || 0);
+        const latency = Math.max(0, parseFloat(record.latencyDeductions) || 0);
+        const tax = Math.max(0, parseFloat(record.taxDeduction) || 0);
         
         return (
           <Tooltip title={
@@ -170,19 +177,15 @@ export const SalaryTable: React.FC<SalaryTableProps> = ({
       key: 'netSalary',
       width: 150,
       align: 'right',
-      render: (value) => (
-        <span className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
-          ${parseFloat(value).toLocaleString()}
-        </span>
-      ),
-    },
-    {
-      title: 'Status',
-      dataIndex: 'status',
-      key: 'status',
-      width: 130,
-      align: 'center',
-      render: (status) => getStatusTag(status),
+      render: (value) => {
+        // Ensure net salary is never displayed as negative
+        const amount = Math.max(0, parseFloat(value) || 0);
+        return (
+          <span className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
+            ${amount.toLocaleString()}
+          </span>
+        );
+      },
     },
     {
       title: 'Actions',

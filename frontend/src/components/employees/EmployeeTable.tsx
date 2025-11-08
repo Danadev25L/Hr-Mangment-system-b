@@ -18,7 +18,7 @@ import { EnhancedTable, AvatarWithInitials, StatusBadge, RoleBadge, CustomSpinne
 import { formatDate, getInitials, getRoleColor, getRoleLabel } from '@/lib/utils'
 import type { ColumnsType } from 'antd/es/table'
 import type { User } from '@/types'
-import { useLocale } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 
 interface EmployeeTableProps {
@@ -48,17 +48,19 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
 }) => {
   const locale = useLocale()
   const router = useRouter()
+  const t = useTranslations()
+  
   const getActionMenuItems = (record: User): MenuProps['items'] => [
     {
       key: 'view',
       icon: <EyeOutlined />,
-      label: 'View Details',
+      label: t('employees.viewDetails'),
       onClick: () => onView(record),
     },
     {
       key: 'edit',
       icon: <EditOutlined />,
-      label: 'Edit',
+      label: t('common.edit'),
       onClick: () => onEdit(record),
     },
     {
@@ -67,7 +69,7 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
     {
       key: 'delete',
       icon: <DeleteOutlined />,
-      label: 'Delete',
+      label: t('common.delete'),
       danger: true,
       onClick: () => onDelete(record),
     },
@@ -78,7 +80,7 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
       title: (
         <Space>
           <UserOutlined />
-          <span>Employee</span>
+          <span>{t('employees.employee')}</span>
         </Space>
       ),
       key: 'user',
@@ -102,7 +104,7 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
       title: (
         <Space>
           <IdcardOutlined />
-          <span>Employee Code</span>
+          <span>{t('employees.employeeCode')}</span>
         </Space>
       ),
       dataIndex: 'employeeCode',
@@ -110,7 +112,7 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
       render: (code) => (
         <div className="flex items-center gap-2">
           <span className="font-mono text-sm bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 text-blue-700 dark:text-blue-300 px-3 py-1.5 rounded-lg font-semibold border border-blue-200 dark:border-blue-800">
-            {code || 'N/A'}
+            {code || t('common.notAvailable')}
           </span>
         </div>
       ),
@@ -119,16 +121,16 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
       title: (
         <Space>
           <UserOutlined />
-          <span>Role</span>
+          <span>{t('employees.role')}</span>
         </Space>
       ),
       dataIndex: 'role',
       key: 'role',
       render: (role) => <RoleBadge role={role} />,
       filters: [
-        { text: 'Admin', value: 'ROLE_ADMIN' },
-        { text: 'Manager', value: 'ROLE_MANAGER' },
-        { text: 'Employee', value: 'ROLE_EMPLOYEE' },
+        { text: t('employees.admin'), value: 'ROLE_ADMIN' },
+        { text: t('employees.manager'), value: 'ROLE_MANAGER' },
+        { text: t('employees.roleEmployee'), value: 'ROLE_EMPLOYEE' },
       ],
       onFilter: (value, record) => record.role === value,
     },
@@ -136,14 +138,14 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
       title: (
         <Space>
           <BankOutlined />
-          <span>Department</span>
+          <span>{t('employees.department')}</span>
         </Space>
       ),
       key: 'department',
       render: (_, record) => {
         const deptName = typeof record.department === 'string' 
           ? record.department 
-          : record.department?.departmentName || 'N/A'
+          : record.department?.departmentName || t('common.notAvailable')
         return (
           <div className="flex items-center gap-2">
             <BankOutlined className="text-gray-400" />
@@ -156,15 +158,15 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
       title: (
         <Space>
           <span className="w-2 h-2 rounded-full bg-green-500"></span>
-          <span>Status</span>
+          <span>{t('common.status')}</span>
         </Space>
       ),
       dataIndex: 'active',
       key: 'active',
       render: (active) => <StatusBadge status={active ? 'active' : 'inactive'} />,
       filters: [
-        { text: 'Active', value: true },
-        { text: 'Inactive', value: false },
+        { text: t('employees.active'), value: true },
+        { text: t('employees.inactive'), value: false },
       ],
       onFilter: (value, record) => record.active === value,
     },
@@ -172,7 +174,7 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
       title: (
         <Space>
           <CalendarOutlined />
-          <span>Joined Date</span>
+          <span>{t('employees.joinedDate')}</span>
         </Space>
       ),
       dataIndex: 'createdAt',
@@ -187,12 +189,12 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
         new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
     },
     {
-      title: 'Actions',
+      title: t('common.actions'),
       key: 'actions',
       width: 150,
       render: (_, record) => (
         <Space size="small">
-          <Tooltip title="View">
+          <Tooltip title={t('employees.view')}>
             <Button
               type="text"
               icon={<EyeOutlined />}
@@ -201,7 +203,7 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
               className="hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20"
             />
           </Tooltip>
-          <Tooltip title="Edit">
+          <Tooltip title={t('employees.edit')}>
             <Button
               type="text"
               icon={<EditOutlined />}
@@ -230,14 +232,18 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
       rowKey="id"
       loading={{
         spinning: loading,
-        indicator: <CustomSpinner text="Loading employees..." />,
+        indicator: <CustomSpinner text={t('employees.loadingEmployees')} />,
       }}
       pagination={{
         current: pagination.current,
         pageSize: pagination.pageSize,
         total: pagination.total,
         showSizeChanger: true,
-        showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} employees`,
+        showTotal: (total, range) => t('employees.showingResults', { 
+          from: range[0], 
+          to: range[1], 
+          total 
+        }),
       }}
       onChange={onTableChange}
       scroll={{ x: 1200 }}

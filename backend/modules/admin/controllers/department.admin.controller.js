@@ -29,28 +29,52 @@ export const createDepartment = async (req, res) => {
 // Admin: Get all departments with user counts
 export const getAllDepartments = async (req, res) => {
     try {
+        console.log('📊 Getting all departments with user counts...');
+        
         // Admin should see all departments (active and inactive)
         const allDepartments = await db.select()
             .from(departments)
             .orderBy(desc(departments.createdAt));
 
-        // Get user counts for each department
+        console.log(`📋 Found ${allDepartments.length} departments`);
+
+        // Get user counts and users for each department
         const departmentsWithCount = await Promise.all(
             allDepartments.map(async (dept) => {
+                console.log(`\n🔍 Processing department: ${dept.departmentName} (ID: ${dept.id})`);
+                
+                // Get count - including both active and inactive users
                 const userCount = await db.select({ count: count() })
                     .from(users)
                     .where(eq(users.departmentId, dept.id));
 
+                const totalCount = userCount[0]?.count || 0;
+                console.log(`   👥 Total users in ${dept.departmentName}: ${totalCount}`);
+
+                // Get users (limited to first few for display)
+                const departmentUsers = await db.select({
+                    id: users.id,
+                    username: users.username,
+                    fullName: users.fullName
+                })
+                    .from(users)
+                    .where(eq(users.departmentId, dept.id))
+                    .limit(5);
+
+                console.log(`   📝 Fetched ${departmentUsers.length} users for display`);
+
                 return {
                     ...dept,
-                    employeeCount: userCount[0]?.count || 0
+                    employeeCount: totalCount,
+                    users: departmentUsers
                 };
             })
         );
 
+        console.log('\n✅ Returning departments with counts');
         res.json(departmentsWithCount);
     } catch (error) {
-        console.error('Error fetching departments:', error);
+        console.error('❌ Error fetching departments:', error);
         res.status(500).json({
             message: error.message || "Error occurred while retrieving departments."
         });

@@ -8,7 +8,7 @@ export default function ManagerNotificationsPage() {
   return (
     <ProtectedRoute requiredRole="ROLE_MANAGER">
       <DashboardLayout role="ROLE_MANAGER">
-        <NotificationsPage />
+        <NotificationsPage role="ROLE_MANAGER" />
       </DashboardLayout>
     </ProtectedRoute>
   )

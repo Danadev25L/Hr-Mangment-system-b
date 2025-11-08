@@ -46,7 +46,7 @@ import type { User } from '@/types'
 import dayjs from 'dayjs'
 import { useRouter, useSearchParams, usePathname, useParams } from 'next/navigation'
 import { exportToExcel, exportToPDF, printEmployeeList } from '@/lib/exportUtils'
-import { useLocale } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import {
   EnhancedTable,
   SearchInput,
@@ -75,6 +75,7 @@ export function EmployeeListPage({ role, title, description }: EmployeeListPageP
   const searchParams = useSearchParams()
   const queryClient = useQueryClient()
   const locale = useLocale()
+  const t = useTranslations()
   
   // Initialize from URL params
   const [searchText, setSearchText] = useState(searchParams.get('search') || '')
@@ -154,21 +155,21 @@ export function EmployeeListPage({ role, title, description }: EmployeeListPageP
   const deleteUserMutation = useMutation({
     mutationFn: (userId: number) => apiClient.deleteUser(userId),
     onSuccess: () => {
-      message.success('Employee deleted successfully')
+      message.success(t('employees.deleteSuccess'))
       queryClient.invalidateQueries({ queryKey: [role === 'admin' ? 'users' : 'manager-employees'] })
     },
     onError: (error: any) => {
-      message.error(error.response?.data?.message || 'Failed to delete employee')
+      message.error(error.response?.data?.message || t('employees.deleteError'))
     },
   })
 
   const handleDeleteEmployee = (employee: User) => {
     Modal.confirm({
-      title: 'Delete Employee',
-      content: `Are you sure you want to delete ${employee.fullName}? This action cannot be undone.`,
-      okText: 'Delete',
+      title: t('employees.deleteConfirmTitle'),
+      content: t('employees.deleteConfirmMessage', { name: employee.fullName }),
+      okText: t('common.delete'),
       okType: 'danger',
-      cancelText: 'Cancel',
+      cancelText: t('common.cancel'),
       onOk: () => deleteUserMutation.mutate(employee.id),
     })
   }
@@ -181,9 +182,9 @@ export function EmployeeListPage({ role, title, description }: EmployeeListPageP
       role === 'admin' ? 'all_employees' : 'department_employees'
     )
     if (success) {
-      message.success('Employees exported to Excel successfully')
+      message.success(t('employees.exportedToExcel'))
     } else {
-      message.error('Failed to export to Excel')
+      message.error(t('common.error'))
     }
   }
 
@@ -192,12 +193,12 @@ export function EmployeeListPage({ role, title, description }: EmployeeListPageP
     const success = exportToPDF(
       allUsers,
       role === 'admin' ? 'all_employees' : 'department_employees',
-      role === 'admin' ? 'All Employees List' : 'Department Employees List'
+      role === 'admin' ? t('employees.allEmployeesList') : t('employees.departmentEmployeesList')
     )
     if (success) {
-      message.success('Employees exported to PDF successfully')
+      message.success(t('employees.exportedToPDF'))
     } else {
-      message.error('Failed to export to PDF')
+      message.error(t('common.error'))
     }
   }
 
@@ -205,12 +206,12 @@ export function EmployeeListPage({ role, title, description }: EmployeeListPageP
     const allUsers = usersData?.data || []
     const success = printEmployeeList(
       allUsers,
-      role === 'admin' ? 'All Employees List' : 'Department Employees List'
+      role === 'admin' ? t('employees.allEmployeesList') : t('employees.departmentEmployeesList')
     )
     if (success) {
-      message.success('Print dialog opened')
+      message.success(t('employees.printDialogOpened'))
     } else {
-      message.error('Failed to open print dialog')
+      message.error(t('common.error'))
     }
   }
 
@@ -218,13 +219,13 @@ export function EmployeeListPage({ role, title, description }: EmployeeListPageP
     {
       key: 'excel',
       icon: <FileExcelOutlined />,
-      label: 'Export to Excel',
+      label: t('employees.exportToExcel'),
       onClick: handleExportExcel,
     },
     {
       key: 'pdf',
       icon: <FilePdfOutlined />,
-      label: 'Export to PDF',
+      label: t('employees.exportToPDF'),
       onClick: handleExportPDF,
     },
     {
@@ -233,7 +234,7 @@ export function EmployeeListPage({ role, title, description }: EmployeeListPageP
     {
       key: 'print',
       icon: <PrinterOutlined />,
-      label: 'Print List',
+      label: t('employees.printList'),
       onClick: handlePrint,
     },
   ]
@@ -246,7 +247,7 @@ export function EmployeeListPage({ role, title, description }: EmployeeListPageP
       department: undefined,
     })
     setPagination({ current: 1, pageSize: 10 })
-    message.success('Filters reset successfully')
+    message.success(t('employees.filtersResetSuccess'))
   }
 
   const handleTableChange = (newPagination: any) => {
@@ -270,7 +271,7 @@ export function EmployeeListPage({ role, title, description }: EmployeeListPageP
           <div className="flex items-center gap-3">
             <Dropdown menu={{ items: exportMenuItems }} placement="bottomRight">
               <EnhancedButton variant="secondary" icon={<ExportOutlined />}>
-                Export
+                {t('common.export')}
               </EnhancedButton>
             </Dropdown>
             <EnhancedButton
@@ -278,7 +279,7 @@ export function EmployeeListPage({ role, title, description }: EmployeeListPageP
               icon={<PlusOutlined />}
               onClick={() => handleNavigation(`/${locale}${basePath}/add`)}
             >
-              Add Employee
+              {t('employees.addEmployee')}
             </EnhancedButton>
           </div>
         }
@@ -293,7 +294,7 @@ export function EmployeeListPage({ role, title, description }: EmployeeListPageP
 
       {/* Search */}
       <SearchInput
-        placeholder="Search by name, code, email..."
+        placeholder={t('employees.searchByNameCodeEmail')}
         value={searchText}
         onChange={(e) => {
           setSearchText(e.target.value)
@@ -304,11 +305,11 @@ export function EmployeeListPage({ role, title, description }: EmployeeListPageP
       {/* Filters */}
       <FilterBar>
         <FilterSelect
-          placeholder="Role"
+          placeholder={t('employees.role')}
           options={[
-            ...(role === 'admin' ? [{ label: 'Admin', value: 'ROLE_ADMIN' }] : []),
-            { label: 'Manager', value: 'ROLE_MANAGER' },
-            { label: 'Employee', value: 'ROLE_EMPLOYEE' },
+            ...(role === 'admin' ? [{ label: t('employees.admin'), value: 'ROLE_ADMIN' }] : []),
+            { label: t('employees.manager'), value: 'ROLE_MANAGER' },
+            { label: t('employees.roleEmployee'), value: 'ROLE_EMPLOYEE' },
           ]}
           value={filters.role}
           onChange={(value) => {
@@ -318,10 +319,10 @@ export function EmployeeListPage({ role, title, description }: EmployeeListPageP
         />
         
         <FilterSelect
-          placeholder="Status"
+          placeholder={t('common.status')}
           options={[
-            { label: 'Active', value: 'active' },
-            { label: 'Inactive', value: 'inactive' },
+            { label: t('employees.active'), value: 'active' },
+            { label: t('employees.inactive'), value: 'inactive' },
           ]}
           value={filters.status}
           onChange={(value) => {
@@ -332,7 +333,7 @@ export function EmployeeListPage({ role, title, description }: EmployeeListPageP
         
         {role === 'admin' && (
           <FilterSelect
-            placeholder="Department"
+            placeholder={t('employees.department')}
             options={
               Array.isArray(departmentsData)
                 ? departmentsData.map((dept: any) => ({
@@ -356,14 +357,14 @@ export function EmployeeListPage({ role, title, description }: EmployeeListPageP
             onClick={() => refetch()}
             loading={isLoading}
           >
-            Refresh
+            {t('employees.refresh')}
           </EnhancedButton>
           <EnhancedButton
             variant="secondary"
             icon={<ClearOutlined />}
             onClick={handleResetFilters}
           >
-            Reset
+            {t('employees.reset')}
           </EnhancedButton>
         </div>
       </FilterBar>

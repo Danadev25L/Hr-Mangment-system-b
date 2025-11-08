@@ -111,7 +111,46 @@ class ApiClient {
   // Auth endpoints
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
     const response = await this.client.post('/auth/login', credentials)
-    const { user, token } = response.data
+    console.log('Login API response:', response.data)
+
+    // Check if login failed
+    if (!response.data.success) {
+      console.error('Login failed:', response.data.message)
+      throw new Error(response.data.message || 'Login failed')
+    }
+
+    // Handle different possible response structures
+    let user, token;
+
+    if (response.data.user && response.data.token) {
+      // Standard response: { success: true, user: {...}, token: "..." }
+      user = response.data.user
+      token = response.data.token
+    } else if (response.data.data && response.data.data.user && response.data.data.token) {
+      // Nested response: { success: true, data: { user: {...}, token: "..." } }
+      user = response.data.data.user
+      token = response.data.data.token
+    } else if (response.data.id && response.data.username) {
+      // Direct user response: { id, username, role, ... }
+      user = response.data
+      token = response.data.token || response.data.access_token || response.data.accessToken
+    } else {
+      // Fallback: try to extract user and token from whatever structure we have
+      user = response.data.user || response.data.data || response.data
+      token = response.data.token || response.data.access_token || response.data.accessToken
+
+      if (!user || !token) {
+        console.error('Invalid login response structure:', response.data)
+        throw new Error('Invalid response from server: missing user or token')
+      }
+    }
+
+    // Ensure user has a role
+    if (!user.role) {
+      console.error('User object missing role:', user)
+      throw new Error('Invalid user data: missing role')
+    }
+
     this.setToken(token)
     this.setRole(user.role)
     return { user, token, refreshToken: '', expiresIn: 86400 }
@@ -119,7 +158,35 @@ class ApiClient {
 
   async register(data: RegisterData): Promise<AuthResponse> {
     const response = await this.client.post('/auth/register', data)
-    const { user, token } = response.data
+    console.log('Register API response:', response.data)
+
+    // Handle different possible response structures (similar to login)
+    let user, token;
+
+    if (response.data.user && response.data.token) {
+      user = response.data.user
+      token = response.data.token
+    } else if (response.data.data && response.data.data.user && response.data.data.token) {
+      user = response.data.data.user
+      token = response.data.data.token
+    } else if (response.data.id && response.data.username) {
+      user = response.data
+      token = response.data.token || response.data.access_token || response.data.accessToken
+    } else {
+      user = response.data.user || response.data.data || response.data
+      token = response.data.token || response.data.access_token || response.data.accessToken
+
+      if (!user || !token) {
+        console.error('Invalid register response structure:', response.data)
+        throw new Error('Invalid response from server: missing user or token')
+      }
+    }
+
+    if (!user.role) {
+      console.error('User object missing role:', user)
+      throw new Error('Invalid user data: missing role')
+    }
+
     this.setToken(token)
     this.setRole(user.role)
     return { user, token, refreshToken: '', expiresIn: 86400 }
@@ -155,18 +222,26 @@ class ApiClient {
     }
   }
 
-  // Get users for application selection (includes manager for manager role)
+  // Get users for application selection (role-based)
   async getUsersForApplications() {
     const userRole = this.getRole()
     
-    if (userRole === 'ROLE_MANAGER') {
+    if (userRole === 'ROLE_EMPLOYEE') {
+      // Employees can only create applications for themselves
+      // Return their own profile data as array for consistent interface
+      const response = await this.client.get('/api/shared/profile')
+      const userData = response.data.data
+      return [userData]
+    } else if (userRole === 'ROLE_MANAGER') {
       // Managers get their department users including themselves
       const response = await this.client.get('/api/manager/employees/for-applications')
-      return response.data
+      // Backend returns { success: true, data: [...] }
+      return response.data.data || response.data
     } else {
       // Admins get all users
       const response = await this.client.get('/api/admin/users', { params: { page: 1, limit: 1000 } })
-      return response.data
+      // Backend returns { data: [...], pagination: {...} }
+      return response.data.data || response.data
     }
   }
 
@@ -234,13 +309,15 @@ class ApiClient {
     return response.data
   }
 
-  // Departments endpoints
+  async getUsersByDepartment(departmentId: number) {
+    const response = await this.client.get(`/api/admin/users/department/${departmentId}`)
+    return response.data
+  }
+
+  // Departments endpoints - Use shared endpoint for all roles
   async getDepartments() {
-    const userRole = this.getRole()
-    
-    // Both admin and manager can access departments, but use appropriate endpoint
-    const endpoint = userRole === 'ROLE_MANAGER' ? '/api/shared/departments' : '/api/admin/departments'
-    const response = await this.client.get(endpoint)
+    // All authenticated users can access departments through shared endpoint
+    const response = await this.client.get('/api/shared/departments')
     
     // Ensure that the returned data is always an array
     if (Array.isArray(response.data)) {
@@ -264,6 +341,11 @@ class ApiClient {
 
   async deleteDepartment(id: number | string) {
     const response = await this.client.delete(`/api/admin/departments/${id}`)
+    return response.data
+  }
+
+  async getDepartmentStatistics() {
+    const response = await this.client.get('/api/admin/departments/statistics')
     return response.data
   }
 
@@ -354,7 +436,11 @@ class ApiClient {
     const userRole = this.getRole()
     const params = { page, limit, ...filters }
     
-    if (userRole === 'ROLE_MANAGER') {
+    if (userRole === 'ROLE_EMPLOYEE') {
+      // Employees use the employee endpoint to get their own applications
+      const response = await this.client.get('/api/employee/applications', { params })
+      return response.data
+    } else if (userRole === 'ROLE_MANAGER') {
       // Managers use the manager endpoint
       const response = await this.client.get('/api/manager/applications', { params })
       return response.data
@@ -368,7 +454,11 @@ class ApiClient {
   async getApplication(id: string) {
     const userRole = this.getRole()
     
-    if (userRole === 'ROLE_MANAGER') {
+    if (userRole === 'ROLE_EMPLOYEE') {
+      // Employees use the employee endpoint to get their own application
+      const response = await this.client.get<ApiResponse>(`/api/employee/applications/${id}`)
+      return response.data.data || (response.data as any).application
+    } else if (userRole === 'ROLE_MANAGER') {
       // Managers use the manager endpoint
       const response = await this.client.get<ApiResponse>(`/api/manager/applications/${id}`)
       return response.data.data || (response.data as any).application
@@ -382,7 +472,11 @@ class ApiClient {
   async createApplication(data: any) {
     const userRole = this.getRole()
     
-    if (userRole === 'ROLE_MANAGER') {
+    if (userRole === 'ROLE_EMPLOYEE') {
+      // Employees use the employee endpoint to submit their own applications
+      const response = await this.client.post('/api/employee/applications', data)
+      return response.data
+    } else if (userRole === 'ROLE_MANAGER') {
       // Managers use the manager endpoint
       const response = await this.client.post('/api/manager/applications', data)
       return response.data
@@ -396,7 +490,11 @@ class ApiClient {
   async updateApplication(id: string, data: any) {
     const userRole = this.getRole()
     
-    if (userRole === 'ROLE_MANAGER') {
+    if (userRole === 'ROLE_EMPLOYEE') {
+      // Employees use the employee endpoint to update their own applications
+      const response = await this.client.put(`/api/employee/applications/${id}`, data)
+      return response.data
+    } else if (userRole === 'ROLE_MANAGER') {
       // Managers use the manager endpoint
       const response = await this.client.put(`/api/manager/applications/${id}`, data)
       return response.data
@@ -410,7 +508,11 @@ class ApiClient {
   async deleteApplication(id: string) {
     const userRole = this.getRole()
     
-    if (userRole === 'ROLE_MANAGER') {
+    if (userRole === 'ROLE_EMPLOYEE') {
+      // Employees use the employee endpoint to delete their own pending applications
+      const response = await this.client.delete(`/api/employee/applications/${id}`)
+      return response.data
+    } else if (userRole === 'ROLE_MANAGER') {
       // Managers use the manager endpoint
       const response = await this.client.delete(`/api/manager/applications/${id}`)
       return response.data
@@ -610,6 +712,37 @@ class ApiClient {
   async getChartData(type: string) {
     const response = await this.client.get<ApiResponse>(`/dashboard/charts/${type}`)
     return response.data.data
+  }
+
+  // Calendar endpoints
+  async getCalendarEvents(params?: { startDate?: string; endDate?: string; type?: string }) {
+    const response = await this.client.get('/api/shared/calendar', { params })
+    return response.data
+  }
+
+  async getCalendarEvent(id: number) {
+    const response = await this.client.get(`/api/shared/calendar/${id}`)
+    return response.data
+  }
+
+  async createCalendarEvent(data: any) {
+    const response = await this.client.post('/api/shared/calendar', data)
+    return response.data
+  }
+
+  async updateCalendarEvent(id: number, data: any) {
+    const response = await this.client.put(`/api/shared/calendar/${id}`, data)
+    return response.data
+  }
+
+  async deleteCalendarEvent(id: number) {
+    const response = await this.client.delete(`/api/shared/calendar/${id}`)
+    return response.data
+  }
+
+  async getTodayEvents() {
+    const response = await this.client.get('/api/shared/calendar/today')
+    return response.data
   }
 
   // Personal Information endpoints
@@ -827,7 +960,10 @@ class ApiClient {
   async markEmployeeCheckIn(data: {
     employeeId: number;
     checkInTime: string;
+    expectedCheckInTime?: string;
     location?: string;
+    latitude?: string;
+    longitude?: string;
     notes?: string;
   }) {
     const response = await this.client.post('/api/admin/attendance/checkin', data)
@@ -837,7 +973,10 @@ class ApiClient {
   async markEmployeeCheckOut(data: {
     employeeId: number;
     checkOutTime: string;
+    expectedCheckOutTime?: string;
     location?: string;
+    latitude?: string;
+    longitude?: string;
     notes?: string;
   }) {
     const response = await this.client.post('/api/admin/attendance/checkout', data)
@@ -919,6 +1058,113 @@ class ApiClient {
   }) {
     const response = await this.client.post('/api/admin/attendance/add-partial-leave', data)
     return response.data
+  }
+
+  // Add break duration (new secure endpoint)
+  async addBreakDuration(data: {
+    employeeId: number;
+    date: string;
+    breakDurationHours: number;
+    breakType: string;
+    reason?: string;
+  }) {
+    const response = await this.client.post('/api/admin/attendance/add-break', data)
+    return response.data
+  }
+
+  // ==================== EDIT ATTENDANCE OPERATIONS ====================
+  
+  // Edit check-in time - Enhanced with attendanceId support
+  async editCheckInTime(data: { 
+    attendanceId?: number;
+    employeeId?: number; 
+    date?: string; 
+    checkInTime: string;
+    expectedCheckInTime?: string;
+    reason?: string;
+  }) {
+    console.log('=== API CLIENT editCheckInTime ===');
+    console.log('Request URL: /api/admin/attendance/edit-checkin');
+    console.log('Request method: PUT');
+    console.log('Request data:', JSON.stringify(data, null, 2));
+    
+    try {
+      const response = await this.client.put('/api/admin/attendance/edit-checkin', data);
+      console.log('=== API CLIENT RESPONSE ===');
+      console.log('Response status:', response.status);
+      console.log('Response data:', response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error('=== API CLIENT ERROR ===');
+      console.error('Error response status:', error.response?.status);
+      console.error('Error response data:', error.response?.data);
+      console.error('Error message:', error.message);
+      throw error;
+    }
+  }
+
+  // Edit check-out time - Enhanced with attendanceId support
+  async editCheckOutTime(data: { 
+    attendanceId?: number;
+    employeeId?: number; 
+    date?: string; 
+    checkOutTime: string;
+    expectedCheckOutTime?: string;
+    reason?: string;
+  }) {
+    const response = await this.client.put('/api/admin/attendance/edit-checkout', data);
+    return response.data;
+  }
+
+  // Edit break duration - Enhanced with attendanceId support
+  async editBreakDuration(data: { 
+    attendanceId?: number;
+    employeeId?: number; 
+    date?: string; 
+    breakDurationHours: number;
+    reason?: string;
+  }) {
+    const response = await this.client.put('/api/admin/attendance/edit-break', data);
+    return response.data;
+  }
+
+  // Add/Edit overtime hours for attendance - NEW
+  async addAttendanceOvertime(data: { 
+    attendanceId?: number;
+    employeeId?: number; 
+    date?: string; 
+    overtimeHours: number;
+    reason?: string;
+  }) {
+    const response = await this.client.put('/api/admin/attendance/add-overtime', data);
+    return response.data;
+  }
+
+  // Update complete attendance record - NEW
+  async updateAttendanceRecord(data: {
+    attendanceId?: number;
+    employeeId?: number;
+    date?: string;
+    checkInTime?: string;
+    checkOutTime?: string;
+    breakDurationHours?: number;
+    status?: string;
+    notes?: string;
+    reason?: string;
+  }) {
+    const response = await this.client.put('/api/admin/attendance/update-record', data);
+    return response.data;
+  }
+
+  // Delete attendance record - NEW
+  async deleteAttendanceRecord(data: {
+    attendanceId?: number;
+    employeeId?: number;
+    date?: string;
+    reason?: string;
+  }) {
+    const response = await this.client.delete('/api/admin/attendance/delete-record', { data });
+    return response.data;
   }
 
   // Check if employee has approved leave for a date
@@ -1029,6 +1275,20 @@ class ApiClient {
   // Update salary configuration
   async updateSalaryConfig(data: { configKey: string; configValue: string }) {
     const response = await this.client.put('/api/admin/salary-management/config', data)
+    return response.data
+  }
+
+  // ==================== PASSWORD MANAGEMENT ====================
+  
+  // Change password (employee changes their own password)
+  async changePassword(data: { oldPassword: string; newPassword: string }) {
+    const response = await this.client.put('/api/employee/password', data)
+    
+    // Check if the response status indicates an error
+    if (response.status >= 400) {
+      throw new Error(response.data.message || 'Failed to change password')
+    }
+    
     return response.data
   }
 }

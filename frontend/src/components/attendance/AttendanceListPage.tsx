@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useTranslations } from 'next-intl';
-import { Table, Tag, Button, Space, Modal, Form, TimePicker, Input, Select, DatePicker, Row, Col, Statistic, message, Descriptions, Divider, App, Alert, Tooltip } from 'antd';
-import type { ColumnsType } from 'antd/es/table';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { FilterBar } from '@/components/ui/FilterBar';
+import { EnhancedCard } from '@/components/ui/EnhancedCard';
+import { AttendanceIllustration } from '@/components/ui/illustrations/AttendanceIllustration';
+import apiClient from '@/lib/api';
+
 import {
   CheckCircleOutlined,
   CloseCircleOutlined,
@@ -20,12 +21,17 @@ import {
   CoffeeOutlined,
   SearchOutlined,
 } from '@ant-design/icons';
+
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+
+import React, { useState, useMemo } from 'react';
+
+import { useTranslations } from 'next-intl';
+
+import { Table, Tag, Button, Space, Modal, Form, TimePicker, Input, Select, DatePicker, Row, Col, Statistic, message, Descriptions, Divider, App, Alert, Tooltip } from 'antd';
+import type { ColumnsType } from 'antd/es/table';
+
 import dayjs, { Dayjs } from 'dayjs';
-import { PageHeader } from '@/components/ui/PageHeader';
-import { FilterBar } from '@/components/ui/FilterBar';
-import { EnhancedCard } from '@/components/ui/EnhancedCard';
-import { AttendanceIllustration } from '@/components/ui/illustrations/AttendanceIllustration';
-import apiClient from '@/lib/api';
 
 const { Option } = Select;
 
@@ -79,6 +85,10 @@ export const AttendanceListPage: React.FC<AttendanceListPageProps> = ({ role }) 
   const [earlyDepartureForm] = Form.useForm();
   const [leaveForm] = Form.useForm();
   const [defaultTimesForm] = Form.useForm();
+  const [editCheckInForm] = Form.useForm();
+  const [editCheckOutForm] = Form.useForm();
+  const [editBreakForm] = Form.useForm();
+  const [overtimeForm] = Form.useForm();
 
   // State
   const [selectedDate, setSelectedDate] = useState<string>(dayjs().format('YYYY-MM-DD'));
@@ -99,6 +109,10 @@ export const AttendanceListPage: React.FC<AttendanceListPageProps> = ({ role }) 
   const [leaveModal, setLeaveModal] = useState(false);
   const [defaultTimesModal, setDefaultTimesModal] = useState(false);
   const [detailsModal, setDetailsModal] = useState(false);
+  const [editCheckInModal, setEditCheckInModal] = useState(false);
+  const [editCheckOutModal, setEditCheckOutModal] = useState(false);
+  const [editBreakModal, setEditBreakModal] = useState(false);
+  const [overtimeModal, setOvertimeModal] = useState(false);
 
   // Fetch departments
   const { data: departmentsData } = useQuery({
@@ -165,35 +179,58 @@ export const AttendanceListPage: React.FC<AttendanceListPageProps> = ({ role }) 
   // Mutations
   const markCheckInMutation = useMutation({
     mutationFn: (data: any) => apiClient.markEmployeeCheckIn(data),
-    onSuccess: () => {
-      messageApi.success('Check-in marked successfully');
-      queryClient.invalidateQueries({ queryKey: ['attendance'] });
-      setCheckInModal(false);
-      checkInForm.resetFields();
+    onSuccess: (response) => {
+      if (response.success !== false) {
+        const msg = response.message || 'Check-in marked successfully';
+        messageApi.success(msg);
+        queryClient.invalidateQueries({ queryKey: ['attendance'] });
+        setCheckInModal(false);
+        checkInForm.resetFields();
+      } else {
+        messageApi.error(response.message || 'Failed to mark check-in');
+      }
     },
-    onError: () => messageApi.error('Failed to mark check-in'),
+    onError: (error: any) => {
+      const errorMessage = error.response?.data?.message || 'Failed to mark check-in';
+      messageApi.error(errorMessage);
+    },
   });
 
   const markCheckOutMutation = useMutation({
     mutationFn: (data: any) => apiClient.markEmployeeCheckOut(data),
-    onSuccess: () => {
-      messageApi.success('Check-out marked successfully');
-      queryClient.invalidateQueries({ queryKey: ['attendance'] });
-      setCheckOutModal(false);
-      checkOutForm.resetFields();
+    onSuccess: (response) => {
+      if (response.success !== false) {
+        const msg = response.message || 'Check-out marked successfully';
+        messageApi.success(msg);
+        queryClient.invalidateQueries({ queryKey: ['attendance'] });
+        setCheckOutModal(false);
+        checkOutForm.resetFields();
+      } else {
+        messageApi.error(response.message || 'Failed to mark check-out');
+      }
     },
-    onError: () => messageApi.error('Failed to mark check-out'),
+    onError: (error: any) => {
+      const errorMessage = error.response?.data?.message || 'Failed to mark check-out';
+      messageApi.error(errorMessage);
+    },
   });
 
   const markAbsentMutation = useMutation({
     mutationFn: (data: any) => apiClient.markEmployeeAbsent(data),
-    onSuccess: () => {
-      messageApi.success('Marked as absent');
-      queryClient.invalidateQueries({ queryKey: ['attendance'] });
-      setAbsentModal(false);
-      absentForm.resetFields();
+    onSuccess: (response) => {
+      if (response.success !== false) {
+        messageApi.success(response.message || 'Marked as absent');
+        queryClient.invalidateQueries({ queryKey: ['attendance'] });
+        setAbsentModal(false);
+        absentForm.resetFields();
+      } else {
+        messageApi.error(response.message || 'Failed to mark absent');
+      }
     },
-    onError: () => messageApi.error('Failed to mark absent'),
+    onError: (error: any) => {
+      const errorMessage = error.response?.data?.message || 'Failed to mark absent';
+      messageApi.error(errorMessage);
+    },
   });
 
   const markLatencyMutation = useMutation({
@@ -219,14 +256,128 @@ export const AttendanceListPage: React.FC<AttendanceListPageProps> = ({ role }) 
   });
 
   const markLeaveMutation = useMutation({
-    mutationFn: (data: any) => apiClient.addPartialLeave(data),
-    onSuccess: () => {
-      messageApi.success('Leave marked successfully');
+    mutationFn: (data: any) => apiClient.addBreakDuration(data),
+    onSuccess: (response) => {
+      if (response.success) {
+        messageApi.success(response.message || 'Break added successfully');
+      } else {
+        messageApi.error(response.message || 'Failed to add break');
+      }
       queryClient.invalidateQueries({ queryKey: ['attendance'] });
       setLeaveModal(false);
       leaveForm.resetFields();
     },
-    onError: () => messageApi.error('Failed to mark leave'),
+    onError: (error: any) => {
+      const errorMessage = error.response?.data?.message || 'Failed to add break';
+      messageApi.error(errorMessage);
+    },
+  });
+
+  // Edit mutations
+  const editCheckInMutation = useMutation({
+    mutationFn: async (data: any) => {
+      console.log('=== MUTATION STARTING ===');
+      console.log('Calling apiClient.editCheckInTime with:', data);
+      try {
+        const result = await apiClient.editCheckInTime(data);
+        console.log('=== API RESPONSE RECEIVED ===');
+        console.log('Response:', result);
+        return result;
+      } catch (err) {
+        console.error('=== API CALL FAILED ===');
+        console.error('Error:', err);
+        throw err;
+      }
+    },
+    onSuccess: (response) => {
+      console.log('=== MUTATION SUCCESS ===');
+      console.log('Response data:', response);
+      console.log('response.success:', response.success);
+      console.log('response.message:', response.message);
+      console.log('Full response JSON:', JSON.stringify(response, null, 2));
+      
+      if (response.success) {
+        messageApi.success(response.message || 'Check-in time updated successfully');
+        queryClient.invalidateQueries({ queryKey: ['attendance'] });
+        setEditCheckInModal(false);
+        editCheckInForm.resetFields();
+      } else {
+        // Show the actual error message from backend
+        const errorMsg = response.message || response.error || 'Failed to update check-in time';
+        messageApi.error(errorMsg);
+        console.error('=== OPERATION FAILED ===');
+        console.error('Error message:', errorMsg);
+        console.error('Full response:', response);
+        console.error('Response debug info:', response.debug);
+        
+        // Show debug info in a more visible alert if available
+        if (response.debug) {
+          console.error('DEBUG INFO:', JSON.stringify(response.debug, null, 2));
+        }
+      }
+    },
+    onError: (error: any) => {
+      console.error('=== MUTATION ERROR ===');
+      console.error('Full error:', error);
+      console.error('Error response:', error.response);
+      console.error('Error response data:', error.response?.data);
+      const errorMessage = error.response?.data?.message || 'Failed to update check-in time';
+      messageApi.error(errorMessage);
+    },
+  });
+
+  const editCheckOutMutation = useMutation({
+    mutationFn: (data: any) => apiClient.editCheckOutTime(data),
+    onSuccess: (response) => {
+      if (response.success) {
+        messageApi.success(response.message || 'Check-out time updated successfully');
+      } else {
+        messageApi.error(response.message || 'Failed to update check-out time');
+      }
+      queryClient.invalidateQueries({ queryKey: ['attendance'] });
+      setEditCheckOutModal(false);
+      editCheckOutForm.resetFields();
+    },
+    onError: (error: any) => {
+      const errorMessage = error.response?.data?.message || 'Failed to update check-out time';
+      messageApi.error(errorMessage);
+    },
+  });
+
+  const editBreakMutation = useMutation({
+    mutationFn: (data: any) => apiClient.editBreakDuration(data),
+    onSuccess: (response) => {
+      if (response.success) {
+        messageApi.success(response.message || 'Break duration updated successfully');
+      } else {
+        messageApi.error(response.message || 'Failed to update break duration');
+      }
+      queryClient.invalidateQueries({ queryKey: ['attendance'] });
+      setEditBreakModal(false);
+      editBreakForm.resetFields();
+    },
+    onError: (error: any) => {
+      const errorMessage = error.response?.data?.message || 'Failed to update break duration';
+      messageApi.error(errorMessage);
+    },
+  });
+
+  const overtimeMutation = useMutation({
+    mutationFn: (data: any) => apiClient.addAttendanceOvertime(data),
+    onSuccess: (response) => {
+      if (response.success) {
+        messageApi.success(response.message || 'Overtime added/updated successfully');
+      } else {
+        messageApi.error(response.message || 'Failed to add/update overtime');
+      }
+      queryClient.invalidateQueries({ queryKey: ['attendance'] });
+      setOvertimeModal(false);
+      overtimeForm.resetFields();
+    },
+    onError: (error: any) => {
+      const errorMessage = error.response?.data?.message || 'Failed to add/update overtime';
+      messageApi.error(errorMessage);
+    },
   });
 
   // Handlers
@@ -271,12 +422,85 @@ export const AttendanceListPage: React.FC<AttendanceListPageProps> = ({ role }) 
     setDetailsModal(true);
   };
 
+  // Edit handlers
+  const handleEditCheckIn = (employee: Employee) => {
+    if (!employee.attendance?.checkIn) {
+      messageApi.error('Employee has not checked in yet');
+      return;
+    }
+    
+    setSelectedEmployee(employee);
+    editCheckInForm.setFieldsValue({
+      checkInTime: dayjs(employee.attendance.checkIn),
+    });
+    setEditCheckInModal(true);
+  };
+
+  const handleEditCheckOut = (employee: Employee) => {
+    if (!employee.attendance?.checkOut) {
+      messageApi.error('Employee has not checked out yet');
+      return;
+    }
+    
+    setSelectedEmployee(employee);
+    editCheckOutForm.setFieldsValue({
+      checkOutTime: dayjs(employee.attendance.checkOut),
+    });
+    setEditCheckOutModal(true);
+  };
+
+  const handleEditBreak = (employee: Employee) => {
+    if (!employee.attendance) {
+      messageApi.error('No attendance record found');
+      return;
+    }
+    
+    setSelectedEmployee(employee);
+    if (employee.attendance.breakDuration) {
+      const hours = employee.attendance.breakDuration / 60;
+      editBreakForm.setFieldsValue({
+        breakDuration: hours.toString(),
+      });
+    }
+    setEditBreakModal(true);
+  };
+
+  const handleAddOvertime = (employee: Employee) => {
+    if (!employee.attendance) {
+      messageApi.error('No attendance record found');
+      return;
+    }
+    
+    setSelectedEmployee(employee);
+    overtimeForm.resetFields();
+    setOvertimeModal(true);
+  };
+
+  const handleEditOvertime = (employee: Employee) => {
+    if (!employee.attendance) {
+      messageApi.error('No attendance record found');
+      return;
+    }
+    
+    setSelectedEmployee(employee);
+    if (employee.attendance.overtimeMinutes) {
+      const hours = employee.attendance.overtimeMinutes / 60;
+      overtimeForm.setFieldsValue({
+        overtimeHours: hours.toString(),
+      });
+    }
+    setOvertimeModal(true);
+  };
+
   const onCheckInSubmit = (values: any) => {
     if (!selectedEmployee) return;
+    // Send the expected check-in time (default time) to backend for late calculation
+    const expectedCheckIn = dayjs(`${selectedDate} ${defaultCheckInTime}`, 'YYYY-MM-DD HH:mm');
     markCheckInMutation.mutate({
       employeeId: selectedEmployee.id,
       date: selectedDate,
       checkInTime: values.checkInTime.format('YYYY-MM-DD HH:mm:ss'),
+      expectedCheckInTime: expectedCheckIn.format('YYYY-MM-DD HH:mm:ss'),
       location: values.location,
       notes: values.notes,
     });
@@ -284,10 +508,13 @@ export const AttendanceListPage: React.FC<AttendanceListPageProps> = ({ role }) 
 
   const onCheckOutSubmit = (values: any) => {
     if (!selectedEmployee) return;
+    // Send the expected check-out time (default time) to backend for early departure calculation
+    const expectedCheckOut = dayjs(`${selectedDate} ${defaultCheckOutTime}`, 'YYYY-MM-DD HH:mm');
     markCheckOutMutation.mutate({
       employeeId: selectedEmployee.id,
       date: selectedDate,
       checkOutTime: values.checkOutTime.format('YYYY-MM-DD HH:mm:ss'),
+      expectedCheckOutTime: expectedCheckOut.format('YYYY-MM-DD HH:mm:ss'),
       notes: values.notes,
     });
   };
@@ -323,11 +550,14 @@ export const AttendanceListPage: React.FC<AttendanceListPageProps> = ({ role }) 
 
   const onLeaveSubmit = (values: any) => {
     if (!selectedEmployee) return;
+    
+    // Send hours directly to backend - let backend do ALL calculations
     markLeaveMutation.mutate({
       employeeId: selectedEmployee.id,
       date: selectedDate,
-      leaveType: values.leaveType,
-      reason: values.reason,
+      breakDurationHours: parseFloat(values.breakDuration), // Backend will convert to minutes
+      breakType: values.leaveType,
+      reason: values.reason || '',
     });
   };
 
@@ -338,10 +568,108 @@ export const AttendanceListPage: React.FC<AttendanceListPageProps> = ({ role }) 
     setDefaultTimesModal(false);
   };
 
+  // Edit submit handlers - Enhanced with attendanceId support
+  const onEditCheckInSubmit = (values: any) => {
+    if (!selectedEmployee) return;
+    
+    // DEBUG: Log what we're sending
+    console.log('=== FRONTEND EDIT CHECK-IN ===');
+    console.log('selectedEmployee:', selectedEmployee);
+    console.log('selectedEmployee.attendance:', selectedEmployee.attendance);
+    console.log('selectedEmployee.attendance?.id:', selectedEmployee.attendance?.id);
+    
+    // Use attendanceId if available, otherwise use employeeId + date
+    const requestData: any = {
+      checkInTime: values.checkInTime.format('YYYY-MM-DD HH:mm:ss'),
+      reason: values.reason || 'Admin edited check-in time'
+    };
+
+    if (selectedEmployee.attendance?.id) {
+      requestData.attendanceId = selectedEmployee.attendance.id;
+      console.log('Using attendanceId:', requestData.attendanceId);
+    } else {
+      requestData.employeeId = selectedEmployee.id;
+      requestData.date = selectedDate;
+      console.log('Using employeeId + date:', requestData.employeeId, requestData.date);
+    }
+
+    // Add expected time for late calculation
+    if (defaultCheckInTime) {
+      const expectedCheckIn = dayjs(`${selectedDate} ${defaultCheckInTime}`, 'YYYY-MM-DD HH:mm');
+      requestData.expectedCheckInTime = expectedCheckIn.format('YYYY-MM-DD HH:mm:ss');
+    }
+    
+    console.log('Final requestData:', requestData);
+    editCheckInMutation.mutate(requestData);
+  };
+
+  const onEditCheckOutSubmit = (values: any) => {
+    if (!selectedEmployee) return;
+    
+    // Use attendanceId if available, otherwise use employeeId + date
+    const requestData: any = {
+      checkOutTime: values.checkOutTime.format('YYYY-MM-DD HH:mm:ss'),
+      reason: values.reason || 'Admin edited check-out time'
+    };
+
+    if (selectedEmployee.attendance?.id) {
+      requestData.attendanceId = selectedEmployee.attendance.id;
+    } else {
+      requestData.employeeId = selectedEmployee.id;
+      requestData.date = selectedDate;
+    }
+
+    // Add expected time for early departure/overtime calculation
+    if (defaultCheckOutTime) {
+      const expectedCheckOut = dayjs(`${selectedDate} ${defaultCheckOutTime}`, 'YYYY-MM-DD HH:mm');
+      requestData.expectedCheckOutTime = expectedCheckOut.format('YYYY-MM-DD HH:mm:ss');
+    }
+    
+    editCheckOutMutation.mutate(requestData);
+  };
+
+  const onEditBreakSubmit = (values: any) => {
+    if (!selectedEmployee) return;
+    
+    // Use attendanceId if available, otherwise use employeeId + date
+    const requestData: any = {
+      breakDurationHours: parseFloat(values.breakDuration),
+      reason: values.reason || 'Admin edited break duration'
+    };
+
+    if (selectedEmployee.attendance?.id) {
+      requestData.attendanceId = selectedEmployee.attendance.id;
+    } else {
+      requestData.employeeId = selectedEmployee.id;
+      requestData.date = selectedDate;
+    }
+    
+    editBreakMutation.mutate(requestData);
+  };
+
+  const onOvertimeSubmit = (values: any) => {
+    if (!selectedEmployee) return;
+    
+    // Use attendanceId if available, otherwise use employeeId + date
+    const requestData: any = {
+      overtimeHours: parseFloat(values.overtimeHours),
+      reason: values.reason || 'Admin added overtime'
+    };
+
+    if (selectedEmployee.attendance?.id) {
+      requestData.attendanceId = selectedEmployee.attendance.id;
+    } else {
+      requestData.employeeId = selectedEmployee.id;
+      requestData.date = selectedDate;
+    }
+    
+    overtimeMutation.mutate(requestData);
+  };
+
   // Table columns
   const columns: ColumnsType<Employee> = [
     {
-      title: 'Employee',
+      title: t('common.employee'),
       key: 'employee',
       width: 250,
       fixed: 'left',
@@ -354,104 +682,250 @@ export const AttendanceListPage: React.FC<AttendanceListPageProps> = ({ role }) 
             {record.employeeCode}
           </div>
           <div className="text-xs text-gray-400 dark:text-gray-500">
-            {record.department || 'No Department'}
+            {record.department || t('departments.title')}
           </div>
         </div>
       ),
     },
     {
-      title: 'Shift',
-      key: 'shift',
-      width: 150,
-      render: (_, record) => (
-        record.currentShift ? (
-          <div className="text-sm">
-            <div className="font-medium">{record.currentShift.shiftName}</div>
-            <div className="text-xs text-gray-500">
-              {record.currentShift.startTime} - {record.currentShift.endTime}
-            </div>
-          </div>
-        ) : (
-          <span className="text-gray-400">No shift assigned</span>
-        )
-      ),
-    },
-    {
-      title: 'Status',
+      title: t('attendance.status'),
       key: 'status',
-      width: 120,
+      width: 180,
       render: (_, record) => {
         if (record.hasApprovedLeave) {
-          return <Tag icon={<CloseCircleOutlined />} color="error">Absent</Tag>;
+          return <Tag icon={<CloseCircleOutlined />} color="orange">{t('attendance.leave')}</Tag>;
         }
         if (!record.attendance) {
-          return <Tag icon={<ClockCircleOutlined />} color="default">Not Marked</Tag>;
+          return <Tag icon={<ClockCircleOutlined />} color="default">{t('attendance.notMarked')}</Tag>;
         }
-        const statusMap: Record<string, { color: string; icon: React.ReactNode; text: string }> = {
-          PRESENT: { color: 'success', icon: <CheckCircleOutlined />, text: 'Present' },
-          ABSENT: { color: 'error', icon: <CloseCircleOutlined />, text: 'Absent' },
-          LATE: { color: 'warning', icon: <WarningOutlined />, text: 'Late' },
-        };
-        const status = statusMap[record.attendance.status] || statusMap.PRESENT;
-        return <Tag icon={status.icon} color={status.color}>{status.text}</Tag>;
+        
+        // Check if absent
+        if (record.attendance.status === 'absent' || record.attendance.status === 'ABSENT') {
+          return <Tag icon={<CloseCircleOutlined />} color="error">{t('attendance.absent')}</Tag>;
+        }
+        
+        // Check if employee is late
+        if (record.attendance.isLate && record.attendance.lateMinutes > 0) {
+          const minutes = record.attendance.lateMinutes;
+          let timeDisplay = '';
+          if (minutes >= 60) {
+            const hours = Math.floor(minutes / 60);
+            const mins = minutes % 60;
+            timeDisplay = mins > 0 ? `${hours}${t('attendance.hrs')} ${mins}${t('attendance.min')}` : `${hours}${t('attendance.hrs')}`;
+          } else {
+            timeDisplay = `${minutes}${t('attendance.min')}`;
+          }
+          
+          return (
+            <Tooltip title={`${t('attendance.late')} ${timeDisplay}`}>
+              <Tag icon={<WarningOutlined />} color="warning">
+                {t('attendance.present')} - {t('attendance.late')}
+              </Tag>
+            </Tooltip>
+          );
+        }
+        
+        // Check if early departure
+        if (record.attendance.isEarlyDeparture && record.attendance.earlyDepartureMinutes > 0) {
+          return <Tag icon={<WarningOutlined />} color="orange">{t('attendance.earlyDeparture')}</Tag>;
+        }
+        
+        // Present and on time
+        if (record.attendance.checkIn) {
+          return <Tag icon={<CheckCircleOutlined />} color="success">{t('attendance.present')} - {t('attendance.onTime')}</Tag>;
+        }
+        
+        return <Tag icon={<CheckCircleOutlined />} color="success">{t('attendance.present')}</Tag>;
       },
     },
     {
-      title: 'Check In',
+      title: t('attendance.checkIn'),
       key: 'checkIn',
-      width: 120,
+      width: 150,
       render: (_, record) => (
-        record.attendance?.checkIn ? (
-          <div className="flex items-center space-x-2">
-            <LoginOutlined className="text-green-500" />
-            <span>{dayjs(record.attendance.checkIn).format('HH:mm')}</span>
-          </div>
-        ) : (
-          <span className="text-gray-400">--:--</span>
-        )
+        <div className="flex items-center space-x-2">
+          {record.attendance?.checkIn ? (
+            <>
+              <LoginOutlined className="text-green-500" />
+              <span>{dayjs(record.attendance.checkIn).format('HH:mm')}</span>
+              {record.attendance?.id && (
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<span className="text-xs">✏️</span>}
+                  onClick={() => handleEditCheckIn(record)}
+                  title={t('attendance.editCheckIn')}
+                />
+              )}
+            </>
+          ) : (
+            <span className="text-gray-400">--:--</span>
+          )}
+        </div>
       ),
     },
     {
-      title: 'Check Out',
+      title: t('attendance.checkOut'),
       key: 'checkOut',
-      width: 120,
+      width: 150,
       render: (_, record) => (
-        record.attendance?.checkOut ? (
-          <div className="flex items-center space-x-2">
-            <LogoutOutlined className="text-red-500" />
-            <span>{dayjs(record.attendance.checkOut).format('HH:mm')}</span>
-          </div>
-        ) : (
-          <span className="text-gray-400">--:--</span>
-        )
+        <div className="flex items-center space-x-2">
+          {record.attendance?.checkOut ? (
+            <>
+              <LogoutOutlined className="text-red-500" />
+              <span>{dayjs(record.attendance.checkOut).format('HH:mm')}</span>
+              {record.attendance?.id && (
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<span className="text-xs">✏️</span>}
+                  onClick={() => handleEditCheckOut(record)}
+                  title={t('attendance.editCheckOut')}
+                />
+              )}
+            </>
+          ) : (
+            <span className="text-gray-400">--:--</span>
+          )}
+        </div>
       ),
     },
     {
-      title: 'Working Hours',
+      title: t('attendance.workingHours'),
       key: 'workingHours',
       width: 120,
-      render: (_, record) => (
-        record.attendance?.workingHours ? (
-          <span className="font-medium">{record.attendance.workingHours.toFixed(2)}h</span>
-        ) : (
-          <span className="text-gray-400">0h</span>
-        )
-      ),
+      render: (_, record) => {
+        if (record.attendance?.workingHours) {
+          // workingHours is stored in minutes
+          const totalMinutes = record.attendance.workingHours;
+          const hours = Math.floor(totalMinutes / 60);
+          const minutes = totalMinutes % 60;
+          
+          if (hours > 0 && minutes > 0) {
+            return <span className="font-medium">{hours}h {minutes}m</span>;
+          } else if (hours > 0) {
+            return <span className="font-medium">{hours}h</span>;
+          } else {
+            return <span className="font-medium">{minutes}m</span>;
+          }
+        }
+        return <span className="text-gray-400">0h 0m</span>;
+      },
     },
     {
-      title: 'Late',
+      title: t('attendance.break'),
+      key: 'break',
+      width: 130,
+      render: (_, record) => {
+        if (record.attendance?.breakDuration && record.attendance.breakDuration > 0) {
+          const totalMinutes = record.attendance.breakDuration;
+          const hours = Math.floor(totalMinutes / 60);
+          const minutes = totalMinutes % 60;
+          
+          const displayText = hours > 0 
+            ? (minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`)
+            : `${minutes}m`;
+          
+          return (
+            <div className="flex items-center space-x-1">
+              <Tag color="purple">{displayText}</Tag>
+              <Button
+                type="text"
+                size="small"
+                icon={<span className="text-xs">✏️</span>}
+                onClick={() => handleEditBreak(record)}
+                title={t('attendance.editBreak')}
+              />
+            </div>
+          );
+        }
+        return <span className="text-gray-400">-</span>;
+      },
+    },
+    {
+      title: t('attendance.late'),
       key: 'late',
       width: 100,
-      render: (_, record) => (
-        record.attendance?.isLate ? (
-          <Tag color="warning">{record.attendance.lateMinutes} min</Tag>
-        ) : (
-          <span className="text-gray-400">-</span>
-        )
-      ),
+      render: (_, record) => {
+        if (record.attendance?.isLate && record.attendance.lateMinutes > 0) {
+          const minutes = record.attendance.lateMinutes;
+          if (minutes >= 60) {
+            const hours = Math.floor(minutes / 60);
+            const mins = minutes % 60;
+            return <Tag color="warning">{hours}h {mins}m</Tag>;
+          }
+          return <Tag color="warning">{minutes} {t('attendance.min')}</Tag>;
+        }
+        return <span className="text-gray-400">-</span>;
+      },
     },
     {
-      title: 'Actions',
+      title: t('attendance.earlyDeparture'),
+      key: 'leftEarly',
+      width: 110,
+      render: (_, record) => {
+        if (record.attendance?.isEarlyDeparture && record.attendance.earlyDepartureMinutes > 0) {
+          const minutes = record.attendance.earlyDepartureMinutes;
+          if (minutes >= 60) {
+            const hours = Math.floor(minutes / 60);
+            const mins = minutes % 60;
+            return (
+              <Tooltip title={`${t('attendance.earlyDeparture')} ${hours}h ${mins}m`}>
+                <Tag color="orange">{hours}h {mins}m</Tag>
+              </Tooltip>
+            );
+          }
+          return (
+            <Tooltip title={`${t('attendance.earlyDeparture')} ${minutes} ${t('attendance.minutes')}`}>
+              <Tag color="orange">{minutes} {t('attendance.min')}</Tag>
+            </Tooltip>
+          );
+        }
+        return <span className="text-gray-400">-</span>;
+      },
+    },
+    {
+      title: t('attendance.overtime'),
+      key: 'overtime',
+      width: 130,
+      render: (_, record) => {
+        if (record.attendance?.overtimeMinutes && record.attendance.overtimeMinutes > 0) {
+          const totalMinutes = record.attendance.overtimeMinutes;
+          const hours = Math.floor(totalMinutes / 60);
+          const minutes = totalMinutes % 60;
+          
+          const displayText = hours > 0 
+            ? (minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`)
+            : `${minutes}m`;
+          
+          return (
+            <div className="flex items-center space-x-1">
+              <Tag color="blue">{displayText}</Tag>
+              <Button
+                type="text"
+                size="small"
+                icon={<span className="text-xs">✏️</span>}
+                onClick={() => handleEditOvertime(record)}
+                title={t('attendance.editOvertime')}
+              />
+            </div>
+          );
+        }
+        return (
+          <Button
+            type="dashed"
+            size="small"
+            icon={<PlusOutlined />}
+            onClick={() => handleAddOvertime(record)}
+            title={t('attendance.addOvertime')}
+          >
+            {t('attendance.addOvertime')}
+          </Button>
+        );
+      },
+    },
+    {
+      title: t('common.actions'),
       key: 'actions',
       width: 250,
       fixed: 'right',
@@ -460,7 +934,7 @@ export const AttendanceListPage: React.FC<AttendanceListPageProps> = ({ role }) 
         if (record.hasApprovedLeave) {
           return (
             <div className="text-center">
-              <Tag color="orange" icon={<SafetyOutlined />}>ON LEAVE</Tag>
+              <Tag color="orange" icon={<SafetyOutlined />}>{t('attendance.leave').toUpperCase()}</Tag>
             </div>
           );
         }
@@ -469,7 +943,7 @@ export const AttendanceListPage: React.FC<AttendanceListPageProps> = ({ role }) 
         if (record.attendance?.status === 'ABSENT') {
           return (
             <Space size="small">
-              <Tag color="error" icon={<CloseCircleOutlined />}>ABSENT</Tag>
+              <Tag color="error" icon={<CloseCircleOutlined />}>{t('attendance.absent').toUpperCase()}</Tag>
               <Button
                 type="text"
                 size="small"
@@ -490,12 +964,14 @@ export const AttendanceListPage: React.FC<AttendanceListPageProps> = ({ role }) 
                   size="small"
                   icon={<LoginOutlined />}
                   onClick={() => handleCheckIn(record)}
+                  title={t('attendance.markCheckIn')}
                 />
                 <Button
                   danger
                   size="small"
                   icon={<CloseCircleOutlined />}
                   onClick={() => handleMarkAbsent(record)}
+                  title={t('attendance.markAbsent')}
                 />
               </>
             ) : !record.attendance?.checkOut ? (
@@ -505,6 +981,7 @@ export const AttendanceListPage: React.FC<AttendanceListPageProps> = ({ role }) 
                   icon={<CoffeeOutlined />}
                   style={{ color: '#9333ea', borderColor: '#9333ea' }}
                   onClick={() => handleMarkLeave(record)}
+                  title={t('attendance.break')}
                 />
                 <Button
                   type="primary"
@@ -540,10 +1017,10 @@ export const AttendanceListPage: React.FC<AttendanceListPageProps> = ({ role }) 
     <div className="space-y-6">
       {/* Page Header */}
       <PageHeader
-        title={t('navigation.attendance') || 'Attendance'}
+        title={t('navigation.attendance')}
         description={role === 'ROLE_ADMIN' 
-          ? 'Manage attendance records for all employees' 
-          : 'Manage attendance for your team'}
+          ? t('attendance.subtitle')
+          : t('attendance.subtitleManager')}
         icon={<AttendanceIllustration />}
         gradient="cyan"
         action={
@@ -560,7 +1037,7 @@ export const AttendanceListPage: React.FC<AttendanceListPageProps> = ({ role }) 
             type="primary"
             ghost
           >
-            Default Times
+            {t('attendance.setDefaultTimes')}
           </Button>
         }
       />
@@ -570,7 +1047,7 @@ export const AttendanceListPage: React.FC<AttendanceListPageProps> = ({ role }) 
         <Col xs={24} sm={12} lg={4}>
           <EnhancedCard>
             <Statistic
-              title="Total Employees"
+              title={t('employees.totalEmployees')}
               value={stats.total}
               prefix={<UserOutlined style={{ color: '#1890ff' }} />}
               valueStyle={{ color: '#1890ff' }}
@@ -580,7 +1057,7 @@ export const AttendanceListPage: React.FC<AttendanceListPageProps> = ({ role }) 
         <Col xs={24} sm={12} lg={4}>
           <EnhancedCard>
             <Statistic
-              title="Present"
+              title={t('attendance.present')}
               value={stats.present}
               prefix={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
               valueStyle={{ color: '#52c41a' }}
@@ -590,7 +1067,7 @@ export const AttendanceListPage: React.FC<AttendanceListPageProps> = ({ role }) 
         <Col xs={24} sm={12} lg={4}>
           <EnhancedCard>
             <Statistic
-              title="Absent"
+              title={t('attendance.absent')}
               value={stats.absent}
               prefix={<CloseCircleOutlined style={{ color: '#ff4d4f' }} />}
               valueStyle={{ color: '#ff4d4f' }}
@@ -600,7 +1077,7 @@ export const AttendanceListPage: React.FC<AttendanceListPageProps> = ({ role }) 
         <Col xs={24} sm={12} lg={4}>
           <EnhancedCard>
             <Statistic
-              title="Late Arrivals"
+              title={t('dashboard.attendance.lateArrivals')}
               value={stats.late}
               prefix={<WarningOutlined style={{ color: '#faad14' }} />}
               valueStyle={{ color: '#faad14' }}
@@ -610,7 +1087,7 @@ export const AttendanceListPage: React.FC<AttendanceListPageProps> = ({ role }) 
         <Col xs={24} sm={12} lg={4}>
           <EnhancedCard>
             <Statistic
-              title="On Leave"
+              title={t('attendance.leave')}
               value={stats.onLeave}
               prefix={<SafetyOutlined style={{ color: '#ff7a45' }} />}
               valueStyle={{ color: '#ff7a45' }}
@@ -620,7 +1097,7 @@ export const AttendanceListPage: React.FC<AttendanceListPageProps> = ({ role }) 
         <Col xs={24} sm={12} lg={4}>
           <EnhancedCard>
             <Statistic
-              title="Not Marked"
+              title={t('attendance.notMarked')}
               value={stats.notMarked}
               prefix={<ClockCircleOutlined style={{ color: '#8c8c8c' }} />}
               valueStyle={{ color: '#8c8c8c' }}
@@ -636,9 +1113,10 @@ export const AttendanceListPage: React.FC<AttendanceListPageProps> = ({ role }) 
           onChange={(date: Dayjs | null) => setSelectedDate(date?.format('YYYY-MM-DD') || dayjs().format('YYYY-MM-DD'))}
           format="YYYY-MM-DD"
           className="w-48"
+          placeholder={t('attendance.selectDate')}
         />
         <Select
-          placeholder="All Departments"
+          placeholder={t('attendance.allDepartments')}
           style={{ width: 200 }}
           allowClear
           value={selectedDepartment}
@@ -651,14 +1129,14 @@ export const AttendanceListPage: React.FC<AttendanceListPageProps> = ({ role }) 
           ))}
         </Select>
         <Input
-          placeholder="Search employees..."
+          placeholder={t('attendance.searchPlaceholder')}
           prefix={<SearchOutlined />}
           value={searchQuery}
           onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
           style={{ width: 250 }}
         />
         <div className="ml-auto text-sm text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-3 py-2 rounded-lg">
-          Default: Check-in {defaultCheckInTime} | Check-out {defaultCheckOutTime}
+          {t('attendance.defaultCheckInTime')}: {defaultCheckInTime} | {t('attendance.defaultCheckOutTime')}: {defaultCheckOutTime}
         </div>
       </FilterBar>
 
@@ -684,7 +1162,7 @@ export const AttendanceListPage: React.FC<AttendanceListPageProps> = ({ role }) 
         title={
           <div className="flex items-center space-x-2">
             <LoginOutlined className="text-green-500" />
-            <span>Mark Check-In</span>
+            <span>{t('attendance.markCheckIn')}</span>
           </div>
         }
         open={checkInModal}
@@ -698,21 +1176,21 @@ export const AttendanceListPage: React.FC<AttendanceListPageProps> = ({ role }) 
           </div>
           <Form.Item
             name="checkInTime"
-            label="Check-In Time"
-            rules={[{ required: true, message: 'Please select check-in time' }]}
+            label={t('attendance.checkInTime')}
+            rules={[{ required: true, message: t('attendance.pleaseSelectCheckInTime') }]}
           >
             <TimePicker format="HH:mm" className="w-full" />
           </Form.Item>
-          <Form.Item name="location" label="Location">
-            <Input placeholder="Office, Remote, etc." />
+          <Form.Item name="location" label={t('attendance.location')}>
+            <Input placeholder={t('attendance.locationPlaceholder')} />
           </Form.Item>
-          <Form.Item name="notes" label="Notes">
-            <Input.TextArea rows={3} placeholder="Additional notes..." />
+          <Form.Item name="notes" label={t('attendance.remarks')}>
+            <Input.TextArea rows={3} placeholder={t('attendance.remarksPlaceholder')} />
           </Form.Item>
           <div className="flex justify-end space-x-2">
-            <Button onClick={() => setCheckInModal(false)}>Cancel</Button>
+            <Button onClick={() => setCheckInModal(false)}>{t('common.cancel')}</Button>
             <Button type="primary" htmlType="submit" icon={<LoginOutlined />}>
-              Mark Check-In
+              {t('attendance.markCheckIn')}
             </Button>
           </div>
         </Form>
@@ -723,7 +1201,7 @@ export const AttendanceListPage: React.FC<AttendanceListPageProps> = ({ role }) 
         title={
           <div className="flex items-center space-x-2">
             <LogoutOutlined className="text-red-500" />
-            <span>Mark Check-Out</span>
+            <span>{t('attendance.markCheckOut')}</span>
           </div>
         }
         open={checkOutModal}
@@ -737,18 +1215,18 @@ export const AttendanceListPage: React.FC<AttendanceListPageProps> = ({ role }) 
           </div>
           <Form.Item
             name="checkOutTime"
-            label="Check-Out Time"
-            rules={[{ required: true, message: 'Please select check-out time' }]}
+            label={t('attendance.checkOutTime')}
+            rules={[{ required: true, message: t('attendance.pleaseSelectCheckOutTime') }]}
           >
             <TimePicker format="HH:mm" className="w-full" />
           </Form.Item>
-          <Form.Item name="notes" label="Notes">
-            <Input.TextArea rows={3} placeholder="Additional notes..." />
+          <Form.Item name="notes" label={t('attendance.remarks')}>
+            <Input.TextArea rows={3} placeholder={t('attendance.remarksPlaceholder')} />
           </Form.Item>
           <div className="flex justify-end space-x-2">
-            <Button onClick={() => setCheckOutModal(false)}>Cancel</Button>
+            <Button onClick={() => setCheckOutModal(false)}>{t('common.cancel')}</Button>
             <Button type="primary" htmlType="submit" icon={<LogoutOutlined />}>
-              Mark Check-Out
+              {t('attendance.markCheckOut')}
             </Button>
           </div>
         </Form>
@@ -759,7 +1237,7 @@ export const AttendanceListPage: React.FC<AttendanceListPageProps> = ({ role }) 
         title={
           <div className="flex items-center space-x-2">
             <CloseCircleOutlined className="text-red-500" />
-            <span>Mark Absent</span>
+            <span>{t('attendance.markAbsent')}</span>
           </div>
         }
         open={absentModal}
@@ -773,15 +1251,15 @@ export const AttendanceListPage: React.FC<AttendanceListPageProps> = ({ role }) 
           </div>
           <Form.Item
             name="reason"
-            label="Reason"
-            rules={[{ required: true, message: 'Please provide a reason' }]}
+            label={t('attendance.reason')}
+            rules={[{ required: true, message: t('attendance.pleaseProvideReason') }]}
           >
-            <Input.TextArea rows={3} placeholder="Reason for absence..." />
+            <Input.TextArea rows={3} placeholder={t('attendance.reasonForAbsence')} />
           </Form.Item>
           <div className="flex justify-end space-x-2">
-            <Button onClick={() => setAbsentModal(false)}>Cancel</Button>
+            <Button onClick={() => setAbsentModal(false)}>{t('common.cancel')}</Button>
             <Button type="primary" danger htmlType="submit" icon={<CloseCircleOutlined />}>
-              Mark Absent
+              {t('attendance.markAbsent')}
             </Button>
           </div>
         </Form>
@@ -792,7 +1270,7 @@ export const AttendanceListPage: React.FC<AttendanceListPageProps> = ({ role }) 
         title={
           <div className="flex items-center space-x-2">
             <SettingOutlined />
-            <span>Set Default Times</span>
+            <span>{t('attendance.setDefaultTimes')}</span>
           </div>
         }
         open={defaultTimesModal}
@@ -854,51 +1332,81 @@ export const AttendanceListPage: React.FC<AttendanceListPageProps> = ({ role }) 
 
             {selectedEmployee.attendance && (
               <>
-                <Divider>Attendance Information</Divider>
+                <Divider>{t('attendance.attendanceInformation')}</Divider>
                 <Descriptions column={2} bordered size="small">
-                  <Descriptions.Item label="Status">
+                  <Descriptions.Item label={t('attendance.status')}>
                     <Tag color={
-                      selectedEmployee.attendance.status === 'PRESENT' ? 'success' :
-                      selectedEmployee.attendance.status === 'ABSENT' ? 'error' : 'warning'
+                      selectedEmployee.attendance.status === 'PRESENT' || selectedEmployee.attendance.status === 'present' ? 'success' :
+                      selectedEmployee.attendance.status === 'ABSENT' || selectedEmployee.attendance.status === 'absent' ? 'error' : 'warning'
                     }>
                       {selectedEmployee.attendance.status}
                     </Tag>
                   </Descriptions.Item>
-                  <Descriptions.Item label="Working Hours">
-                    {selectedEmployee.attendance.workingHours?.toFixed(2) || '0'} hours
+                  <Descriptions.Item label={t('attendance.workingHours')}>
+                    {(() => {
+                      const totalMinutes = selectedEmployee.attendance.workingHours || 0;
+                      const hours = Math.floor(totalMinutes / 60);
+                      const minutes = totalMinutes % 60;
+                      return `${hours}${t('attendance.hrs')} ${minutes}${t('attendance.min')}`;
+                    })()}
                   </Descriptions.Item>
-                  <Descriptions.Item label="Check-In">
+                  <Descriptions.Item label={t('attendance.checkIn')}>
                     {selectedEmployee.attendance.checkIn 
                       ? dayjs(selectedEmployee.attendance.checkIn).format('HH:mm:ss')
-                      : 'Not checked in'}
+                      : t('attendance.notCheckedIn')}
                   </Descriptions.Item>
-                  <Descriptions.Item label="Check-Out">
+                  <Descriptions.Item label={t('attendance.checkOut')}>
                     {selectedEmployee.attendance.checkOut 
                       ? dayjs(selectedEmployee.attendance.checkOut).format('HH:mm:ss')
-                      : 'Not checked out'}
+                      : t('attendance.notCheckedOut')}
                   </Descriptions.Item>
-                  <Descriptions.Item label="Late">
+                  <Descriptions.Item label={t('attendance.late')}>
                     {selectedEmployee.attendance.isLate 
-                      ? `Yes (${selectedEmployee.attendance.lateMinutes} minutes)`
-                      : 'No'}
+                      ? (() => {
+                          const mins = selectedEmployee.attendance.lateMinutes;
+                          const hours = Math.floor(mins / 60);
+                          const minutes = mins % 60;
+                          return hours > 0 ? `${t('attendance.yes')} (${hours}${t('attendance.hrs')} ${minutes}${t('attendance.min')})` : `${t('attendance.yes')} (${minutes} ${t('attendance.minutes')})`;
+                        })()
+                      : t('attendance.no')}
                   </Descriptions.Item>
-                  <Descriptions.Item label="Early Departure">
+                  <Descriptions.Item label={t('attendance.earlyDeparture')}>
                     {selectedEmployee.attendance.isEarlyDeparture 
-                      ? `Yes (${selectedEmployee.attendance.earlyDepartureMinutes} minutes)`
-                      : 'No'}
+                      ? (() => {
+                          const mins = selectedEmployee.attendance.earlyDepartureMinutes;
+                          const hours = Math.floor(mins / 60);
+                          const minutes = mins % 60;
+                          return hours > 0 ? `${t('attendance.yes')} (${hours}${t('attendance.hrs')} ${minutes}${t('attendance.min')})` : `${t('attendance.yes')} (${minutes} ${t('attendance.minutes')})`;
+                        })()
+                      : t('attendance.no')}
                   </Descriptions.Item>
+                  {selectedEmployee.attendance.breakDuration > 0 && (
+                    <Descriptions.Item label={t('attendance.breakDuration')} span={2}>
+                      {(() => {
+                        const mins = selectedEmployee.attendance.breakDuration;
+                        const hours = Math.floor(mins / 60);
+                        const minutes = mins % 60;
+                        return hours > 0 ? `${hours}${t('attendance.hrs')} ${minutes}${t('attendance.min')}` : `${minutes} ${t('attendance.minutes')}`;
+                      })()}
+                    </Descriptions.Item>
+                  )}
                   {selectedEmployee.attendance.overtimeMinutes > 0 && (
-                    <Descriptions.Item label="Overtime" span={2}>
-                      {selectedEmployee.attendance.overtimeMinutes} minutes
+                    <Descriptions.Item label={t('attendance.overtime')} span={2}>
+                      {(() => {
+                        const mins = selectedEmployee.attendance.overtimeMinutes;
+                        const hours = Math.floor(mins / 60);
+                        const minutes = mins % 60;
+                        return hours > 0 ? `${hours}${t('attendance.hrs')} ${minutes}${t('attendance.min')}` : `${minutes} ${t('attendance.minutes')}`;
+                      })()}
                     </Descriptions.Item>
                   )}
                   {selectedEmployee.attendance.location && (
-                    <Descriptions.Item label="Location" span={2}>
+                    <Descriptions.Item label={t('attendance.location')} span={2}>
                       {selectedEmployee.attendance.location}
                     </Descriptions.Item>
                   )}
                   {selectedEmployee.attendance.notes && (
-                    <Descriptions.Item label="Notes" span={2}>
+                    <Descriptions.Item label={t('attendance.notes')} span={2}>
                       {selectedEmployee.attendance.notes}
                     </Descriptions.Item>
                   )}
@@ -914,7 +1422,7 @@ export const AttendanceListPage: React.FC<AttendanceListPageProps> = ({ role }) 
         title={
           <div className="flex items-center space-x-2">
             <WarningOutlined className="text-yellow-500" />
-            <span>Add Latency</span>
+            <span>{t('attendance.addLatency')}</span>
           </div>
         }
         open={latencyModal}
@@ -927,26 +1435,26 @@ export const AttendanceListPage: React.FC<AttendanceListPageProps> = ({ role }) 
             <div className="text-sm text-gray-500">{selectedEmployee?.employeeCode}</div>
           </div>
           <Alert
-            message="Add Late Arrival"
-            description="Specify how many minutes the employee was late. This will be added to their attendance record."
+            message={t('attendance.lateArrival')}
+            description={t('attendance.lateArrivalDescription')}
             type="warning"
             showIcon
             className="mb-4"
           />
           <Form.Item
             name="lateMinutes"
-            label="Late Minutes"
-            rules={[{ required: true, message: 'Please enter minutes' }]}
+            label={t('attendance.lateMinutes')}
+            rules={[{ required: true, message: t('attendance.enterMinutes') }]}
           >
-            <Input type="number" placeholder="e.g., 30" suffix="minutes" />
+            <Input type="number" placeholder={t('attendance.minutesPlaceholder')} suffix={t('attendance.minutes')} />
           </Form.Item>
-          <Form.Item name="reason" label="Reason">
-            <Input.TextArea rows={2} placeholder="Reason for latency..." />
+          <Form.Item name="reason" label={t('attendance.reason')}>
+            <Input.TextArea rows={2} placeholder={t('attendance.reasonForLatency')} />
           </Form.Item>
           <div className="flex justify-end space-x-2">
-            <Button onClick={() => setLatencyModal(false)}>Cancel</Button>
+            <Button onClick={() => setLatencyModal(false)}>{t('common.cancel')}</Button>
             <Button type="primary" htmlType="submit" icon={<WarningOutlined />}>
-              Add Latency
+              {t('attendance.addLatency')}
             </Button>
           </div>
         </Form>
@@ -957,7 +1465,7 @@ export const AttendanceListPage: React.FC<AttendanceListPageProps> = ({ role }) 
         title={
           <div className="flex items-center space-x-2">
             <LogoutOutlined className="text-orange-500" />
-            <span>Add Early Departure</span>
+            <span>{t('attendance.addEarlyDeparture')}</span>
           </div>
         }
         open={earlyDepartureModal}
@@ -970,26 +1478,26 @@ export const AttendanceListPage: React.FC<AttendanceListPageProps> = ({ role }) 
             <div className="text-sm text-gray-500">{selectedEmployee?.employeeCode}</div>
           </div>
           <Alert
-            message="Add Early Departure"
-            description="Specify how many minutes early the employee left. This will be marked in their attendance record."
+            message={t('attendance.addEarlyDeparture')}
+            description={t('attendance.earlyDepartureDescription')}
             type="warning"
             showIcon
             className="mb-4"
           />
           <Form.Item
             name="earlyMinutes"
-            label="Early Departure Minutes"
-            rules={[{ required: true, message: 'Please enter minutes' }]}
+            label={t('attendance.earlyDepartureMinutes')}
+            rules={[{ required: true, message: t('attendance.enterMinutes') }]}
           >
-            <Input type="number" placeholder="e.g., 60" suffix="minutes" />
+            <Input type="number" placeholder={t('attendance.earlyDeparturePlaceholder')} suffix={t('attendance.minutes')} />
           </Form.Item>
-          <Form.Item name="reason" label="Reason">
-            <Input.TextArea rows={2} placeholder="Reason for early departure..." />
+          <Form.Item name="reason" label={t('attendance.reason')}>
+            <Input.TextArea rows={2} placeholder={t('attendance.reasonForEarlyDeparture')} />
           </Form.Item>
           <div className="flex justify-end space-x-2">
-            <Button onClick={() => setEarlyDepartureModal(false)}>Cancel</Button>
+            <Button onClick={() => setEarlyDepartureModal(false)}>{t('common.cancel')}</Button>
             <Button type="primary" htmlType="submit" icon={<LogoutOutlined />}>
-              Add Early Departure
+              {t('attendance.addEarlyDeparture')}
             </Button>
           </div>
         </Form>
@@ -1000,7 +1508,7 @@ export const AttendanceListPage: React.FC<AttendanceListPageProps> = ({ role }) 
         title={
           <div className="flex items-center space-x-2">
             <CoffeeOutlined className="text-purple-500" />
-            <span>Add Break/Leave Period</span>
+            <span>{t('attendance.addBreakPeriod')}</span>
           </div>
         }
         open={leaveModal}
@@ -1014,36 +1522,232 @@ export const AttendanceListPage: React.FC<AttendanceListPageProps> = ({ role }) 
             <div className="text-sm text-gray-500">{selectedEmployee?.employeeCode}</div>
           </div>
           <Alert
-            message="Break or Partial Leave"
-            description="Record time when employee takes a break or leaves temporarily (e.g., lunch break, doctor appointment, etc.)."
+            message={t('attendance.breakTime')}
+            description={t('attendance.breakDescription')}
             type="info"
             showIcon
             className="mb-4"
           />
           <Form.Item
-            name="leaveType"
-            label="Leave Type"
-            rules={[{ required: true, message: 'Please select leave type' }]}
+            name="breakDuration"
+            label={t('attendance.breakDuration')}
+            rules={[{ required: true, message: t('attendance.selectBreakDuration') }]}
           >
-            <Select placeholder="Select leave type">
-              <Option value="LUNCH_BREAK">Lunch Break</Option>
-              <Option value="COFFEE_BREAK">Coffee Break</Option>
-              <Option value="DOCTOR_APPOINTMENT">Doctor Appointment</Option>
-              <Option value="PERSONAL_MATTER">Personal Matter</Option>
-              <Option value="BANK_VISIT">Bank Visit</Option>
-              <Option value="OTHER">Other</Option>
+            <Select placeholder={t('attendance.breakDurationPlaceholder')} size="large">
+              <Option value="1">1 {t('attendance.hourShort')}</Option>
+              <Option value="2">2 {t('attendance.hoursShort')}</Option>
+              <Option value="3">3 {t('attendance.hoursShort')}</Option>
+              <Option value="4">4 {t('attendance.hoursShort')}</Option>
+              <Option value="5">5 {t('attendance.hoursShort')}</Option>
+              <Option value="0.5">30 {t('attendance.minutesShort')}</Option>
+              <Option value="0.25">15 {t('attendance.minutesShort')}</Option>
             </Select>
           </Form.Item>
-          <Form.Item name="reason" label="Reason" rules={[{ required: true }]}>
+          <Form.Item
+            name="leaveType"
+            label={t('attendance.breakType')}
+            rules={[{ required: true, message: t('attendance.selectBreakType') }]}
+          >
+            <Select placeholder={t('attendance.breakTypePlaceholder')}>
+              <Option value="LUNCH_BREAK">{t('attendance.lunchBreak')}</Option>
+              <Option value="COFFEE_BREAK">{t('attendance.coffeeBreak')}</Option>
+              <Option value="PRAYER_BREAK">{t('attendance.prayerBreak')}</Option>
+              <Option value="REST_BREAK">{t('attendance.restBreak')}</Option>
+              <Option value="DOCTOR_APPOINTMENT">{t('attendance.doctorAppointment')}</Option>
+              <Option value="PERSONAL_MATTER">{t('attendance.personalMatter')}</Option>
+              <Option value="BANK_VISIT">{t('attendance.bankVisit')}</Option>
+              <Option value="OTHER">{t('attendance.other')}</Option>
+            </Select>
+          </Form.Item>
+          <Form.Item name="reason" label={t('attendance.notesOptional')}>
             <Input.TextArea 
-              rows={3} 
-              placeholder="e.g., Lunch break, Doctor appointment, Personal matter..." 
+              rows={2} 
+              placeholder={t('attendance.additionalNotesBreak')} 
             />
           </Form.Item>
           <div className="flex justify-end space-x-2">
-            <Button onClick={() => setLeaveModal(false)}>Cancel</Button>
+            <Button onClick={() => setLeaveModal(false)}>{t('common.cancel')}</Button>
             <Button type="primary" htmlType="submit" icon={<CoffeeOutlined />}>
-              Add Break/Leave
+              {t('attendance.addBreak')}
+            </Button>
+          </div>
+        </Form>
+      </Modal>
+
+      {/* Edit Check-In Modal */}
+      <Modal
+        title={t('attendance.editCheckInTime')}
+        open={editCheckInModal}
+        onCancel={() => setEditCheckInModal(false)}
+        footer={null}
+      >
+        <Form form={editCheckInForm} layout="vertical" onFinish={onEditCheckInSubmit}>
+          <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+            <div className="font-medium">{selectedEmployee?.fullName}</div>
+            <div className="text-sm text-gray-500">{selectedEmployee?.employeeCode}</div>
+          </div>
+          <Alert
+            message={t('attendance.backendValidation')}
+            description={t('attendance.backendValidationCheckIn')}
+            type="info"
+            showIcon
+            className="mb-4"
+          />
+          <Form.Item
+            name="checkInTime"
+            label={t('attendance.newCheckInTime')}
+            rules={[{ required: true, message: t('attendance.pleaseSelectCheckInTime') }]}
+          >
+            <TimePicker format="HH:mm" className="w-full" showSecond={false} />
+          </Form.Item>
+          <Form.Item name="reason" label={t('attendance.reasonForEdit')}>
+            <Input.TextArea rows={2} placeholder={t('attendance.reasonForEditCheckIn')} />
+          </Form.Item>
+          <div className="flex justify-end space-x-2">
+            <Button onClick={() => setEditCheckInModal(false)}>{t('common.cancel')}</Button>
+            <Button type="primary" htmlType="submit">
+              {t('attendance.updateCheckIn')}
+            </Button>
+          </div>
+        </Form>
+      </Modal>
+
+      {/* Edit Check-Out Modal */}
+      <Modal
+        title={t('attendance.editCheckOutTime')}
+        open={editCheckOutModal}
+        onCancel={() => setEditCheckOutModal(false)}
+        footer={null}
+      >
+        <Form form={editCheckOutForm} layout="vertical" onFinish={onEditCheckOutSubmit}>
+          <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+            <div className="font-medium">{selectedEmployee?.fullName}</div>
+            <div className="text-sm text-gray-500">{selectedEmployee?.employeeCode}</div>
+          </div>
+          <Alert
+            message={t('attendance.backendValidation')}
+            description={t('attendance.backendValidationCheckOut')}
+            type="info"
+            showIcon
+            className="mb-4"
+          />
+          <Form.Item
+            name="checkOutTime"
+            label={t('attendance.newCheckOutTime')}
+            rules={[{ required: true, message: t('attendance.pleaseSelectCheckOutTime') }]}
+          >
+            <TimePicker format="HH:mm" className="w-full" showSecond={false} />
+          </Form.Item>
+          <Form.Item name="reason" label={t('attendance.reasonForEdit')}>
+            <Input.TextArea rows={2} placeholder={t('attendance.reasonForEditCheckOut')} />
+          </Form.Item>
+          <div className="flex justify-end space-x-2">
+            <Button onClick={() => setEditCheckOutModal(false)}>{t('common.cancel')}</Button>
+            <Button type="primary" htmlType="submit">
+              {t('attendance.updateCheckOut')}
+            </Button>
+          </div>
+        </Form>
+      </Modal>
+
+      {/* Edit Break Duration Modal */}
+      <Modal
+        title={t('attendance.editBreakDuration')}
+        open={editBreakModal}
+        onCancel={() => setEditBreakModal(false)}
+        footer={null}
+      >
+        <Form form={editBreakForm} layout="vertical" onFinish={onEditBreakSubmit}>
+          <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+            <div className="font-medium">{selectedEmployee?.fullName}</div>
+            <div className="text-sm text-gray-500">{selectedEmployee?.employeeCode}</div>
+          </div>
+          <Alert
+            message={t('attendance.backendCalculation')}
+            description={t('attendance.backendCalculationDescription')}
+            type="info"
+            showIcon
+            className="mb-4"
+          />
+          <Form.Item
+            name="breakDuration"
+            label={t('attendance.breakDuration')}
+            rules={[{ required: true, message: t('attendance.selectBreakDuration') }]}
+          >
+            <Select placeholder={t('attendance.breakDurationPlaceholder')} size="large">
+              <Option value="0">{t('attendance.noBreak')}</Option>
+              <Option value="0.25">15 {t('attendance.minutesShort')}</Option>
+              <Option value="0.5">30 {t('attendance.minutesShort')}</Option>
+              <Option value="1">1 {t('attendance.hourShort')}</Option>
+              <Option value="1.5">1.5 {t('attendance.hoursShort')}</Option>
+              <Option value="2">2 {t('attendance.hoursShort')}</Option>
+              <Option value="3">3 {t('attendance.hoursShort')}</Option>
+              <Option value="4">4 {t('attendance.hoursShort')}</Option>
+              <Option value="5">5 {t('attendance.hoursShort')}</Option>
+            </Select>
+          </Form.Item>
+          <Form.Item name="reason" label={t('attendance.notesOptional')}>
+            <Input.TextArea rows={2} placeholder={t('attendance.reasonForEditing')} />
+          </Form.Item>
+          <div className="flex justify-end space-x-2">
+            <Button onClick={() => setEditBreakModal(false)}>{t('common.cancel')}</Button>
+            <Button type="primary" htmlType="submit">
+              {t('attendance.updateBreak')}
+            </Button>
+          </div>
+        </Form>
+      </Modal>
+
+      {/* Add/Edit Overtime Modal */}
+      <Modal
+        title={t('attendance.addEditOvertime')}
+        open={overtimeModal}
+        onCancel={() => setOvertimeModal(false)}
+        footer={null}
+      >
+        <Form form={overtimeForm} layout="vertical" onFinish={onOvertimeSubmit}>
+          <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+            <div className="font-medium">{selectedEmployee?.fullName}</div>
+            <div className="text-sm text-gray-500">{selectedEmployee?.employeeCode}</div>
+          </div>
+          <Alert
+            message={t('attendance.overtimeInfo')}
+            description={t('attendance.overtimeDescription')}
+            type="info"
+            showIcon
+            className="mb-4"
+          />
+          <Form.Item
+            name="overtimeHours"
+            label={t('attendance.overtimeHours')}
+            rules={[
+              { required: true, message: t('attendance.overtimeRequired') },
+              { 
+                validator: (_, value) => {
+                  if (value && (isNaN(value) || parseFloat(value) < 0)) {
+                    return Promise.reject(new Error(t('attendance.overtimeInvalid')));
+                  }
+                  return Promise.resolve();
+                }
+              }
+            ]}
+          >
+            <Input 
+              type="number" 
+              step="0.5" 
+              min="0"
+              placeholder={t('attendance.overtimePlaceholder')} 
+              size="large"
+              suffix={t('attendance.hours')}
+            />
+          </Form.Item>
+          <Form.Item name="reason" label={t('attendance.notesOptional')}>
+            <Input.TextArea rows={2} placeholder={t('attendance.reasonForOvertime')} />
+          </Form.Item>
+          <div className="flex justify-end space-x-2">
+            <Button onClick={() => setOvertimeModal(false)}>{t('common.cancel')}</Button>
+            <Button type="primary" htmlType="submit">
+              {t('attendance.saveOvertime')}
             </Button>
           </div>
         </Form>

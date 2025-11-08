@@ -255,7 +255,8 @@ export const calculateEmployeeSalary = async (employeeId, month, year) => {
     // Calculate gross and net salary
     const grossSalary = baseSalary + totalBonuses + totalAllowances + overtimePay;
     const taxDeduction = (grossSalary * taxRate) / 100;
-    const netSalary = grossSalary - taxDeduction - totalDeductions;
+    // Ensure netSalary is never negative
+    const netSalary = Math.max(0, grossSalary - taxDeduction - totalDeductions);
     
     return {
       employeeId,
@@ -297,13 +298,16 @@ export const calculateMonthlySalaries = async (req, res) => {
     
     const userData = JSON.parse(req.headers.user || '{}');
     
-    // Get all employees
+    // Get all ACTIVE employees only
     const employees = await db.select({
       id: users.id,
       fullName: users.fullName
     })
     .from(users)
-    .where(eq(users.role, 'ROLE_EMPLOYEE'));
+    .where(and(
+      eq(users.role, 'ROLE_EMPLOYEE'),
+      eq(users.active, true)
+    ));
     
     const results = [];
     const errors = [];
@@ -491,7 +495,8 @@ export const getAllMonthlySalaries = async (req, res) => {
       
       const baseSalary = parseFloat(emp.baseSalary || 0);
       const grossSalary = baseSalary + totalBonuses + overtimePay + corrections;
-      const netSalary = grossSalary - totalDeductions;
+      // Ensure netSalary is never negative
+      const netSalary = Math.max(0, grossSalary - totalDeductions);
       
       if (calculatedSalary) {
         // Employee has a calculated salary record - update with real-time adjustment totals

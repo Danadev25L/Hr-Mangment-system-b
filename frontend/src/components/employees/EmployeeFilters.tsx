@@ -10,6 +10,7 @@ import {
   EnhancedButton,
 } from '@/components/ui'
 import dayjs from 'dayjs'
+import { useTranslations } from 'next-intl'
 
 const { Option } = Select
 
@@ -40,24 +41,26 @@ export const EmployeeFilters: React.FC<EmployeeFiltersProps> = ({
   onRefresh,
   isLoading = false,
 }) => {
+  const t = useTranslations()
+  
   return (
     <FilterBar>
       <FilterSelect
-        placeholder="Role"
+        placeholder={t('employees.role')}
         options={[
-          ...(role === 'admin' ? [{ label: 'Admin', value: 'ROLE_ADMIN' }] : []),
-          { label: 'Manager', value: 'ROLE_MANAGER' },
-          { label: 'Employee', value: 'ROLE_EMPLOYEE' },
+          ...(role === 'admin' ? [{ label: t('employees.admin'), value: 'ROLE_ADMIN' }] : []),
+          { label: t('employees.manager'), value: 'ROLE_MANAGER' },
+          { label: t('employees.roleEmployee'), value: 'ROLE_EMPLOYEE' },
         ]}
         value={filters.role}
         onChange={(value) => onFilterChange('role', value)}
       />
       
       <FilterSelect
-        placeholder="Status"
+        placeholder={t('common.status')}
         options={[
-          { label: 'Active', value: 'active' },
-          { label: 'Inactive', value: 'inactive' },
+          { label: t('employees.active'), value: 'active' },
+          { label: t('employees.inactive'), value: 'inactive' },
         ]}
         value={filters.status}
         onChange={(value) => onFilterChange('status', value)}
@@ -65,7 +68,7 @@ export const EmployeeFilters: React.FC<EmployeeFiltersProps> = ({
       
       {role === 'admin' && departments.length > 0 && (
         <FilterSelect
-          placeholder="Department"
+          placeholder={t('employees.department')}
           options={departments.map((dept: any) => ({
             label: dept.departmentName,
             value: dept.id.toString(),
@@ -78,7 +81,7 @@ export const EmployeeFilters: React.FC<EmployeeFiltersProps> = ({
       <FilterDateRange
         value={dateRange as any}
         onChange={onDateRangeChange}
-        placeholder={['Start Date', 'End Date']}
+        placeholder={[t('attendance.from'), t('attendance.to')]}
       />
       
       <div className="ml-auto flex gap-2">
@@ -88,14 +91,14 @@ export const EmployeeFilters: React.FC<EmployeeFiltersProps> = ({
           onClick={onRefresh}
           loading={isLoading}
         >
-          Refresh
+          {t('employees.refresh')}
         </EnhancedButton>
         <EnhancedButton
           variant="secondary"
           icon={<ClearOutlined />}
           onClick={onReset}
         >
-          Reset
+          {t('employees.reset')}
         </EnhancedButton>
       </div>
     </FilterBar>

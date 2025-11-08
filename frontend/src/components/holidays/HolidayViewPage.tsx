@@ -24,12 +24,11 @@ import {
   GiftOutlined,
   ClockCircleOutlined,
   InfoCircleOutlined,
-  SyncOutlined,
   FileTextOutlined,
 } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/lib/api'
-import { useLocale } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
 import dayjs from 'dayjs'
 import { CustomSpinner } from '@/components/ui'
 
@@ -42,6 +41,7 @@ interface HolidayViewPageProps {
 
 export function HolidayViewPage({ role, id }: HolidayViewPageProps) {
   const locale = useLocale()
+  const t = useTranslations()
   const queryClient = useQueryClient()
 
   const basePath = role === 'admin' ? '/admin' : role === 'manager' ? '/manager' : '/employee'
@@ -61,20 +61,20 @@ export function HolidayViewPage({ role, id }: HolidayViewPageProps) {
     queryFn: () => apiClient.getHoliday(parseInt(id)),
   })
 
-  // Delete mutation (admin only)
+  // {t('holidays.deleteHoliday')} mutation (admin only)
   const deleteHolidayMutation = useMutation({
     mutationFn: (holidayId: number) => apiClient.deleteHoliday(holidayId),
     onSuccess: () => {
-      message.success('Holiday deleted successfully')
+      message.success(t('holidays.deleteSuccess'))
       handleNavigation(listPath)
     },
     onError: (error: any) => {
-      message.error(error.response?.data?.message || 'Failed to delete holiday')
+      message.error(error.response?.data?.message || t('holidays.deleteError'))
     },
   })
 
   const handleDelete = () => {
-    if (window.confirm('Are you sure you want to delete this holiday?')) {
+    if (window.confirm(t('holidays.deleteConfirm', { name: holidayData.name }))) {
       deleteHolidayMutation.mutate(parseInt(id))
     }
   }
@@ -93,7 +93,7 @@ export function HolidayViewPage({ role, id }: HolidayViewPageProps) {
         <Empty description="Holiday not found" />
         <div className="text-center mt-4">
           <Button onClick={() => handleNavigation(listPath)}>
-            Back to Holidays
+            {t('common.back')} to Holidays
           </Button>
         </div>
       </Card>
@@ -129,7 +129,7 @@ export function HolidayViewPage({ role, id }: HolidayViewPageProps) {
             ),
           },
           {
-            title: 'View Details',
+            title: t('holidays.viewDetails'),
           },
         ]}
       />
@@ -144,7 +144,7 @@ export function HolidayViewPage({ role, id }: HolidayViewPageProps) {
               </div>
               <div>
                 <Title level={2} className="!text-white !mb-2">
-                  {holidayData.name || 'Unnamed Holiday'}
+                  {holidayData.name || t('holidays.view.unnamedHoliday')}
                 </Title>
                 <div className="flex flex-wrap items-center gap-3 mb-2">
                   <span className="text-white/90 text-base flex items-center gap-2">
@@ -160,21 +160,14 @@ export function HolidayViewPage({ role, id }: HolidayViewPageProps) {
                   )}
                   {!isPast && !isToday && (
                     <Tag color="blue" icon={<ClockCircleOutlined />} className="border-0">
-                      In {daysUntil} {daysUntil === 1 ? 'day' : 'days'}
+                      {daysUntil === 1 ? t('holidays.view.inDays', { count: 1, unit: t('holidays.day') }) : t('holidays.view.inDays', { count: daysUntil, unit: t('holidays.days') })}
                     </Tag>
                   )}
                   {isPast && (
                     <Tag color="default" className="border-0">
-                      Past Event
+                      {t('holidays.past')}
                     </Tag>
                   )}
-                  <Tag 
-                    color={holidayData.isRecurring ? 'blue' : 'default'} 
-                    icon={holidayData.isRecurring ? <SyncOutlined /> : undefined}
-                    className="border-0"
-                  >
-                    {holidayData.isRecurring ? 'Recurring' : 'One-time'}
-                  </Tag>
                 </div>
               </div>
             </div>
@@ -185,7 +178,7 @@ export function HolidayViewPage({ role, id }: HolidayViewPageProps) {
                 onClick={() => handleNavigation(listPath)}
                 className="bg-white/20 backdrop-blur-sm border-white/30 text-white hover:bg-white/30"
               >
-                Back
+                {t('common.back')}
               </Button>
               {role === 'admin' && (
                 <>
@@ -196,7 +189,7 @@ export function HolidayViewPage({ role, id }: HolidayViewPageProps) {
                     onClick={() => handleNavigation(`${listPath}/${id}/edit`)}
                     className="bg-white text-green-600 border-0 hover:bg-white/90"
                   >
-                    Edit
+                    {t('holidays.editHoliday')}
                   </Button>
                   <Button
                     danger
@@ -205,7 +198,7 @@ export function HolidayViewPage({ role, id }: HolidayViewPageProps) {
                     onClick={handleDelete}
                     loading={deleteHolidayMutation.isPending}
                   >
-                    Delete
+                    {t('holidays.deleteHoliday')}
                   </Button>
                 </>
               )}
@@ -235,25 +228,16 @@ export function HolidayViewPage({ role, id }: HolidayViewPageProps) {
               }}
               contentStyle={{ backgroundColor: 'white' }}
             >
-              <Descriptions.Item label="Holiday Name">
-                <Text strong className="text-base">{holidayData.name || 'Unnamed Holiday'}</Text>
+              <Descriptions.Item label={t('holidays.holidayName')}>
+                <Text strong className="text-base">{holidayData.name || t('holidays.view.unnamedHoliday')}</Text>
               </Descriptions.Item>
-              <Descriptions.Item label="Date">
+              <Descriptions.Item label={t('holidays.date')}>
                 <Space>
                   <CalendarOutlined className="text-green-600" />
                   <Text className="text-base">{holidayDate.format('dddd, MMMM DD, YYYY')}</Text>
                 </Space>
               </Descriptions.Item>
-              <Descriptions.Item label="Type">
-                <Tag 
-                  color={holidayData.isRecurring ? 'blue' : 'default'} 
-                  icon={holidayData.isRecurring ? <SyncOutlined /> : undefined}
-                  className="text-sm"
-                >
-                  {holidayData.isRecurring ? 'Recurring (Annual)' : 'One-time Event'}
-                </Tag>
-              </Descriptions.Item>
-              <Descriptions.Item label="Status">
+              <Descriptions.Item label={t('holidays.status')}>
                 <Space wrap>
                   {isToday && (
                     <Tag color="green" icon={<CheckCircleOutlined />} className="text-sm">
@@ -262,19 +246,19 @@ export function HolidayViewPage({ role, id }: HolidayViewPageProps) {
                   )}
                   {!isPast && !isToday && (
                     <Tag color="blue" icon={<ClockCircleOutlined />} className="text-sm">
-                      Upcoming - In {daysUntil} {daysUntil === 1 ? 'day' : 'days'}
+                      Upcoming - {daysUntil === 1 ? t('holidays.view.inDays', { count: 1, unit: t('holidays.day') }) : t('holidays.view.inDays', { count: daysUntil, unit: t('holidays.days') })}
                     </Tag>
                   )}
                   {isPast && (
                     <Tag color="default" className="text-sm">
-                      Past - {Math.abs(daysUntil)} {Math.abs(daysUntil) === 1 ? 'day' : 'days'} ago
+                      {t('holidays.view.pastDaysAgo', { count: Math.abs(daysUntil), unit: Math.abs(daysUntil) === 1 ? t('holidays.day') : t('holidays.days') })}
                     </Tag>
                   )}
                 </Space>
               </Descriptions.Item>
-              <Descriptions.Item label="Description">
+              <Descriptions.Item label={t('holidays.description')}>
                 <Paragraph className="mb-0 whitespace-pre-wrap">
-                  {holidayData.description || <Text type="secondary">No description provided</Text>}
+                  {holidayData.description || <Text type="secondary">{t('holidays.view.noDescription')}</Text>}
                 </Paragraph>
               </Descriptions.Item>
             </Descriptions>
@@ -299,11 +283,11 @@ export function HolidayViewPage({ role, id }: HolidayViewPageProps) {
               }}
               contentStyle={{ backgroundColor: 'white' }}
             >
-              <Descriptions.Item label="Created At">
+              <Descriptions.Item label={t('holidays.view.createdAt')}>
                 <Text className="text-sm">{dayjs(holidayData.createdAt).format('MMM DD, YYYY HH:mm')}</Text>
               </Descriptions.Item>
               {holidayData.updatedAt && (
-                <Descriptions.Item label="Last Updated">
+                <Descriptions.Item label={t('holidays.view.lastUpdated')}>
                   <Text className="text-sm">{dayjs(holidayData.updatedAt).format('MMM DD, YYYY HH:mm')}</Text>
                 </Descriptions.Item>
               )}
@@ -311,23 +295,6 @@ export function HolidayViewPage({ role, id }: HolidayViewPageProps) {
           </Card>
         </Col>
       </Row>
-
-      {/* Additional Information */}
-      {holidayData.isRecurring && (
-        <Card className="shadow-md bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-blue-500">
-          <div className="flex items-start gap-4">
-            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center flex-shrink-0">
-              <SyncOutlined className="text-white text-xl" />
-            </div>
-            <div>
-              <Title level={5} className="!mb-2 text-blue-900">Recurring Holiday</Title>
-              <Text className="text-blue-800">
-                This holiday occurs annually on <Text strong>{holidayDate.format('MMMM DD')}</Text>. It will automatically appear in the calendar every year.
-              </Text>
-            </div>
-          </div>
-        </Card>
-      )}
     </div>
   )
 }

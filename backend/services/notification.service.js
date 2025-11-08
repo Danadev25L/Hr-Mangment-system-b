@@ -8,10 +8,22 @@ import { eq } from 'drizzle-orm';
  */
 
 /**
- * Create a notification for a user
+ * Create a notification for a user (only if user is active)
  */
 const createNotification = async (userId, title, message, type, relatedId = null) => {
   try {
+    // Check if user is active before creating notification
+    const [user] = await db.select({ id: users.id, active: users.active })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+    
+    // Don't create notification for inactive users
+    if (!user || !user.active) {
+      console.log(`⚠️ Skipping notification for inactive user ${userId}`);
+      return null;
+    }
+
     const [notification] = await db
       .insert(notifications)
       .values({
@@ -20,9 +32,8 @@ const createNotification = async (userId, title, message, type, relatedId = null
         message,
         type,
         relatedId,
-        isRead: false,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        isRead: false
+        // Let database handle createdAt and updatedAt with defaultNow()
       })
       .returning();
 

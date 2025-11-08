@@ -68,7 +68,8 @@ export const recalculateEmployeePayroll = async (employeeId, month, year) => {
     const taxDeduction = Math.round(grossSalary * 0.15); // 15% tax
     const otherDeductions = Math.round(grossSalary * 0.02); // 2% other deductions
     const totalDeductions = taxDeduction + otherDeductions;
-    const netSalary = grossSalary - totalDeductions;
+    // Ensure netSalary is never negative
+    const netSalary = Math.max(0, grossSalary - totalDeductions);
     
     const existingRecord = await db.select()
       .from(payrollRecords)

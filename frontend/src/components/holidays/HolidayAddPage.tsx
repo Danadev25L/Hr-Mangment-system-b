@@ -6,7 +6,6 @@ import {
   Form,
   Input,
   DatePicker,
-  Switch,
   Space,
   message,
   Tag,
@@ -19,9 +18,6 @@ import {
   ArrowLeftOutlined,
   CalendarOutlined,
   FileTextOutlined,
-  ReloadOutlined,
-  CheckCircleOutlined,
-  CloseCircleOutlined,
   GiftOutlined,
 } from '@ant-design/icons'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
@@ -67,13 +63,17 @@ export function HolidayAddPage({ role, title, description }: HolidayAddPageProps
   })
 
   const handleSubmit = (values: any) => {
+    // For all holidays, use the exact date
+    const dateToSave = values.date.format('YYYY-MM-DD');
+    
     const payload = {
-      date: values.date.format('YYYY-MM-DD'),
+      date: dateToSave,
       name: values.name,
       description: values.description || '',
-      isRecurring: values.isRecurring || false,
+      isRecurring: false, // Always false now
     }
 
+    console.log('Submitting holiday payload:', payload);
     createHolidayMutation.mutate(payload)
   }
 
@@ -102,7 +102,6 @@ export function HolidayAddPage({ role, title, description }: HolidayAddPageProps
           onFinish={handleSubmit}
           initialValues={{
             date: dayjs(),
-            isRecurring: false,
           }}
         >
           <Divider orientation="left">
@@ -143,6 +142,7 @@ export function HolidayAddPage({ role, title, description }: HolidayAddPageProps
                   style={{ width: '100%' }}
                   format="YYYY-MM-DD"
                   size="large"
+                  placeholder={t('holidays.selectDate')}
                 />
               </Form.Item>
             </Col>
@@ -176,37 +176,6 @@ export function HolidayAddPage({ role, title, description }: HolidayAddPageProps
               maxLength={1000}
             />
           </Form.Item>
-
-          <EnhancedCard className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-gray-800 border-l-4 border-l-green-500">
-            <Form.Item
-              name="isRecurring"
-              label={t('holidays.recurringHoliday')}
-              valuePropName="checked"
-              tooltip={t('holidays.recurringTooltip')}
-              className="mb-0"
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex-1">
-                  <p className="text-gray-600 dark:text-gray-300 mb-2">
-                    {t('holidays.recurringQuestion')}
-                  </p>
-                  <Space className="flex-wrap">
-                    <Tag icon={<CheckCircleOutlined />} color="success">
-                      {t('holidays.annual')}
-                    </Tag>
-                    <Tag icon={<CloseCircleOutlined />} color="default">
-                      {t('holidays.oneTime')}
-                    </Tag>
-                  </Space>
-                </div>
-                <Switch
-                  checkedChildren={<Space><ReloadOutlined />{t('holidays.yesAnnual')}</Space>}
-                  unCheckedChildren={t('holidays.oneTime')}
-                  size="default"
-                />
-              </div>
-            </Form.Item>
-          </EnhancedCard>
 
           <Divider />
 

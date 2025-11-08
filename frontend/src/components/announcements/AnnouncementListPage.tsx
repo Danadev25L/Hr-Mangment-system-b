@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { message, Modal, Table, Tag, Space, Avatar, Tooltip } from 'antd'
+import { message, Modal, Table, Tag, Space, Avatar, Tooltip, Dropdown, Row, Col } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import {
   PlusOutlined,
@@ -88,13 +88,13 @@ export function AnnouncementListPage({ role, title, description }: AnnouncementL
   }, [searchText, filters, pagination, locale, basePath])
 
   // Fetch announcements
-  const { data: announcementsData, isLoading, refetch } = useQuery({
+  const { data: announcementsData, isLoading, refetch } = useQuery<any>({
     queryKey: ['announcements', role],
     queryFn: () => apiClient.getAnnouncements(),
   })
 
   // Fetch departments (for admin filter)
-  const { data: departmentsData } = useQuery({
+  const { data: departmentsData } = useQuery<any>({
     queryKey: ['departments'],
     queryFn: () => apiClient.getDepartments(),
     enabled: role === 'admin',
@@ -232,7 +232,7 @@ export function AnnouncementListPage({ role, title, description }: AnnouncementL
     })
 
     doc.save(`announcements-${dayjs().format('YYYY-MM-DD')}.pdf`)
-    message.success('PDF exported successfully')
+    message.success(t('common.exportSuccess'))
   }
 
   const handlePrint = () => {
@@ -253,19 +253,19 @@ export function AnnouncementListPage({ role, title, description }: AnnouncementL
     {
       key: 'excel',
       icon: <FileExcelOutlined />,
-      label: 'Export to Excel',
+      label: t('applications.exportToExcel'),
       onClick: exportToExcel,
     },
     {
       key: 'pdf',
       icon: <FilePdfOutlined />,
-      label: 'Export to PDF',
+      label: t('applications.exportToPDF'),
       onClick: exportToPDF,
     },
     {
       key: 'print',
       icon: <PrinterOutlined />,
-      label: 'Print',
+      label: t('common.print'),
       onClick: handlePrint,
     },
   ]
@@ -348,7 +348,9 @@ export function AnnouncementListPage({ role, title, description }: AnnouncementL
               size="small"
               icon={<EyeOutlined />}
               onClick={() => handleView(record.id)}
-            />
+            >
+              {null}
+            </EnhancedButton>
           </Tooltip>
           {(role === 'admin' || role === 'manager') && (
             <>
@@ -358,7 +360,9 @@ export function AnnouncementListPage({ role, title, description }: AnnouncementL
                   size="small"
                   icon={<EditOutlined />}
                   onClick={() => handleNavigation(`/${locale}${basePath}/${record.id}/edit`)}
-                />
+                >
+                  {null}
+                </EnhancedButton>
               </Tooltip>
               <Tooltip title={t('common.delete')}>
                 <EnhancedButton
@@ -367,7 +371,9 @@ export function AnnouncementListPage({ role, title, description }: AnnouncementL
                   danger
                   icon={<DeleteOutlined />}
                   onClick={() => handleDelete(record.id, record.title)}
-                />
+                >
+                  {null}
+                </EnhancedButton>
               </Tooltip>
             </>
           )}
@@ -394,13 +400,14 @@ export function AnnouncementListPage({ role, title, description }: AnnouncementL
                 {t('announcements.createAnnouncement')}
               </EnhancedButton>
             )}
-            <EnhancedButton
-              variant="secondary"
-              icon={<ExportOutlined />}
-              dropdown={{ menu: { items: exportMenuItems } }}
-            >
-              {t('common.export')}
-            </EnhancedButton>
+            <Dropdown menu={{ items: exportMenuItems }}>
+              <EnhancedButton
+                variant="secondary"
+                icon={<ExportOutlined />}
+              >
+                {t('common.export')}
+              </EnhancedButton>
+            </Dropdown>
           </div>
         }
       />
@@ -454,45 +461,44 @@ export function AnnouncementListPage({ role, title, description }: AnnouncementL
 
       {/* Filters */}
       <EnhancedCard>
-        <FilterBar
-          searchComponent={
+        <Row gutter={[16, 16]}>
+          <Col xs={24} sm={12} md={8}>
             <SearchInput
               placeholder={t('announcements.searchPlaceholder')}
               value={searchText}
-              onChange={setSearchText}
-              onClear={() => setSearchText('')}
+              onChange={(e) => setSearchText(e.target.value)}
             />
-          }
-          filterComponents={
-            <>
-              {role !== 'employee' && (
-                <FilterSelect
-                  placeholder={t('announcements.status')}
-                  value={filters.status}
-                  onChange={(value) => setFilters({ ...filters, status: value })}
-                  options={[
-                    { label: t('announcements.active'), value: 'active' },
-                    { label: t('announcements.inactive'), value: 'inactive' },
-                  ]}
-                  allowClear
-                />
-              )}
-              {role === 'admin' && (
-                <FilterSelect
-                  placeholder={t('announcements.department')}
-                  value={filters.department}
-                  onChange={(value) => setFilters({ ...filters, department: value })}
-                  options={departments.map((dept: any) => ({
-                    label: dept.departmentName || dept.name,
-                    value: dept.id.toString(),
-                  }))}
-                  allowClear
-                />
-              )}
-            </>
-          }
-          actionButtons={
-            <>
+          </Col>
+          {role !== 'employee' && (
+            <Col xs={24} sm={12} md={4}>
+              <FilterSelect
+                placeholder={t('announcements.status')}
+                value={filters.status}
+                onChange={(value) => setFilters({ ...filters, status: value as string | undefined })}
+                options={[
+                  { label: t('announcements.active'), value: 'active' },
+                  { label: t('announcements.inactive'), value: 'inactive' },
+                ]}
+                allowClear
+              />
+            </Col>
+          )}
+          {role === 'admin' && (
+            <Col xs={24} sm={12} md={4}>
+              <FilterSelect
+                placeholder={t('announcements.department')}
+                value={filters.department}
+                onChange={(value) => setFilters({ ...filters, department: value as string | undefined })}
+                options={departments.map((dept: any) => ({
+                  label: dept.departmentName || dept.name,
+                  value: dept.id.toString(),
+                }))}
+                allowClear
+              />
+            </Col>
+          )}
+          <Col flex="auto">
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
               <EnhancedButton
                 variant="ghost"
                 icon={<ReloadOutlined />}
@@ -507,9 +513,9 @@ export function AnnouncementListPage({ role, title, description }: AnnouncementL
               >
                 {t('common.cancel')}
               </EnhancedButton>
-            </>
-          }
-        />
+            </div>
+          </Col>
+        </Row>
       </EnhancedCard>
 
       {/* Table */}

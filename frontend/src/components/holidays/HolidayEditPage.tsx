@@ -7,7 +7,6 @@ import {
   Input,
   Button,
   DatePicker,
-  Switch,
   Space,
   Breadcrumb,
   message,
@@ -21,7 +20,7 @@ import {
 } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/lib/api'
-import { useLocale } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
 import dayjs from 'dayjs'
 import { CustomSpinner } from '@/components/ui'
 
@@ -34,6 +33,7 @@ interface HolidayEditPageProps {
 export function HolidayEditPage({ id }: HolidayEditPageProps) {
   const [form] = Form.useForm()
   const locale = useLocale()
+  const t = useTranslations()
   const queryClient = useQueryClient()
 
   const basePath = '/admin'
@@ -76,20 +76,23 @@ export function HolidayEditPage({ id }: HolidayEditPageProps) {
         name: holidayData.name,
         date: holidayData.date ? dayjs(holidayData.date) : null,
         description: holidayData.description,
-        isRecurring: holidayData.isRecurring || false,
       })
     }
   }, [holiday, form])
 
   const handleSubmit = (values: any) => {
+    // For all holidays, use the exact date
+    const dateToSave = values.date.format('YYYY-MM-DD');
+    
     const payload = {
-      date: values.date.format('YYYY-MM-DD'),
+      date: dateToSave,
       name: values.name,
       description: values.description || '',
-      isRecurring: values.isRecurring || false,
-    }
+      isRecurring: false, // Always false now
+    };
 
-    updateHolidayMutation.mutate(payload)
+    console.log('Updating holiday payload:', payload);
+    updateHolidayMutation.mutate(payload);
   }
 
   if (holidayLoading) {
@@ -135,7 +138,7 @@ export function HolidayEditPage({ id }: HolidayEditPageProps) {
             ),
           },
           {
-            title: 'Edit Holiday',
+            title: t('holidays.form.editHoliday'),
           },
         ]}
       />
@@ -149,8 +152,8 @@ export function HolidayEditPage({ id }: HolidayEditPageProps) {
                 <CalendarOutlined className="text-white text-2xl" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-white m-0">Edit Holiday</h1>
-                <p className="text-white/80 mt-1 mb-0">Update holiday information and details</p>
+                <h1 className="text-2xl font-bold text-white m-0">{t('holidays.form.editHoliday')}</h1>
+                <p className="text-white/80 mt-1 mb-0">{t('holidays.form.updateHolidayInfo')}</p>
               </div>
             </div>
             <Button
@@ -171,17 +174,14 @@ export function HolidayEditPage({ id }: HolidayEditPageProps) {
           form={form}
           layout="vertical"
           onFinish={handleSubmit}
-          initialValues={{
-            isRecurring: false,
-          }}
         >
           {/* Holiday Name */}
           <Form.Item
             name="name"
             label="Holiday Name"
             rules={[
-              { required: true, message: 'Please enter holiday name' },
-              { max: 255, message: 'Name cannot exceed 255 characters' },
+              { required: true, message: t('holidays.form.pleaseEnterName') },
+              { max: 255, message: t('holidays.form.nameMaxLength') },
             ]}
           >
             <Input
@@ -195,12 +195,13 @@ export function HolidayEditPage({ id }: HolidayEditPageProps) {
           <Form.Item
             name="date"
             label="Holiday Date"
-            rules={[{ required: true, message: 'Please select a date' }]}
+            rules={[{ required: true, message: t('holidays.form.pleaseSelectDate') }]}
           >
             <DatePicker
               style={{ width: '100%' }}
               format="YYYY-MM-DD"
               size="large"
+              placeholder="Select date"
             />
           </Form.Item>
 
@@ -209,7 +210,7 @@ export function HolidayEditPage({ id }: HolidayEditPageProps) {
             name="description"
             label="Description (Optional)"
             rules={[
-              { max: 1000, message: 'Description cannot exceed 1000 characters' },
+              { max: 1000, message: t('holidays.form.descriptionMaxLength') },
             ]}
           >
             <TextArea
@@ -217,19 +218,6 @@ export function HolidayEditPage({ id }: HolidayEditPageProps) {
               placeholder="Enter holiday description or any additional information..."
               showCount
               maxLength={1000}
-            />
-          </Form.Item>
-
-          {/* Recurring Toggle */}
-          <Form.Item
-            name="isRecurring"
-            label="Recurring Holiday"
-            valuePropName="checked"
-            tooltip="Enable if this holiday occurs every year (e.g., New Year's Day, Christmas)"
-          >
-            <Switch
-              checkedChildren="Yes, Annual"
-              unCheckedChildren="One-time"
             />
           </Form.Item>
 

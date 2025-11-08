@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm';
 
 import { db } from '../../../db/index.js';
 import { daysHoliday } from '../../../db/schema.js';
+import { notifyNewHoliday } from '../../../services/notification.enhanced.service.js';
 
 /**
  * Admin Holiday Management Controller
@@ -70,9 +71,20 @@ export const createHoliday = async (req, res) => {
       .values(newHoliday)
       .returning();
     
+    const createdHoliday = result[0];
+    
+    // Send notifications to all users
+    try {
+      const holidayName = createdHoliday.name || 'Holiday';
+      await notifyNewHoliday(createdHoliday.id, holidayName, createdHoliday.date);
+    } catch (notificationError) {
+      // Log but don't fail the request if notification fails
+      console.error('Error sending holiday notification:', notificationError);
+    }
+    
     res.json({
       message: "Holiday created successfully",
-      holiday: result[0]
+      holiday: createdHoliday
     });
   } catch (error) {
     console.error('Error creating holiday:', error);
@@ -89,9 +101,51 @@ export const getAllHolidays = async (req, res) => {
     .from(daysHoliday)
     .orderBy(daysHoliday.date);
     
+    // Process recurring holidays to show for current and future years
+    const currentYear = new Date().getFullYear();
+    const currentDate = new Date();
+    const processedHolidays = [];
+    
+    result.forEach(holiday => {
+      if (holiday.isRecurring) {
+        // For recurring holidays, extract month and day
+        const holidayDate = new Date(holiday.date);
+        const month = holidayDate.getMonth();
+        const day = holidayDate.getDate();
+        
+        // Check if the holiday date for current year has passed
+        const currentYearDate = new Date(currentYear, month, day);
+        
+        if (currentYearDate >= currentDate || currentYearDate.toDateString() === currentDate.toDateString()) {
+          // Show current year's instance if it hasn't passed
+          processedHolidays.push({
+            ...holiday,
+            date: currentYearDate.toISOString(),
+            originalDate: holiday.date,
+            displayYear: currentYear
+          });
+        } else {
+          // If current year's instance has passed, show next year's
+          const nextYearDate = new Date(currentYear + 1, month, day);
+          processedHolidays.push({
+            ...holiday,
+            date: nextYearDate.toISOString(),
+            originalDate: holiday.date,
+            displayYear: currentYear + 1
+          });
+        }
+      } else {
+        // Non-recurring holidays are added as-is
+        processedHolidays.push(holiday);
+      }
+    });
+    
+    // Sort by date
+    processedHolidays.sort((a, b) => new Date(a.date) - new Date(b.date));
+    
     res.json({
       message: "All holidays retrieved successfully",
-      holidays: result
+      holidays: processedHolidays
     });
   } catch (error) {
     res.status(500).json({
@@ -227,13 +281,46 @@ export const deleteAllHolidays = async (req, res) => {
 export const getUpcomingHolidays = async (req, res) => {
   try {
     const currentDate = new Date();
+    const currentYear = currentDate.getFullYear();
     
     const result = await db.select()
     .from(daysHoliday)
     .orderBy(daysHoliday.date);
     
-    // Filter upcoming holidays in JavaScript
-    const upcomingHolidays = result.filter(holiday => new Date(holiday.date) >= currentDate);
+    // Process recurring holidays and filter upcoming ones
+    const upcomingHolidays = [];
+    
+    result.forEach(holiday => {
+      if (holiday.isRecurring) {
+        // For recurring holidays, check this year's instance
+        const holidayDate = new Date(holiday.date);
+        const currentYearDate = new Date(currentYear, holidayDate.getMonth(), holidayDate.getDate());
+        
+        if (currentYearDate >= currentDate) {
+          upcomingHolidays.push({
+            ...holiday,
+            date: currentYearDate.toISOString(),
+            originalDate: holiday.date,
+          });
+        } else {
+          // If this year's instance has passed, show next year's
+          const nextYearDate = new Date(currentYear + 1, holidayDate.getMonth(), holidayDate.getDate());
+          upcomingHolidays.push({
+            ...holiday,
+            date: nextYearDate.toISOString(),
+            originalDate: holiday.date,
+          });
+        }
+      } else {
+        // Non-recurring holidays - only include if upcoming
+        if (new Date(holiday.date) >= currentDate) {
+          upcomingHolidays.push(holiday);
+        }
+      }
+    });
+    
+    // Sort by date
+    upcomingHolidays.sort((a, b) => new Date(a.date) - new Date(b.date));
     
     res.json({
       message: "Upcoming holidays retrieved successfully",

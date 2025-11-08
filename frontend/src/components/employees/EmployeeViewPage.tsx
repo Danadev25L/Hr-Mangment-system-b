@@ -33,7 +33,7 @@ import {
   EnhancedButton,
   CustomSpinner,
 } from '@/components/ui'
-import { useLocale } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 
 interface EmployeeViewPageProps {
   role: 'admin' | 'manager'
@@ -42,6 +42,7 @@ interface EmployeeViewPageProps {
 export function EmployeeViewPage({ role }: EmployeeViewPageProps) {
   const params = useParams()
   const locale = useLocale()
+  const t = useTranslations()
   const id = params.id as string
 
   const { data: user, isLoading } = useQuery({
@@ -65,13 +66,13 @@ export function EmployeeViewPage({ role }: EmployeeViewPageProps) {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <CustomSpinner size="large" text="Loading employee details..." />
+        <CustomSpinner size="large" text={t('employees.viewPage.loadingEmployee')} />
       </div>
     )
   }
 
   if (!user || !user.data) {
-    return <div className="text-center text-gray-500">Employee not found</div>
+    return <div className="text-center text-gray-500">{t('employees.viewPage.employeeNotFound')}</div>
   }
 
   const userData = user.data
@@ -85,7 +86,7 @@ export function EmployeeViewPage({ role }: EmployeeViewPageProps) {
             title: (
               <Space>
                 <HomeOutlined />
-                <span>Dashboard</span>
+                <span>{t('employees.viewPage.dashboard')}</span>
               </Space>
             ),
             href: dashboardPath,
@@ -94,7 +95,7 @@ export function EmployeeViewPage({ role }: EmployeeViewPageProps) {
             title: (
               <Space>
                 <TeamOutlined />
-                <span>{role === 'admin' ? 'Employees' : 'My Team'}</span>
+                <span>{role === 'admin' ? t('employees.viewPage.employees') : t('employees.viewPage.myTeam')}</span>
               </Space>
             ),
             href: listPath,
@@ -103,7 +104,7 @@ export function EmployeeViewPage({ role }: EmployeeViewPageProps) {
             title: (
               <Space>
                 <EyeOutlined />
-                <span>Employee Details</span>
+                <span>{t('employees.viewPage.title')}</span>
               </Space>
             ),
           },
@@ -128,7 +129,7 @@ export function EmployeeViewPage({ role }: EmployeeViewPageProps) {
                 </div>
                 <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
                   <UserOutlined />
-                  <span>{userData.jobTitle || 'No Job Title'}</span>
+                  <span>{userData.jobTitle || t('employees.viewPage.noJobTitle')}</span>
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-2">
@@ -147,14 +148,14 @@ export function EmployeeViewPage({ role }: EmployeeViewPageProps) {
               icon={<ArrowLeftOutlined />}
               onClick={() => handleNavigation(listPath)}
             >
-              Back
+              {t('employees.viewPage.back')}
             </EnhancedButton>
             <EnhancedButton
               variant="primary"
               icon={<EditOutlined />}
               onClick={() => handleNavigation(editPath)}
             >
-              Edit
+              {t('employees.viewPage.edit')}
             </EnhancedButton>
           </div>
         </div>
@@ -170,37 +171,37 @@ export function EmployeeViewPage({ role }: EmployeeViewPageProps) {
                 <UserOutlined className="text-white text-lg" />
               </div>
               <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                Basic Information
+                {t('employees.formSections.basicInformation')}
               </h3>
             </div>
             <div className="space-y-4">
               <div className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                 <UserOutlined className="text-blue-500 mt-1" />
                 <div className="flex-1">
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Full Name</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{t('employees.form.fullName')}</p>
                   <p className="font-medium text-gray-900 dark:text-gray-100">{userData.fullName}</p>
                 </div>
               </div>
               <div className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                 <IdcardOutlined className="text-green-500 mt-1" />
                 <div className="flex-1">
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Username</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{t('employees.form.username')}</p>
                   <p className="font-medium text-gray-900 dark:text-gray-100">{userData.username}</p>
                 </div>
               </div>
               <div className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                 <MailOutlined className="text-purple-500 mt-1" />
                 <div className="flex-1">
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Email</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{t('employees.form.emailAddress')}</p>
                   <p className="font-medium text-gray-900 dark:text-gray-100">{userData.email}</p>
                 </div>
               </div>
               <div className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                 <PhoneOutlined className="text-orange-500 mt-1" />
                 <div className="flex-1">
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Phone</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{t('employees.form.phoneNumber')}</p>
                   <p className="font-medium text-gray-900 dark:text-gray-100">
-                    {userData.phone || 'Not provided'}
+                    {userData.phone || t('employees.viewPage.notProvided')}
                   </p>
                 </div>
               </div>
@@ -216,43 +217,43 @@ export function EmployeeViewPage({ role }: EmployeeViewPageProps) {
                 <BankOutlined className="text-white text-lg" />
               </div>
               <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                Employment Details
+                {t('employees.viewPage.employmentInfo')}
               </h3>
             </div>
             <div className="space-y-4">
               <div className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                 <BankOutlined className="text-blue-500 mt-1" />
                 <div className="flex-1">
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Department</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{t('employees.form.department')}</p>
                   <p className="font-medium text-gray-900 dark:text-gray-100">
-                    {userData.department?.departmentName || 'Not assigned'}
+                    {userData.department?.departmentName || t('employees.viewPage.notSpecified')}
                   </p>
                 </div>
               </div>
               <div className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                 <DollarOutlined className="text-green-500 mt-1" />
                 <div className="flex-1">
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Base Salary</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{t('employees.form.baseSalary')}</p>
                   <p className="font-medium text-gray-900 dark:text-gray-100">
-                    {userData.baseSalary ? formatCurrency(userData.baseSalary) : 'Not specified'}
+                    {userData.baseSalary ? formatCurrency(userData.baseSalary) : t('employees.viewPage.notSpecified')}
                   </p>
                 </div>
               </div>
               <div className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                 <CalendarOutlined className="text-purple-500 mt-1" />
                 <div className="flex-1">
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Start Date</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{t('employees.form.startDate')}</p>
                   <p className="font-medium text-gray-900 dark:text-gray-100">
-                    {userData.startDate ? formatDate(userData.startDate) : 'Not specified'}
+                    {userData.startDate ? formatDate(userData.startDate) : t('employees.viewPage.notSpecified')}
                   </p>
                 </div>
               </div>
               <div className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                 <ClockCircleOutlined className="text-orange-500 mt-1" />
                 <div className="flex-1">
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Probation End</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{t('employees.form.endDate')}</p>
                   <p className="font-medium text-gray-900 dark:text-gray-100">
-                    {userData.probationEnd ? formatDate(userData.probationEnd) : 'Not specified'}
+                    {userData.probationEnd ? formatDate(userData.probationEnd) : t('employees.viewPage.notSpecified')}
                   </p>
                 </div>
               </div>
@@ -270,16 +271,16 @@ export function EmployeeViewPage({ role }: EmployeeViewPageProps) {
                 <EnvironmentOutlined className="text-white text-lg" />
               </div>
               <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                Contact Information
+                {t('employees.viewPage.contactInfo')}
               </h3>
             </div>
             <div className="space-y-4">
               <div className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                 <EnvironmentOutlined className="text-red-500 mt-1" />
                 <div className="flex-1">
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Address</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{t('employees.form.address')}</p>
                   <p className="font-medium text-gray-900 dark:text-gray-100">
-                    {userData.address || 'Not provided'}
+                    {userData.address || t('employees.viewPage.notProvided')}
                   </p>
                 </div>
               </div>
@@ -287,7 +288,7 @@ export function EmployeeViewPage({ role }: EmployeeViewPageProps) {
                 <div className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                   <EnvironmentOutlined className="text-orange-500 mt-1 text-xs" />
                   <div className="flex-1">
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">City</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{t('employees.form.city')}</p>
                     <p className="font-medium text-gray-900 dark:text-gray-100 text-sm">
                       {userData.city || 'N/A'}
                     </p>
@@ -296,7 +297,7 @@ export function EmployeeViewPage({ role }: EmployeeViewPageProps) {
                 <div className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                   <EnvironmentOutlined className="text-blue-500 mt-1 text-xs" />
                   <div className="flex-1">
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Country</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{t('employees.form.country')}</p>
                     <p className="font-medium text-gray-900 dark:text-gray-100 text-sm">
                       {userData.country || 'N/A'}
                     </p>
@@ -315,25 +316,25 @@ export function EmployeeViewPage({ role }: EmployeeViewPageProps) {
                 <HeartOutlined className="text-white text-lg" />
               </div>
               <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                Personal Information
+                {t('employees.viewPage.personalInfo')}
               </h3>
             </div>
             <div className="space-y-4">
               <div className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                 <CalendarOutlined className="text-pink-500 mt-1" />
                 <div className="flex-1">
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Date of Birth</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{t('employees.form.dateOfBirth')}</p>
                   <p className="font-medium text-gray-900 dark:text-gray-100">
-                    {userData.dateOfBirth ? formatDate(userData.dateOfBirth) : 'Not provided'}
+                    {userData.dateOfBirth ? formatDate(userData.dateOfBirth) : t('employees.viewPage.notProvided')}
                   </p>
                 </div>
               </div>
               <div className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                 <SafetyOutlined className="text-red-500 mt-1" />
                 <div className="flex-1">
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Emergency Contact</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{t('employees.form.emergencyContactName')}</p>
                   <p className="font-medium text-gray-900 dark:text-gray-100">
-                    {userData.emergencyContact || 'Not provided'}
+                    {userData.emergencyContact || t('employees.viewPage.notProvided')}
                   </p>
                   {userData.emergencyPhone && (
                     <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 flex items-center gap-1">
@@ -357,43 +358,43 @@ export function EmployeeViewPage({ role }: EmployeeViewPageProps) {
                 <TrophyOutlined className="text-white text-lg" />
               </div>
               <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                Professional Information
+                {t('employees.viewPage.additionalInfo')}
               </h3>
             </div>
             <div className="space-y-4">
               <div className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                 <TrophyOutlined className="text-indigo-500 mt-1" />
                 <div className="flex-1">
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Skills & Competencies</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{t('employees.form.employmentType')}</p>
                   <p className="font-medium text-gray-900 dark:text-gray-100">
-                    {userData.skills || 'Not specified'}
+                    {userData.employmentType || t('employees.viewPage.notSpecified')}
                   </p>
                 </div>
               </div>
               <div className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                 <BankOutlined className="text-blue-500 mt-1" />
                 <div className="flex-1">
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Professional Experience</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{t('employees.form.workLocation')}</p>
                   <p className="font-medium text-gray-900 dark:text-gray-100">
-                    {userData.experience || 'Not specified'}
+                    {userData.workLocation || t('employees.viewPage.notSpecified')}
                   </p>
                 </div>
               </div>
               <div className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                 <CalendarOutlined className="text-green-500 mt-1" />
                 <div className="flex-1">
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Account Created</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{t('employees.form.gender')}</p>
                   <p className="font-medium text-gray-900 dark:text-gray-100">
-                    {userData.createdAt ? formatDate(userData.createdAt) : 'Not available'}
+                    {userData.gender || t('employees.viewPage.notSpecified')}
                   </p>
                 </div>
               </div>
               <div className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                 <ClockCircleOutlined className="text-purple-500 mt-1" />
                 <div className="flex-1">
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Last Login</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{t('employees.form.maritalStatus')}</p>
                   <p className="font-medium text-gray-900 dark:text-gray-100">
-                    {userData.lastLogin ? formatDate(userData.lastLogin) : 'Never logged in'}
+                    {userData.maritalStatus || t('employees.viewPage.notSpecified')}
                   </p>
                 </div>
               </div>

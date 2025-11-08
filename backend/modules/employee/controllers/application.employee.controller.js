@@ -1,9 +1,10 @@
-import { eq, and, gte, lte } from 'drizzle-orm';
+import { eq, and, gte, lte, desc, sql } from 'drizzle-orm';
 import { db } from '../../../db/index.js';
 import { 
     users, 
     applications,
-    notifications
+    notifications,
+    departments
 } from '../../../db/schema.js';
 
 /**
@@ -119,11 +120,46 @@ export const submitApplication = async (req, res) => {
   }
 };
 
-// Retrieve employee's own applications
+// Retrieve employee's own applications with pagination
 export const getMyApplications = async (req, res) => {
   try {
     const userId = req.authData.id;
     
+    // Get pagination parameters
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const search = req.query.search || '';
+    const status = req.query.status || '';
+    const applicationType = req.query.applicationType || '';
+    const priority = req.query.priority || '';
+    const offset = (page - 1) * limit;
+
+    // Build where conditions
+    let whereConditions = [eq(applications.userId, userId)];
+
+    // Search filter (title or reason)
+    if (search) {
+      whereConditions.push(
+        sql`(${applications.title} ILIKE ${'%' + search + '%'} OR ${applications.reason} ILIKE ${'%' + search + '%'})`
+      );
+    }
+
+    // Status filter
+    if (status && status !== 'all') {
+      whereConditions.push(eq(applications.status, status));
+    }
+
+    // Application type filter
+    if (applicationType && applicationType !== 'all') {
+      whereConditions.push(eq(applications.applicationType, applicationType));
+    }
+
+    // Priority filter
+    if (priority && priority !== 'all') {
+      whereConditions.push(eq(applications.priority, priority));
+    }
+
+    // Get applications with pagination and user/department info
     const result = await db.select({
       id: applications.id,
       title: applications.title,
@@ -136,19 +172,52 @@ export const getMyApplications = async (req, res) => {
       userId: applications.userId,
       approvedBy: applications.approvedBy,
       approvedAt: applications.approvedAt,
+      rejectedBy: applications.rejectedBy,
+      rejectedAt: applications.rejectedAt,
       rejectionReason: applications.rejectionReason,
-      createdAt: applications.createdAt
+      createdAt: applications.createdAt,
+      updatedAt: applications.updatedAt,
+      userName: users.fullName,
+      userEmail: users.email,
+      employeeCode: users.employeeCode,
+      departmentId: users.departmentId,
+      departmentName: departments.departmentName,
     })
     .from(applications)
-    .where(eq(applications.userId, userId))
-    .orderBy(applications.createdAt);
-    
+    .leftJoin(users, eq(applications.userId, users.id))
+    .leftJoin(departments, eq(users.departmentId, departments.id))
+    .where(and(...whereConditions))
+    .orderBy(desc(applications.createdAt))
+    .limit(limit)
+    .offset(offset);
+
+    // Get total count for pagination
+    const countResult = await db.select({ count: sql`count(*)` })
+      .from(applications)
+      .where(and(...whereConditions));
+
+    const totalCount = parseInt(countResult[0]?.count || 0);
+    const totalPages = Math.ceil(totalCount / limit);
+
     res.json({
-      message: "My applications retrieved successfully",
-      applications: result
+      success: true,
+      data: result,
+      pagination: {
+        page,
+        limit,
+        total: totalCount,
+        totalPages
+      },
+      filters: {
+        search,
+        status,
+        applicationType,
+        priority
+      }
     });
   } catch (error) {
     res.status(500).json({
+      success: false,
       message: error.message || "Some error occurred while retrieving your applications."
     });
   }

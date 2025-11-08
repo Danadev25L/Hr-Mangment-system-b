@@ -1,10 +1,12 @@
+export type UserRole = 'ROLE_ADMIN' | 'ROLE_MANAGER' | 'ROLE_EMPLOYEE'
+
 export interface User {
   id: number
   username: string
   fullName: string
   employeeCode: string
   jobTitle?: string
-  role: 'ROLE_ADMIN' | 'ROLE_MANAGER' | 'ROLE_EMPLOYEE'
+  role: UserRole
   active: boolean
   departmentId?: number
   jobId?: number
@@ -72,7 +74,7 @@ export interface RegisterData {
   fullName: string
   employeeCode: string
   jobTitle?: string
-  role?: 'ROLE_ADMIN' | 'ROLE_MANAGER' | 'ROLE_EMPLOYEE'
+  role?: UserRole
   departmentId?: number
   baseSalary?: number
 }

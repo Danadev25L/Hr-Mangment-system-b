@@ -1,5 +1,5 @@
 import axios, { AxiosInstance, AxiosResponse } from 'axios'
-import { AuthResponse, LoginCredentials, RegisterData, ApiResponse, PaginatedResponse } from '@/types'
+import { AuthResponse, LoginCredentials, RegisterData, ApiResponse, PaginatedResponse, User } from '@/types'
 
 let messageApi: any = null
 
@@ -206,7 +206,7 @@ class ApiClient {
   }
 
   // Users endpoints
-  async getUsers(page = 1, limit = 10, filters?: Record<string, any>): Promise<PaginatedResponse> {
+  async getUsers(page = 1, limit = 10, filters?: Record<string, any>): Promise<PaginatedResponse<User>> {
     const userRole = this.getRole()
     const params = { page, limit, ...filters }
     
@@ -318,7 +318,7 @@ class ApiClient {
   async getDepartments() {
     // All authenticated users can access departments through shared endpoint
     const response = await this.client.get('/api/shared/departments')
-    
+
     // Ensure that the returned data is always an array
     if (Array.isArray(response.data)) {
       return response.data
@@ -327,6 +327,11 @@ class ApiClient {
       return [response.data]
     }
     return [] // Return an empty array if data is null or not an object/array
+  }
+
+  async getDepartmentById(id: string | number) {
+    const response = await this.client.get(`/api/shared/departments/${id}`)
+    return response.data
   }
 
   async createDepartment(data: any) {

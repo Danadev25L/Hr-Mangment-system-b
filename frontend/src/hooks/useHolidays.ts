@@ -11,14 +11,14 @@ interface UseHolidaysParams {
 export const useHolidays = (params?: UseHolidaysParams) => {
   return useQuery({
     queryKey: ['holidays', params],
-    queryFn: () => apiClient.getHolidays(params),
+    queryFn: () => apiClient.getHolidays(),
   })
 }
 
 export const useHolidayById = (id: string | number, enabled = true) => {
   return useQuery({
     queryKey: ['holiday', id],
-    queryFn: () => apiClient.getHolidayById(id),
+    queryFn: () => apiClient.getHoliday(Number(id)),
     enabled: !!id && enabled,
   })
 }
@@ -43,7 +43,7 @@ export const useUpdateHoliday = () => {
   
   return useMutation({
     mutationFn: ({ id, data }: { id: string | number; data: any }) =>
-      apiClient.updateHoliday(id, data),
+      apiClient.updateHoliday(Number(id), data),
     onSuccess: (_, variables) => {
       message.success('Holiday updated successfully')
       queryClient.invalidateQueries({ queryKey: ['holidays'] })
@@ -59,7 +59,7 @@ export const useDeleteHoliday = () => {
   const queryClient = useQueryClient()
   
   return useMutation({
-    mutationFn: (id: string | number) => apiClient.deleteHoliday(id),
+    mutationFn: (id: string | number) => apiClient.deleteHoliday(Number(id)),
     onSuccess: () => {
       message.success('Holiday deleted successfully')
       queryClient.invalidateQueries({ queryKey: ['holidays'] })

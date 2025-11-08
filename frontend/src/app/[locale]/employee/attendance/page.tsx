@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Card, Button, Table, Tag, DatePicker, Statistic, Row, Col, Space, Modal, Form, Input, Select, message, Spin } from 'antd'
 import { 
   ClockCircleOutlined, 
@@ -59,30 +59,7 @@ export default function EmployeeAttendancePage() {
   const [checkOutLoading, setCheckOutLoading] = useState(false)
   const [form] = Form.useForm()
 
-  useEffect(() => {
-    fetchTodayAttendance()
-    fetchAttendanceRecords()
-  }, [])
-
-  useEffect(() => {
-    fetchAttendanceRecords()
-  }, [dateRange])
-
-  const fetchTodayAttendance = async () => {
-    try {
-      const response = await apiClient.getTodayAttendance()
-      setTodayAttendance(response.attendance || { 
-        checkIn: null, 
-        checkOut: null, 
-        hasCheckedIn: false, 
-        hasCheckedOut: false 
-      })
-    } catch (error: any) {
-      console.error('Error fetching today attendance:', error)
-    }
-  }
-
-  const fetchAttendanceRecords = async () => {
+  const fetchAttendanceRecords = useCallback(async () => {
     try {
       setLoading(true)
       const response = await apiClient.getMyAttendance({
@@ -95,7 +72,30 @@ export default function EmployeeAttendancePage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [dateRange])
+
+  const fetchTodayAttendance = useCallback(async () => {
+    try {
+      const response = await apiClient.getTodayAttendance()
+      setTodayAttendance(response.attendance || {
+        checkIn: null,
+        checkOut: null,
+        hasCheckedIn: false,
+        hasCheckedOut: false
+      })
+    } catch (error: any) {
+      console.error('Error fetching today attendance:', error)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchTodayAttendance()
+    fetchAttendanceRecords()
+  }, [fetchAttendanceRecords, fetchTodayAttendance])
+
+  useEffect(() => {
+    fetchAttendanceRecords()
+  }, [dateRange, fetchAttendanceRecords])
 
   const handleCheckIn = async () => {
     try {

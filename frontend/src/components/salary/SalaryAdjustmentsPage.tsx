@@ -485,7 +485,7 @@ export default function SalaryAdjustmentsPage({ role, title = 'Salary Management
                   </Col>
                 </Row>
                 <div className="mt-3 p-2 bg-gray-50 dark:bg-gray-800 rounded text-xs text-gray-600 dark:text-gray-400">
-                  💡 <strong>Tip:</strong> Use this attendance data to calculate deductions. For example: "Absent {attendanceStats.summary.absentDays} days this month" or "Late {attendanceStats.summary.lateDays} times this month"
+                  💡 <strong>Tip:</strong> Use this attendance data to calculate deductions. For example: &quot;Absent {attendanceStats.summary.absentDays} days this month&quot; or &quot;Late {attendanceStats.summary.lateDays} times this month&quot;
                 </div>
               </div>
             )}
@@ -667,7 +667,7 @@ export default function SalaryAdjustmentsPage({ role, title = 'Salary Management
                   ⚠️ Important: Raising base salary affects all future months
                 </Text>
                 <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
-                  This change will update the employee's base salary permanently and will be reflected in all future salary calculations.
+                  This change will update the employee&apos;s base salary permanently and will be reflected in all future salary calculations.
                 </p>
               </div>
 

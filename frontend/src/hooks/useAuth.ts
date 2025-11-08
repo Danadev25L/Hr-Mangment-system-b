@@ -77,5 +77,3 @@ export const useAuth = () => {
     canAccessResource,
   }
 }
-
-export type UserRole = 'ROLE_ADMIN' | 'ROLE_MANAGER' | 'ROLE_EMPLOYEE'

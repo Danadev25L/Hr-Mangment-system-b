@@ -60,7 +60,7 @@ export const useManagerEmployees = (options?: UseEmployeesOptions) => {
 export const useEmployeeById = (id: string | number, enabled = true) => {
   return useQuery({
     queryKey: ['employee', id],
-    queryFn: () => apiClient.getUserById(id),
+    queryFn: () => apiClient.getUser(Number(id)),
     enabled: !!id && enabled,
   })
 }

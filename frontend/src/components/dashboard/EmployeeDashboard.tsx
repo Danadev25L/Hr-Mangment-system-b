@@ -32,7 +32,6 @@ import apiClient from '@/lib/api'
 import dayjs from 'dayjs'
 import { useRouter } from 'next/navigation'
 import { StatCard, LineChartCard, PieChartCard, DoughnutChartCard, CalendarEventCard } from '@/components/charts'
-import '@/styles/calendar-dark-mode.css'
 
 ChartJS.register(
   CategoryScale,

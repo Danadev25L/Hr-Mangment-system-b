@@ -2,7 +2,7 @@ import React from 'react'
 import { Button as AntButton, ButtonProps as AntButtonProps } from 'antd'
 import { cn } from '@/lib/utils'
 
-interface ButtonProps extends AntButtonProps {
+interface ButtonProps extends Omit<AntButtonProps, 'variant' | 'size'> {
   variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'link' | 'danger'
   size?: 'sm' | 'md' | 'lg'
   className?: string

@@ -38,7 +38,6 @@ import { Line, Pie, Doughnut } from 'react-chartjs-2'
 import apiClient from '@/lib/api'
 import dayjs from 'dayjs'
 import { useRouter } from 'next/navigation'
-import '@/styles/calendar-dark-mode.css'
 
 // Register Chart.js components
 ChartJS.register(
@@ -81,7 +80,7 @@ export default function ManagerDashboard() {
     }
   })
 
-  const teamSize = stats?.users?.users?.length || 0
+  const teamSize = stats?.users?.data?.length || 0
   const attendanceData = stats?.attendance?.employees || []
   const pendingApps = stats?.applications?.applications?.filter((a: any) => a.status === 'pending').length || 0
   const calendarEvents = Array.isArray(stats?.calendarEvents?.data) ? stats.calendarEvents.data : []

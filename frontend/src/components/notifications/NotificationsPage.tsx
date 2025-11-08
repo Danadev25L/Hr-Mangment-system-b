@@ -375,7 +375,7 @@ export const NotificationsPage: React.FC<NotificationsPageProps> = ({ role = 'RO
                     {t('notifications.noNotifications')}
                   </p>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
-                    You're all caught up! Check back later for new updates.
+                    You&apos;re all caught up! Check back later for new updates.
                   </p>
                 </div>
               }

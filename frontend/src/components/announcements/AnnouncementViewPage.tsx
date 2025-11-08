@@ -71,7 +71,7 @@ export function AnnouncementViewPage({ role, id }: AnnouncementViewPageProps) {
     if (role === 'employee' && announcement && !announcement.isRead) {
       markAsReadMutation.mutate(parseInt(id))
     }
-  }, [role, announcement])
+  }, [role, announcement, id, markAsReadMutation])
 
   // Delete mutation
   const deleteAnnouncementMutation = useMutation({

@@ -98,7 +98,14 @@ export default function ManageSalaryPage({ role }: ManageSalaryProps) {
     }
   })
 
-  const allEmployees: Employee[] = employeesData?.users || []
+  const allEmployees: Employee[] = (employeesData?.data || []).map(user => ({
+  id: user.id,
+  firstName: user.firstName || user.fullName?.split(' ')[0] || '',
+  lastName: user.lastName || user.fullName?.split(' ').slice(1).join(' ') || '',
+  employeeCode: user.employeeCode,
+  department: typeof user.department === 'string' ? user.department : user.department?.departmentName || '',
+  baseSalary: user.baseSalary.toString()
+}))
   
   // Filter employees by department if selected (only show active employees)
   const employees = allEmployees

@@ -23,7 +23,7 @@ export const useDepartmentById = (id: string | number, enabled = true) => {
 export const useDepartmentStats = () => {
   return useQuery({
     queryKey: ['department-stats'],
-    queryFn: () => apiClient.get('/api/admin/departments/statistics'),
+    queryFn: () => apiClient.getDepartmentStatistics(),
   })
 }
 

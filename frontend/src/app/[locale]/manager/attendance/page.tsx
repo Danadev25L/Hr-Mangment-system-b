@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Card, Table, Tag, DatePicker, Row, Col, Statistic, Space, Select, Button, message, Tabs } from 'antd'
 import { 
   TeamOutlined, 
@@ -56,29 +56,7 @@ export default function ManagerTeamAttendancePage() {
     dayjs().endOf('month')
   ])
 
-  useEffect(() => {
-    fetchTodayTeamAttendance()
-    fetchTeamAttendance()
-  }, [])
-
-  useEffect(() => {
-    fetchTeamAttendance()
-  }, [dateRange])
-
-  const fetchTodayTeamAttendance = async () => {
-    try {
-      setTodayLoading(true)
-      const response = await apiClient.getTodayTeamAttendance()
-      setTodayAttendance(response.attendance || [])
-      setTodayStats(response.stats || null)
-    } catch (error: any) {
-      message.error('Failed to fetch today\'s team attendance')
-    } finally {
-      setTodayLoading(false)
-    }
-  }
-
-  const fetchTeamAttendance = async () => {
+  const fetchTeamAttendance = useCallback(async () => {
     try {
       setLoading(true)
       const response = await apiClient.getTeamAttendance({
@@ -91,7 +69,29 @@ export default function ManagerTeamAttendancePage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [dateRange])
+
+  const fetchTodayTeamAttendance = useCallback(async () => {
+    try {
+      setTodayLoading(true)
+      const response = await apiClient.getTodayTeamAttendance()
+      setTodayAttendance(response.attendance || [])
+      setTodayStats(response.stats || null)
+    } catch (error: any) {
+      message.error('Failed to fetch today\'s team attendance')
+    } finally {
+      setTodayLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchTodayTeamAttendance()
+    fetchTeamAttendance()
+  }, [fetchTeamAttendance, fetchTodayTeamAttendance])
+
+  useEffect(() => {
+    fetchTeamAttendance()
+  }, [dateRange, fetchTeamAttendance])
 
   const getStatusTag = (status: string, isLate: boolean, lateMinutes: number) => {
     if (isLate) {

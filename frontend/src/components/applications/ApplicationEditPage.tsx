@@ -134,7 +134,7 @@ export function ApplicationEditPage({ role }: ApplicationEditPageProps) {
           content: (
             <div>
               <div className="font-semibold">🚫 Access Denied</div>
-              <div>You don't have permission to edit this application</div>
+              <div>You don&apos;t have permission to edit this application</div>
             </div>
           ),
           duration: 5,
@@ -346,7 +346,7 @@ export function ApplicationEditPage({ role }: ApplicationEditPageProps) {
               <Col xs={24} md={12}>
                 <Form.Item
                   name="departmentId"
-                  label={<span className="font-semibold">User's Department</span>}
+                  label={<span className="font-semibold">User&apos;s Department</span>}
                   tooltip="Department is automatically determined from the user who created this application"
                 >
                   <Select

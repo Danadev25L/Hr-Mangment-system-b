@@ -107,7 +107,7 @@ export const corsOptions = {
       'http://localhost:3001',
       'http://127.0.0.1:3000',
       'http://127.0.0.1:3001',
-      'https://yourdomain.com' // Add your production domain
+      'https://hr-mangment-system-f.vercel.app'
     ].filter(Boolean);
 
     // Allow requests with no origin (mobile apps, Postman, etc.)
@@ -121,6 +121,10 @@ export const corsOptions = {
     } else if (isDevelopment && (origin.includes('localhost') || origin.includes('127.0.0.1'))) {
       // Allow any localhost origin in development
       console.log(`⚠️  DEV MODE: Allowing origin: ${origin}`);
+      callback(null, true);
+    } else if (origin.includes('vercel.app')) {
+      // Allow all Vercel preview deployments
+      console.log(`✅ Allowing Vercel deployment: ${origin}`);
       callback(null, true);
     } else {
       console.warn(`🚫 CORS blocked request from origin: ${origin}`);

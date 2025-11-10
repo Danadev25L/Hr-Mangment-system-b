@@ -2,7 +2,6 @@ import { db } from './db/index.js';
 import { 
   users, 
   personalInformation,
-  organizations,
   departments,
   jobs,
   departmentAnnouncements,
@@ -59,9 +58,6 @@ async function resetDatabase() {
     
     console.log('Deleting departments...');
     await db.delete(departments);
-    
-    console.log('Deleting organizations...');
-    await db.delete(organizations);
 
     console.log('\n✅ Database cleaned successfully!\n');
 

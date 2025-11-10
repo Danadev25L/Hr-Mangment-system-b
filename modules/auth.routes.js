@@ -193,7 +193,6 @@ router.post('/register', async (req, res) => {
                 fullname: newUser.fullName,
                 role: newUser.role,
                 departmentId: newUser.departmentId,
-                organizationId: newUser.organizationId,
                 active: newUser.active
             }
         });

@@ -11,7 +11,6 @@ export { db };
 
 // Export all schema tables for direct access
 export const {
-  organizations,
   departments,
   departmentAnnouncements,
   users,

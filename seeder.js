@@ -1,6 +1,7 @@
+import { sql } from 'drizzle-orm';
+
 import { db } from './db/index.js';
 import { users, departments, jobs, expenses, payments, daysHoliday, departmentAnnouncements, announcementRecipients, personalInformation } from './db/schema.js';
-import { sql } from 'drizzle-orm';
 
 async function seed() {
   try {
@@ -44,7 +45,7 @@ async function seed() {
     const hrDept = deptResults.find(d => d.departmentName === 'Human Resources');
 
     // Hash passwords manually (simple approach for seeder)
-    const bcrypt = await import('bcryptjs');
+    const bcrypt = await import('bcrypt');
 
     const adminPassword = await bcrypt.hash('admin123', 10);
     const managerPassword = await bcrypt.hash('manager123', 10);
@@ -64,8 +65,7 @@ async function seed() {
         baseSalary: 80000,
         email: 'admin@company.com',
         employmentType: 'Full-time',
-        workLocation: 'Office',
-        startDate: new Date().toISOString()
+        workLocation: 'Office'
       },
       {
         username: 'manager',
@@ -79,8 +79,7 @@ async function seed() {
         baseSalary: 90000,
         email: 'manager@company.com',
         employmentType: 'Full-time',
-        workLocation: 'Office',
-        startDate: new Date().toISOString()
+        workLocation: 'Office'
       },
       {
         username: 'john.doe',
@@ -94,8 +93,7 @@ async function seed() {
         baseSalary: 70000,
         email: 'john.doe@company.com',
         employmentType: 'Full-time',
-        workLocation: 'Office',
-        startDate: new Date().toISOString()
+        workLocation: 'Office'
       },
       {
         username: 'jane.smith',
@@ -109,8 +107,7 @@ async function seed() {
         baseSalary: 65000,
         email: 'jane.smith@company.com',
         employmentType: 'Full-time',
-        workLocation: 'Office',
-        startDate: new Date().toISOString()
+        workLocation: 'Office'
       }
     ]).returning();
 

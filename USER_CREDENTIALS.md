@@ -1,148 +1,181 @@
-# HRS - User Credentials
+# 🔐 HR Management System - User Credentials
 
-This document contains the login credentials for all user accounts created in the system seed data.
+## Default Login Credentials
 
-## 🔐 Login Information
+All passwords have been set with high security standards including uppercase, lowercase, numbers, and special characters.
 
-### Administrator Account
-- **Username:** `admin`
-- **Password:** `Admin@2024!Secure
-- **Employee Code:** `ADM-0001` (Auto-generated)
-- **Role:** Admin
-- **Full Name:** Admin User
-- **Department:** Human Resources
-- **Email:** admin@techsolutions.com
+### 👨‍💼 Admin Account
+```
+Username: admin
+Password: Admin@2024!Secure
+Role: Administrator
+Email: admin@techsolutions.com
+```
 
-### Manager Account
-- **Username:** `manager`
-- **Password:** `Manager@2024!Strong`
-- **Employee Code:** `MGR-0001` (Auto-generated)
-- **Role:** Manager
-- **Full Name:** Mike Johnson
-- **Department:** Engineering
-- **Email:** mike.johnson@techsolutions.com
-
-### Employee Accounts
-
-#### Employee 1
-- **Username:** `john.doe`
-- **Password:** `Employee@2024!John`
-- **Employee Code:** `EMP-0001` (Auto-generated)
-- **Role:** Employee
-- **Full Name:** John Doe
-- **Department:** Engineering
-- **Job Title:** Software Engineer
-- **Email:** john.doe@techsolutions.com
-
-#### Employee 2
-- **Username:** `jane.smith`
-- **Password:** `Employee@2024!Jane`
-- **Employee Code:** `EMP-0002` (Auto-generated)
-- **Role:** Employee
-- **Full Name:** Jane Smith
-- **Department:** Finance
-- **Job Title:** Accountant
-- **Email:** jane.smith@techsolutions.com
-
----
-
-## 🏢 Organization Structure
-
-### Organizations
-1. **Tech Solutions Inc.** (Primary)
-   - Email: contact@techsolutions.com
-   - Location: Athens, Greece
-
-2. **Digital Innovations**
-   - Email: info@digitalinnovations.com
-   - Location: Thessaloniki, Greece
-
-### Departments
-1. **Human Resources** (Admin's department)
-2. **Engineering** (Manager and John Doe's department)
-3. **Finance** (Jane Smith's department)
-
-### Job Positions & Salaries
-- **HR Manager:** €45,000/year
-- **Engineering Manager:** €65,000/year
-- **Software Engineer:** €55,000/year
-- **Accountant:** €40,000/year
-
----
-
-## 🔒 Security Information
-
-### Password Security Features
-✅ All passwords meet security requirements:
-- Minimum 8 characters
-- Contains uppercase letters
-- Contains lowercase letters
-- Contains numbers
-- Contains special characters
-- Encrypted with bcrypt (10 rounds)
-
-### ⚠️ Important Security Notes
-1. **Change passwords after first login** - These are default credentials for development/testing
-2. **Use strong, unique passwords** for production environments
-3. **Enable two-factor authentication** if available
-4. **Regular password rotation** is recommended
-
----
-
-## 🚀 Quick Access
-
-### Development Login URLs
-- **Frontend:** http://localhost:3000/login
-- **API Base URL:** http://localhost:3001/api
-
-### Testing Scenarios
-
-#### Admin Testing
+**Admin Capabilities:**
 - Full system access
-- User management capabilities
-- Department management
-- System configuration
-- Analytics and reporting
-
-#### Manager Testing
-- Team member management
-- Expense approval
-- Department announcements
-- Payroll access for team members
-- Working hours tracking
-
-#### Employee Testing
-- Personal profile management
-- Expense submissions
-- Holiday requests
-- Announcement viewing
-- Working time tracking
+- Manage all employees
+- Manage departments
+- Manage payroll
+- Manage attendance (including auto-attendance system)
+- View all reports and analytics
+- Manage applications and approvals
+- System settings
 
 ---
 
-## 📱 Additional Information
+### 👔 Manager Account
+```
+Username: manager
+Password: Manager@2024!Strong
+Role: Manager
+Email: manager@techsolutions.com
+```
 
-### Personal Information Available
-- Full names and contact details
-- Addresses and locations
-- Birth dates and demographics
-- Employment history
-- Salary information
-
-### Sample Data Included
-- Department announcements
-- Expense reports (approved and pending)
-- Payment records
-- Holiday requests
-- Working hours logs
-- Internal messages
-- Personal events
-
-### Data Last Updated
-- **Seed File:** `backend/db/seed.js`
-- **Created:** October 2024
-- **Environment:** Development/Testing
+**Manager Capabilities:**
+- Manage team members
+- Approve/reject leave applications
+- View team attendance
+- Manage team expenses
+- View team reports
+- Create announcements
 
 ---
 
-*🔐 Keep this document secure and do not share credentials publicly.*
+### 👤 Employee Account 1
+```
+Username: john.doe
+Password: Employee@2024!John
+Role: Employee
+Email: john.doe@techsolutions.com
+Department: Engineering
+```
+
+**Employee Capabilities:**
+- View own attendance
+- Submit leave applications
+- View payslips
+- Submit expenses
+- View announcements
+- Update personal profile
+
+---
+
+### 👤 Employee Account 2
+```
+Username: jane.smith
+Password: Employee@2024!Jane
+Role: Employee
+Email: jane.smith@techsolutions.com
+Department: Human Resources
+```
+
+**Employee Capabilities:**
+- View own attendance
+- Submit leave applications
+- View payslips
+- Submit expenses
+- View announcements
+- Update personal profile
+
+---
+
+## 🔒 Password Security Features
+
+All passwords are encrypted with:
+- ✅ Bcrypt encryption (10 rounds)
+- ✅ Minimum 8 characters
+- ✅ Contains uppercase letters (A-Z)
+- ✅ Contains lowercase letters (a-z)
+- ✅ Contains numbers (0-9)
+- ✅ Contains special characters (!@#$%)
+
+---
+
+## ⚠️ Important Security Notes
+
+1. **CHANGE PASSWORDS IMMEDIATELY** after first login
+2. Never share your credentials with anyone
+3. Use strong, unique passwords
+4. Enable two-factor authentication if available
+5. Log out after each session
+
+---
+
+## 🚀 Auto-Attendance System
+
+The system now includes an **automatic attendance** feature with **FULL BACKFILL** capability:
+
+### Daily Auto-Marking
+- **Runs Daily:** Every day at 1:00 AM
+- **Auto-marks:** All employees as checked in and checked out on time
+- **Perfect Attendance:** No lateness, no early departure, no breaks
+- **Smart Skipping:** 
+  - Weekends and holidays are skipped
+  - Employees on approved leave are skipped
+  - Existing attendance records are not overwritten
+  - Only creates records for dates AFTER employee was created
+
+### Historical Backfill (NEW!)
+The system can backfill **ALL** missing attendance records throughout history:
+- Goes back to each employee's **creation date**
+- Fills in **every missing working day** automatically
+- Skips weekends, holidays, and leave days
+- Won't overwrite existing records
+- Creates perfect on-time attendance for all past days
+
+### Manual Trigger (Admin Only)
+Admins can manually trigger auto-attendance via API:
+
+**Daily Auto-Mark:**
+- `POST /api/admin/auto-attendance/trigger` - For specific date
+- `POST /api/admin/auto-attendance/trigger-range` - For date range
+
+**Historical Backfill:**
+- `POST /api/admin/auto-attendance/backfill` - Fill ALL missing historical records
+
+**System Info:**
+- `GET /api/admin/auto-attendance/status` - Check system status
+
+### Example: Backfill Usage
+```bash
+# Fill all missing attendance from employee creation to yesterday
+POST http://localhost:3001/api/admin/auto-attendance/backfill
+```
+
+This will process:
+- All employees in the system
+- All days from their employment start date to yesterday
+- Only working days (skip weekends/holidays)
+- Skip days when employee was on leave
+- Skip days that already have attendance records
+
+---
+
+## 📱 Access URLs
+
+- **Frontend:** http://localhost:3000
+- **Backend API:** http://localhost:3001
+- **Health Check:** http://localhost:3001/health
+
+---
+
+## 🆘 Troubleshooting
+
+### Forgot Password?
+Contact the system administrator to reset your password.
+
+### Cannot Login?
+1. Check if backend server is running (port 3001)
+2. Check if frontend server is running (port 3000)
+3. Verify credentials are correct (case-sensitive)
+4. Clear browser cache and cookies
+5. Try a different browser
+
+### 401 Unauthorized Error?
+You need to log in first to access the system features.
+
+---
+
+**Last Updated:** November 10, 2025
+**System Version:** 2.0.0

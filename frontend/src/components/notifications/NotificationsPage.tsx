@@ -248,6 +248,25 @@ export const NotificationsPage: React.FC<NotificationsPageProps> = ({ role = 'RO
     return type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
   }
 
+  // Helper function to translate notification title/message with metadata
+  const translateNotificationText = (text: string, metadata: any) => {
+    // Check if text is a translation key (contains dots)
+    if (text && text.includes('.') && !text.includes(' ')) {
+      try {
+        // Try to translate the key
+        const translated = t(text as any, metadata || {})
+        // If translation was successful and not the same as key, return it
+        if (translated && translated !== text) {
+          return translated
+        }
+      } catch (error) {
+        console.warn('Translation failed for:', text)
+      }
+    }
+    // Return original text if not a translation key or translation failed
+    return text
+  }
+
   const notificationTypes = [
     { label: t('notifications.allTypes'), value: undefined },
     { label: t('notifications.salary'), value: 'salary' },
@@ -427,7 +446,7 @@ export const NotificationsPage: React.FC<NotificationsPageProps> = ({ role = 'RO
                             ? 'font-semibold text-gray-900 dark:text-white'
                             : 'font-medium text-gray-700 dark:text-gray-300'
                         }`}>
-                          {notification.title}
+                          {translateNotificationText(notification.title, notification.metadata)}
                         </span>
                         <div className="flex items-center gap-2">
                           {!notification.isRead && (
@@ -444,7 +463,7 @@ export const NotificationsPage: React.FC<NotificationsPageProps> = ({ role = 'RO
                     description={
                       <div className="mt-3 space-y-2">
                         <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
-                          {notification.message}
+                          {translateNotificationText(notification.message, notification.metadata)}
                         </p>
                         <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-500 pt-2 border-t border-gray-100 dark:border-gray-700">
                           <div className="flex items-center gap-4">

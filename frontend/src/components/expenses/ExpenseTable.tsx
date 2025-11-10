@@ -19,7 +19,7 @@ import { EnhancedTable, AvatarWithInitials, CustomSpinner } from '@/components/u
 import { formatDate } from '@/lib/utils'
 import type { ColumnsType } from 'antd/es/table'
 import type { Expense } from './ExpenseListPage'
-import { useLocale } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import dayjs from 'dayjs'
 
@@ -56,13 +56,14 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
 }) => {
   const locale = useLocale()
   const router = useRouter()
+  const t = useTranslations()
 
   const getStatusTag = (status: string) => {
     const statusConfig = {
-      pending: { color: 'warning', icon: <ClockCircleOutlined />, text: 'Pending' },
-      approved: { color: 'success', icon: <CheckCircleOutlined />, text: 'Approved' },
-      rejected: { color: 'error', icon: <CloseCircleOutlined />, text: 'Rejected' },
-      paid: { color: 'processing', icon: <DollarOutlined />, text: 'Paid' },
+      pending: { color: 'warning', icon: <ClockCircleOutlined />, text: t('expenses.pending') },
+      approved: { color: 'success', icon: <CheckCircleOutlined />, text: t('expenses.approved') },
+      rejected: { color: 'error', icon: <CloseCircleOutlined />, text: t('expenses.rejected') },
+      paid: { color: 'processing', icon: <DollarOutlined />, text: t('expenses.paid') },
     }
     const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.pending
     return (
@@ -77,13 +78,13 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
       {
         key: 'view',
         icon: <EyeOutlined />,
-        label: 'View Details',
+        label: t('expenses.table.viewDetails'),
         onClick: () => onView(record),
       },
       {
         key: 'edit',
         icon: <EditOutlined />,
-        label: 'Edit',
+        label: t('common.edit'),
         onClick: () => onEdit(record),
       },
     ]
@@ -94,13 +95,13 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
         {
           key: 'approve',
           icon: <CheckCircleOutlined />,
-          label: 'Approve',
+          label: t('expenses.approve'),
           onClick: () => onApprove?.(record),
         },
         {
           key: 'reject',
           icon: <CloseCircleOutlined />,
-          label: 'Reject',
+          label: t('expenses.reject'),
           onClick: () => onReject?.(record),
         }
       )
@@ -112,7 +113,7 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
         {
           key: 'paid',
           icon: <DollarOutlined />,
-          label: 'Mark as Paid',
+          label: t('expenses.markAsPaid'),
           onClick: () => onMarkPaid?.(record),
         }
       )
@@ -123,7 +124,7 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
       {
         key: 'delete',
         icon: <DeleteOutlined />,
-        label: 'Delete',
+        label: t('common.delete'),
         danger: true,
         onClick: () => onDelete(record),
       }
@@ -137,7 +138,7 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
       title: (
         <Space>
           <DollarOutlined />
-          <span>Submitted By</span>
+          <span>{t('expenses.submittedBy')}</span>
         </Space>
       ),
       key: 'userName',
@@ -159,12 +160,12 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
             title: (
               <Space>
                 <BankOutlined />
-                <span>Department</span>
+                <span>{t('expenses.department')}</span>
               </Space>
             ),
             key: 'department',
             render: (_: any, record: Expense) => {
-              const deptName = record.departmentName || 'Company-wide'
+              const deptName = record.departmentName || t('expenses.companyWide')
               return (
                 <div className="flex items-center gap-2">
                   <BankOutlined className="text-gray-400" />
@@ -177,7 +178,7 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
         ]
       : []),
     {
-      title: 'Reason',
+      title: t('expenses.reason'),
       dataIndex: 'reason',
       key: 'reason',
       ellipsis: true,
@@ -191,7 +192,7 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
       title: (
         <Space>
           <DollarOutlined />
-          <span>Amount</span>
+          <span>{t('expenses.amount')}</span>
         </Space>
       ),
       dataIndex: 'amount',
@@ -199,7 +200,7 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
       width: 140,
       render: (amount: number) => (
         <span className="font-semibold text-green-600 dark:text-green-400">
-          ${amount.toFixed(2)}
+          {t('expenses.amountValue', { amount: amount.toFixed(2) })}
         </span>
       ),
       sorter: (a, b) => Number(a.amount) - Number(b.amount),
@@ -208,7 +209,7 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
       title: (
         <Space>
           <span className="w-2 h-2 rounded-full bg-blue-500"></span>
-          <span>Status</span>
+          <span>{t('expenses.status')}</span>
         </Space>
       ),
       dataIndex: 'status',
@@ -216,10 +217,10 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
       width: 140,
       render: (status: string) => getStatusTag(status),
       filters: [
-        { text: 'Pending', value: 'pending' },
-        { text: 'Approved', value: 'approved' },
-        { text: 'Rejected', value: 'rejected' },
-        { text: 'Paid', value: 'paid' },
+        { text: t('expenses.pending'), value: 'pending' },
+        { text: t('expenses.approved'), value: 'approved' },
+        { text: t('expenses.rejected'), value: 'rejected' },
+        { text: t('expenses.paid'), value: 'paid' },
       ],
       onFilter: (value, record) => record.status === value,
     },
@@ -227,7 +228,7 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
       title: (
         <Space>
           <CalendarOutlined />
-          <span>Date</span>
+          <span>{t('expenses.date')}</span>
         </Space>
       ),
       dataIndex: 'date',
@@ -243,12 +244,12 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
         new Date(a.date).getTime() - new Date(b.date).getTime(),
     },
     {
-      title: 'Actions',
+      title: t('common.actions'),
       key: 'actions',
       width: 150,
       render: (_, record) => (
         <Space size="small">
-          <Tooltip title="View">
+          <Tooltip title={t('expenses.table.view')}>
             <Button
               type="text"
               icon={<EyeOutlined />}
@@ -257,7 +258,7 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
               className="hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20"
             />
           </Tooltip>
-          <Tooltip title="Edit">
+          <Tooltip title={t('expenses.table.edit')}>
             <Button
               type="text"
               icon={<EditOutlined />}
@@ -286,14 +287,18 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
       rowKey="id"
       loading={{
         spinning: loading,
-        indicator: <CustomSpinner text="Loading expenses..." />,
+        indicator: <CustomSpinner text={t('expenses.table.loadingExpenses')} />,
       }}
       pagination={{
         current: pagination.current,
         pageSize: pagination.pageSize,
         total: pagination.total,
         showSizeChanger: true,
-        showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} expenses`,
+        showTotal: (total, range) => t('expenses.table.showingExpenses', { 
+          start: range[0], 
+          end: range[1], 
+          total 
+        }),
       }}
       onChange={onTableChange}
       scroll={{ x: 1200 }}

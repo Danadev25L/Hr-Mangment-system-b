@@ -1,8 +1,8 @@
 'use client'
 
-import React, { memo } from 'react'
+import React, { memo, useTransition } from 'react'
 import { Tooltip } from 'antd'
-import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { DownOutlined } from '@ant-design/icons'
 
@@ -25,8 +25,17 @@ export const SidebarMenu = memo<SidebarMenuProps>(({
   pathname,
   locale
 }) => {
+  const router = useRouter()
+  const [isPending, startTransition] = useTransition()
   const activeColorClass = 'bg-white/20'
   const hoverColorClass = 'hover:bg-white/10 hover:text-white'
+
+  // Fast navigation handler - same pattern as quick actions
+  const handleNavigate = (href: string) => {
+    startTransition(() => {
+      router.push(href)
+    })
+  }
 
   return (
     <div className="flex-1 overflow-y-auto px-2 py-4">
@@ -49,11 +58,10 @@ export const SidebarMenu = memo<SidebarMenuProps>(({
                   classNames={{ root: "dark" }}
                 >
                   {!hasChildren && 'href' in item && item.href ? (
-                    <Link
-                      href={String(item.href)}
-                      prefetch={false}
+                    <div
+                      onClick={() => handleNavigate(String(item.href))}
                       className={cn(
-                        "w-full flex items-center justify-center py-3 rounded-lg transition-all duration-200 text-white",
+                        "w-full flex items-center justify-center py-3 rounded-lg transition-all duration-200 text-white cursor-pointer",
                         isSelected 
                           ? `${activeColorClass} scale-105 shadow-lg` 
                           : `${hoverColorClass}`
@@ -62,17 +70,16 @@ export const SidebarMenu = memo<SidebarMenuProps>(({
                       <span className="text-lg">
                         {'icon' in item ? item.icon : null}
                       </span>
-                    </Link>
+                    </div>
                   ) : (
-                    <button
-                      type="button"
+                    <div
                       onClick={() => {
                         if (hasChildren) {
                           setOpenSubmenuKeys(isOpen ? [] : [itemKey])
                         }
                       }}
                       className={cn(
-                        "w-full flex items-center justify-center py-3 rounded-lg transition-all duration-200 text-white",
+                        "w-full flex items-center justify-center py-3 rounded-lg transition-all duration-200 text-white cursor-pointer",
                         isSelected 
                           ? `${activeColorClass} scale-105 shadow-lg` 
                           : `${hoverColorClass}`
@@ -81,17 +88,16 @@ export const SidebarMenu = memo<SidebarMenuProps>(({
                       <span className="text-lg">
                         {'icon' in item ? item.icon : null}
                       </span>
-                    </button>
+                    </div>
                   )}
                 </Tooltip>
               ) : (
                 <>
                   {!hasChildren && 'href' in item && item.href ? (
-                    <Link
-                      href={String(item.href)}
-                      prefetch={false}
+                    <div
+                      onClick={() => handleNavigate(String(item.href))}
                       className={cn(
-                        "w-full flex items-center px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 text-white",
+                        "w-full flex items-center px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 text-white cursor-pointer",
                         isSelected
                           ? `${activeColorClass} shadow-md`
                           : `${hoverColorClass}`
@@ -103,10 +109,9 @@ export const SidebarMenu = memo<SidebarMenuProps>(({
                       <span className="flex-1 text-left rtl:text-right">
                         {'label' in item ? item.label : ''}
                       </span>
-                    </Link>
+                    </div>
                   ) : (
-                    <button
-                      type="button"
+                    <div
                       onClick={() => {
                         if (hasChildren) {
                           setOpenSubmenuKeys(
@@ -115,7 +120,7 @@ export const SidebarMenu = memo<SidebarMenuProps>(({
                         }
                       }}
                       className={cn(
-                        "w-full flex items-center px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 text-white",
+                        "w-full flex items-center px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 text-white cursor-pointer",
                         isSelected
                           ? `${activeColorClass} shadow-md`
                           : `${hoverColorClass}`
@@ -135,7 +140,7 @@ export const SidebarMenu = memo<SidebarMenuProps>(({
                           )}
                         />
                       )}
-                    </button>
+                    </div>
                   )}
 
                   {/* Submenu */}
@@ -147,12 +152,11 @@ export const SidebarMenu = memo<SidebarMenuProps>(({
                         const isChildSelected = selectedKeys.includes(childKey)
 
                         return 'href' in child && child.href ? (
-                          <Link
+                          <div
                             key={childKey}
-                            href={String(child.href)}
-                            prefetch={false}
+                            onClick={() => handleNavigate(String(child.href))}
                             className={cn(
-                              "w-full flex items-center px-4 py-2.5 rounded-lg text-sm transition-all duration-200 text-white",
+                              "w-full flex items-center px-4 py-2.5 rounded-lg text-sm transition-all duration-200 text-white cursor-pointer",
                               isChildSelected
                                 ? `font-semibold bg-white/10`
                                 : `${hoverColorClass}`
@@ -164,7 +168,7 @@ export const SidebarMenu = memo<SidebarMenuProps>(({
                             <span className="flex-1 text-left rtl:text-right">
                               {'label' in child ? child.label : ''}
                             </span>
-                          </Link>
+                          </div>
                         ) : null
                       })}
                     </div>

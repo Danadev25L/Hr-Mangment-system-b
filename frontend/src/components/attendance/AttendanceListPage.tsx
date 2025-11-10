@@ -89,12 +89,21 @@ export const AttendanceListPage: React.FC<AttendanceListPageProps> = ({ role }) 
   const [editCheckOutForm] = Form.useForm();
   const [editBreakForm] = Form.useForm();
   const [overtimeForm] = Form.useForm();
+  
+  // Bulk action forms
+  const [bulkCheckInForm] = Form.useForm();
+  const [bulkCheckOutForm] = Form.useForm();
+  const [bulkBreakForm] = Form.useForm();
+  const [bulkAbsentForm] = Form.useForm();
 
   // State
   const [selectedDate, setSelectedDate] = useState<string>(dayjs().format('YYYY-MM-DD'));
   const [selectedDepartment, setSelectedDepartment] = useState<string | undefined>();
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  
+  // Bulk selection
+  const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<number[]>([]);
 
   // Default times
   const [defaultCheckInTime, setDefaultCheckInTime] = useState<string>('08:00');
@@ -113,6 +122,12 @@ export const AttendanceListPage: React.FC<AttendanceListPageProps> = ({ role }) 
   const [editCheckOutModal, setEditCheckOutModal] = useState(false);
   const [editBreakModal, setEditBreakModal] = useState(false);
   const [overtimeModal, setOvertimeModal] = useState(false);
+  
+  // Bulk action modals
+  const [bulkCheckInModal, setBulkCheckInModal] = useState(false);
+  const [bulkCheckOutModal, setBulkCheckOutModal] = useState(false);
+  const [bulkBreakModal, setBulkBreakModal] = useState(false);
+  const [bulkAbsentModal, setBulkAbsentModal] = useState(false);
 
   // Fetch departments
   const { data: departmentsData } = useQuery({
@@ -145,11 +160,20 @@ export const AttendanceListPage: React.FC<AttendanceListPageProps> = ({ role }) 
             }
           })
         );
-        return { ...response, employees: enrichedData };
+        return { 
+          ...response, 
+          employees: enrichedData,
+          isHoliday: response.isHoliday || false,
+          holiday: response.holiday || null
+        };
       }
       return response;
     },
   });
+
+  // Extract holiday information from response
+  const isHoliday = attendanceData?.isHoliday || false;
+  const holidayInfo = attendanceData?.holiday || null;
 
   // Calculate statistics
   const stats = useMemo(() => {
@@ -178,8 +202,10 @@ export const AttendanceListPage: React.FC<AttendanceListPageProps> = ({ role }) 
 
   // Mutations
   const markCheckInMutation = useMutation({
-    mutationFn: (data: any) => apiClient.markEmployeeCheckIn(data),
-    onSuccess: (response) => {
+    mutationFn: async (data: any) => {
+      return apiClient.markEmployeeCheckIn(data);
+    },
+    onSuccess: (response: any) => {
       if (response.success !== false) {
         const msg = response.message || 'Check-in marked successfully';
         messageApi.success(msg);
@@ -191,14 +217,28 @@ export const AttendanceListPage: React.FC<AttendanceListPageProps> = ({ role }) 
       }
     },
     onError: (error: any) => {
-      const errorMessage = error.response?.data?.message || 'Failed to mark check-in';
+      console.error('Check-in error details:', error);
+      let errorMessage = 'Failed to mark check-in';
+
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error.response?.data?.errors && Array.isArray(error.response.data.errors)) {
+        errorMessage = error.response.data.errors.join(', ');
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
       messageApi.error(errorMessage);
     },
   });
 
   const markCheckOutMutation = useMutation({
-    mutationFn: (data: any) => apiClient.markEmployeeCheckOut(data),
-    onSuccess: (response) => {
+    mutationFn: async (data: any) => {
+      return apiClient.markEmployeeCheckOut(data);
+    },
+    onSuccess: (response: any) => {
       if (response.success !== false) {
         const msg = response.message || 'Check-out marked successfully';
         messageApi.success(msg);
@@ -210,14 +250,28 @@ export const AttendanceListPage: React.FC<AttendanceListPageProps> = ({ role }) 
       }
     },
     onError: (error: any) => {
-      const errorMessage = error.response?.data?.message || 'Failed to mark check-out';
+      console.error('Check-out error details:', error);
+      let errorMessage = 'Failed to mark check-out';
+
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error.response?.data?.errors && Array.isArray(error.response.data.errors)) {
+        errorMessage = error.response.data.errors.join(', ');
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
       messageApi.error(errorMessage);
     },
   });
 
   const markAbsentMutation = useMutation({
-    mutationFn: (data: any) => apiClient.markEmployeeAbsent(data),
-    onSuccess: (response) => {
+    mutationFn: async (data: any) => {
+      return apiClient.markEmployeeAbsent(data);
+    },
+    onSuccess: (response: any) => {
       if (response.success !== false) {
         messageApi.success(response.message || 'Marked as absent');
         queryClient.invalidateQueries({ queryKey: ['attendance'] });
@@ -228,7 +282,19 @@ export const AttendanceListPage: React.FC<AttendanceListPageProps> = ({ role }) 
       }
     },
     onError: (error: any) => {
-      const errorMessage = error.response?.data?.message || 'Failed to mark absent';
+      console.error('Mark absent error details:', error);
+      let errorMessage = 'Failed to mark absent';
+
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error.response?.data?.errors && Array.isArray(error.response.data.errors)) {
+        errorMessage = error.response.data.errors.join(', ');
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
       messageApi.error(errorMessage);
     },
   });
@@ -494,15 +560,23 @@ export const AttendanceListPage: React.FC<AttendanceListPageProps> = ({ role }) 
 
   const onCheckInSubmit = (values: any) => {
     if (!selectedEmployee) return;
+
+    // Validate required fields
+    if (!values.checkInTime) {
+      messageApi.error('Check-in time is required');
+      return;
+    }
+
     // Send the expected check-in time (default time) to backend for late calculation
     const expectedCheckIn = dayjs(`${selectedDate} ${defaultCheckInTime}`, 'YYYY-MM-DD HH:mm');
+
     markCheckInMutation.mutate({
-      employeeId: selectedEmployee.id,
+      employeeId: Number(selectedEmployee.id), // Ensure employeeId is a number
       date: selectedDate,
       checkInTime: values.checkInTime.format('YYYY-MM-DD HH:mm:ss'),
       expectedCheckInTime: expectedCheckIn.format('YYYY-MM-DD HH:mm:ss'),
-      location: values.location,
-      notes: values.notes,
+      location: values.location || '',
+      notes: values.notes || '',
     });
   };
 
@@ -666,6 +740,282 @@ export const AttendanceListPage: React.FC<AttendanceListPageProps> = ({ role }) 
     overtimeMutation.mutate(requestData);
   };
 
+  // Bulk action handlers
+  const onBulkCheckInSubmit = async (values: any) => {
+    if (selectedEmployeeIds.length === 0) return;
+    
+    // Don't allow bulk actions on holidays
+    if (isHoliday) {
+      messageApi.warning(t('attendance.holidayNoActions'));
+      return;
+    }
+    
+    try {
+      // Filter out employees who shouldn't have bulk check-in applied:
+      // - Already checked in
+      // - On leave
+      // - Marked absent
+      const eligibleEmployeeIds = selectedEmployeeIds.filter(empId => {
+        const employee = filteredData.find((e: Employee) => e.id === empId);
+        if (!employee) return false;
+        
+        // Skip if already checked in
+        if (employee.attendance?.checkIn) return false;
+        
+        // Skip if on leave
+        if (employee.hasApprovedLeave) return false;
+        
+        // Skip if marked absent
+        if (employee.attendance?.status === 'ABSENT' || employee.attendance?.status === 'absent') return false;
+        
+        return true;
+      });
+
+      if (eligibleEmployeeIds.length === 0) {
+        messageApi.warning(t('attendance.noEligibleEmployees'));
+        return;
+      }
+
+      const checkInTime = values.checkInTime.format('HH:mm');
+      const promises = eligibleEmployeeIds.map(employeeId =>
+        apiClient.markEmployeeCheckIn({
+          employeeId,
+          date: selectedDate,
+          checkInTime,
+          location: values.location || '',
+          notes: values.notes || '',
+        })
+      );
+      
+      const results = await Promise.allSettled(promises);
+      const successful = results.filter(result => result.status === 'fulfilled');
+      const failed = results.filter(result => result.status === 'rejected');
+
+      if (failed.length === 0) {
+        messageApi.success(t('attendance.bulkCheckInSuccess', { count: successful.length }));
+      } else {
+        messageApi.warning(`Partially completed: ${successful.length} successful, ${failed.length} failed`);
+      }
+
+      // Refetch attendance data
+      await queryClient.invalidateQueries({ queryKey: ['attendance'] });
+      await queryClient.refetchQueries({ queryKey: ['attendance'] });
+      
+      setBulkCheckInModal(false);
+      bulkCheckInForm.resetFields();
+      setSelectedEmployeeIds([]);
+    } catch (error) {
+      console.error('Bulk check-in error:', error);
+      messageApi.error(t('attendance.bulkCheckInError'));
+    }
+  };
+
+  const onBulkCheckOutSubmit = async (values: any) => {
+    if (selectedEmployeeIds.length === 0) return;
+    
+    // Don't allow bulk actions on holidays
+    if (isHoliday) {
+      messageApi.warning(t('attendance.holidayNoActions'));
+      return;
+    }
+    
+    try {
+      // Filter out employees who shouldn't have bulk check-out applied:
+      // - Haven't checked in yet
+      // - Already checked out
+      // - On leave
+      // - Marked absent
+      const eligibleEmployeeIds = selectedEmployeeIds.filter(empId => {
+        const employee = filteredData.find((e: Employee) => e.id === empId);
+        if (!employee) return false;
+        
+        // Must have checked in
+        if (!employee.attendance?.checkIn) return false;
+        
+        // Skip if already checked out
+        if (employee.attendance?.checkOut) return false;
+        
+        // Skip if on leave
+        if (employee.hasApprovedLeave) return false;
+        
+        // Skip if marked absent
+        if (employee.attendance?.status === 'ABSENT' || employee.attendance?.status === 'absent') return false;
+        
+        return true;
+      });
+
+      if (eligibleEmployeeIds.length === 0) {
+        messageApi.warning(t('attendance.noEligibleEmployees'));
+        return;
+      }
+
+      const checkOutTime = values.checkOutTime.format('HH:mm');
+      const promises = eligibleEmployeeIds.map(employeeId =>
+        apiClient.markEmployeeCheckOut({
+          employeeId,
+          date: selectedDate,
+          checkOutTime,
+          notes: values.notes || '',
+        })
+      );
+      
+      const results = await Promise.allSettled(promises);
+      const successful = results.filter(result => result.status === 'fulfilled');
+      const failed = results.filter(result => result.status === 'rejected');
+
+      if (failed.length === 0) {
+        messageApi.success(t('attendance.bulkCheckOutSuccess', { count: successful.length }));
+      } else {
+        messageApi.warning(`Partially completed: ${successful.length} successful, ${failed.length} failed`);
+      }
+
+      // Refetch attendance data
+      await queryClient.invalidateQueries({ queryKey: ['attendance'] });
+      await queryClient.refetchQueries({ queryKey: ['attendance'] });
+      
+      setBulkCheckOutModal(false);
+      bulkCheckOutForm.resetFields();
+      setSelectedEmployeeIds([]);
+    } catch (error) {
+      console.error('Bulk check-out error:', error);
+      messageApi.error(t('attendance.bulkCheckOutError'));
+    }
+  };
+
+  const onBulkBreakSubmit = async (values: any) => {
+    if (selectedEmployeeIds.length === 0) return;
+    
+    // Don't allow bulk actions on holidays
+    if (isHoliday) {
+      messageApi.warning(t('attendance.holidayNoActions'));
+      return;
+    }
+    
+    try {
+      // Filter out employees who shouldn't have break applied:
+      // - Haven't checked in yet
+      // - On leave
+      // - Marked absent
+      const eligibleEmployeeIds = selectedEmployeeIds.filter(empId => {
+        const employee = filteredData.find((e: Employee) => e.id === empId);
+        if (!employee) return false;
+        
+        // Must have checked in
+        if (!employee.attendance?.checkIn) return false;
+        
+        // Skip if on leave
+        if (employee.hasApprovedLeave) return false;
+        
+        // Skip if marked absent
+        if (employee.attendance?.status === 'ABSENT' || employee.attendance?.status === 'absent') return false;
+        
+        return true;
+      });
+
+      if (eligibleEmployeeIds.length === 0) {
+        messageApi.warning(t('attendance.noEligibleEmployees'));
+        return;
+      }
+
+      const promises = eligibleEmployeeIds.map(employeeId =>
+        apiClient.addBreakDuration({
+          employeeId,
+          date: selectedDate,
+          breakDurationHours: parseFloat(values.breakDuration),
+          breakType: values.breakType,
+          reason: values.reason || '',
+        })
+      );
+      
+      const results = await Promise.allSettled(promises);
+      const successful = results.filter(result => result.status === 'fulfilled');
+      const failed = results.filter(result => result.status === 'rejected');
+
+      if (failed.length === 0) {
+        messageApi.success(t('attendance.bulkBreakSuccess', { count: successful.length }));
+      } else {
+        messageApi.warning(`Partially completed: ${successful.length} successful, ${failed.length} failed`);
+      }
+
+      // Refetch attendance data
+      await queryClient.invalidateQueries({ queryKey: ['attendance'] });
+      await queryClient.refetchQueries({ queryKey: ['attendance'] });
+      
+      setBulkBreakModal(false);
+      bulkBreakForm.resetFields();
+      setSelectedEmployeeIds([]);
+    } catch (error) {
+      console.error('Bulk break error:', error);
+      messageApi.error(t('attendance.bulkBreakError'));
+    }
+  };
+
+  const onBulkAbsentSubmit = async (values: any) => {
+    if (selectedEmployeeIds.length === 0) return;
+    
+    // Don't allow bulk actions on holidays
+    if (isHoliday) {
+      messageApi.warning(t('attendance.holidayNoActions'));
+      return;
+    }
+    
+    try {
+      // Filter out employees who shouldn't have bulk absent applied:
+      // - Already marked absent
+      // - On leave
+      // - Already have attendance (checked in)
+      const eligibleEmployeeIds = selectedEmployeeIds.filter(empId => {
+        const employee = filteredData.find((e: Employee) => e.id === empId);
+        if (!employee) return false;
+        
+        // Skip if already marked absent
+        if (employee.attendance?.status === 'ABSENT' || employee.attendance?.status === 'absent') return false;
+        
+        // Skip if on leave
+        if (employee.hasApprovedLeave) return false;
+        
+        // Skip if already checked in
+        if (employee.attendance?.checkIn) return false;
+        
+        return true;
+      });
+
+      if (eligibleEmployeeIds.length === 0) {
+        messageApi.warning(t('attendance.noEligibleEmployees'));
+        return;
+      }
+
+      const promises = eligibleEmployeeIds.map(employeeId =>
+        apiClient.markEmployeeAbsent({
+          employeeId,
+          date: selectedDate,
+          reason: values.reason || '',
+        })
+      );
+      
+      const results = await Promise.allSettled(promises);
+      const successful = results.filter(result => result.status === 'fulfilled');
+      const failed = results.filter(result => result.status === 'rejected');
+
+      if (failed.length === 0) {
+        messageApi.success(t('attendance.bulkAbsentSuccess', { count: successful.length }));
+      } else {
+        messageApi.warning(`Partially completed: ${successful.length} successful, ${failed.length} failed`);
+      }
+
+      // Refetch attendance data
+      await queryClient.invalidateQueries({ queryKey: ['attendance'] });
+      await queryClient.refetchQueries({ queryKey: ['attendance'] });
+      
+      setBulkAbsentModal(false);
+      bulkAbsentForm.resetFields();
+      setSelectedEmployeeIds([]);
+    } catch (error) {
+      console.error('Bulk absent error:', error);
+      messageApi.error(t('attendance.bulkAbsentError'));
+    }
+  };
+
   // Table columns
   const columns: ColumnsType<Employee> = [
     {
@@ -692,6 +1042,11 @@ export const AttendanceListPage: React.FC<AttendanceListPageProps> = ({ role }) 
       key: 'status',
       width: 180,
       render: (_, record) => {
+        // If it's a holiday, show holiday status
+        if (isHoliday) {
+          return <Tag icon={<CoffeeOutlined />} color="blue">{t('attendance.onHoliday')}</Tag>;
+        }
+        
         if (record.hasApprovedLeave) {
           return <Tag icon={<CloseCircleOutlined />} color="orange">{t('attendance.leave')}</Tag>;
         }
@@ -742,59 +1097,93 @@ export const AttendanceListPage: React.FC<AttendanceListPageProps> = ({ role }) 
       title: t('attendance.checkIn'),
       key: 'checkIn',
       width: 150,
-      render: (_, record) => (
-        <div className="flex items-center space-x-2">
-          {record.attendance?.checkIn ? (
-            <>
-              <LoginOutlined className="text-green-500" />
-              <span>{dayjs(record.attendance.checkIn).format('HH:mm')}</span>
-              {record.attendance?.id && (
-                <Button
-                  type="text"
-                  size="small"
-                  icon={<span className="text-xs">✏️</span>}
-                  onClick={() => handleEditCheckIn(record)}
-                  title={t('attendance.editCheckIn')}
-                />
-              )}
-            </>
-          ) : (
-            <span className="text-gray-400">--:--</span>
-          )}
-        </div>
-      ),
+      render: (_, record) => {
+        // If it's a holiday, show holiday text
+        if (isHoliday) {
+          return <span className="text-blue-500 font-medium">{t('attendance.onHoliday')}</span>;
+        }
+        
+        // If absent, show dash
+        if (record.attendance?.status === 'absent' || record.attendance?.status === 'ABSENT') {
+          return <span className="text-gray-400">--:--</span>;
+        }
+        
+        return (
+          <div className="flex items-center space-x-2">
+            {record.attendance?.checkIn ? (
+              <>
+                <LoginOutlined className="text-green-500" />
+                <span>{dayjs(record.attendance.checkIn).format('HH:mm')}</span>
+                {record.attendance?.id && (
+                  <Button
+                    type="text"
+                    size="small"
+                    icon={<span className="text-xs">✏️</span>}
+                    onClick={() => handleEditCheckIn(record)}
+                    title={t('attendance.editCheckIn')}
+                  />
+                )}
+              </>
+            ) : (
+              <span className="text-gray-400">--:--</span>
+            )}
+          </div>
+        );
+      },
     },
     {
       title: t('attendance.checkOut'),
       key: 'checkOut',
       width: 150,
-      render: (_, record) => (
-        <div className="flex items-center space-x-2">
-          {record.attendance?.checkOut ? (
-            <>
-              <LogoutOutlined className="text-red-500" />
-              <span>{dayjs(record.attendance.checkOut).format('HH:mm')}</span>
-              {record.attendance?.id && (
-                <Button
-                  type="text"
-                  size="small"
-                  icon={<span className="text-xs">✏️</span>}
-                  onClick={() => handleEditCheckOut(record)}
-                  title={t('attendance.editCheckOut')}
-                />
-              )}
-            </>
-          ) : (
-            <span className="text-gray-400">--:--</span>
-          )}
-        </div>
-      ),
+      render: (_, record) => {
+        // If it's a holiday, show holiday text
+        if (isHoliday) {
+          return <span className="text-blue-500 font-medium">{t('attendance.onHoliday')}</span>;
+        }
+        
+        // If absent, show dash
+        if (record.attendance?.status === 'absent' || record.attendance?.status === 'ABSENT') {
+          return <span className="text-gray-400">--:--</span>;
+        }
+        
+        return (
+          <div className="flex items-center space-x-2">
+            {record.attendance?.checkOut ? (
+              <>
+                <LogoutOutlined className="text-red-500" />
+                <span>{dayjs(record.attendance.checkOut).format('HH:mm')}</span>
+                {record.attendance?.id && (
+                  <Button
+                    type="text"
+                    size="small"
+                    icon={<span className="text-xs">✏️</span>}
+                    onClick={() => handleEditCheckOut(record)}
+                    title={t('attendance.editCheckOut')}
+                  />
+                )}
+              </>
+            ) : (
+              <span className="text-gray-400">--:--</span>
+            )}
+          </div>
+        );
+      },
     },
     {
       title: t('attendance.workingHours'),
       key: 'workingHours',
       width: 120,
       render: (_, record) => {
+        // If it's a holiday, show holiday text
+        if (isHoliday) {
+          return <span className="text-blue-500 font-medium">{t('attendance.onHoliday')}</span>;
+        }
+        
+        // If absent, show dash
+        if (record.attendance?.status === 'absent' || record.attendance?.status === 'ABSENT') {
+          return <span className="text-gray-400">-</span>;
+        }
+        
         if (record.attendance?.workingHours) {
           // workingHours is stored in minutes
           const totalMinutes = record.attendance.workingHours;
@@ -817,6 +1206,16 @@ export const AttendanceListPage: React.FC<AttendanceListPageProps> = ({ role }) 
       key: 'break',
       width: 130,
       render: (_, record) => {
+        // If it's a holiday, show holiday text
+        if (isHoliday) {
+          return <span className="text-blue-500 font-medium">{t('attendance.onHoliday')}</span>;
+        }
+        
+        // If absent, show dash
+        if (record.attendance?.status === 'absent' || record.attendance?.status === 'ABSENT') {
+          return <span className="text-gray-400">-</span>;
+        }
+        
         if (record.attendance?.breakDuration && record.attendance.breakDuration > 0) {
           const totalMinutes = record.attendance.breakDuration;
           const hours = Math.floor(totalMinutes / 60);
@@ -847,6 +1246,16 @@ export const AttendanceListPage: React.FC<AttendanceListPageProps> = ({ role }) 
       key: 'late',
       width: 100,
       render: (_, record) => {
+        // If it's a holiday, show holiday text
+        if (isHoliday) {
+          return <span className="text-blue-500 font-medium">{t('attendance.onHoliday')}</span>;
+        }
+        
+        // If absent, show dash
+        if (record.attendance?.status === 'absent' || record.attendance?.status === 'ABSENT') {
+          return <span className="text-gray-400">-</span>;
+        }
+        
         if (record.attendance?.isLate && record.attendance.lateMinutes > 0) {
           const minutes = record.attendance.lateMinutes;
           if (minutes >= 60) {
@@ -864,6 +1273,16 @@ export const AttendanceListPage: React.FC<AttendanceListPageProps> = ({ role }) 
       key: 'leftEarly',
       width: 110,
       render: (_, record) => {
+        // If it's a holiday, show holiday text
+        if (isHoliday) {
+          return <span className="text-blue-500 font-medium">{t('attendance.onHoliday')}</span>;
+        }
+        
+        // If absent, show dash
+        if (record.attendance?.status === 'absent' || record.attendance?.status === 'ABSENT') {
+          return <span className="text-gray-400">-</span>;
+        }
+        
         if (record.attendance?.isEarlyDeparture && record.attendance.earlyDepartureMinutes > 0) {
           const minutes = record.attendance.earlyDepartureMinutes;
           if (minutes >= 60) {
@@ -930,6 +1349,15 @@ export const AttendanceListPage: React.FC<AttendanceListPageProps> = ({ role }) 
       width: 250,
       fixed: 'right',
       render: (_, record) => {
+        // CASE 0: If it's a holiday, disable all actions
+        if (isHoliday) {
+          return (
+            <div className="text-center">
+              <Tag color="blue" icon={<CoffeeOutlined />}>{t('attendance.holidayNoActions')}</Tag>
+            </div>
+          );
+        }
+        
         // CASE 1: Employee has approved leave
         if (record.hasApprovedLeave) {
           return (
@@ -999,7 +1427,7 @@ export const AttendanceListPage: React.FC<AttendanceListPageProps> = ({ role }) 
               </>
             ) : (
               <>
-                <Tag color="success" icon={<CheckCircleOutlined />}>Done</Tag>
+                <Tag color="success" icon={<CheckCircleOutlined />}>{t('attendance.doneTag')}</Tag>
                 <Button
                   size="small"
                   icon={<EyeOutlined />}
@@ -1034,13 +1462,37 @@ export const AttendanceListPage: React.FC<AttendanceListPageProps> = ({ role }) 
               setDefaultTimesModal(true);
             }}
             size="large"
-            type="primary"
-            ghost
+            className="bg-white dark:bg-gray-700 text-gray-700 dark:text-white border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600"
           >
             {t('attendance.setDefaultTimes')}
           </Button>
         }
       />
+
+      {/* Holiday Alert */}
+      {isHoliday && (
+        <Alert
+          message={t('attendance.holidayAlertTitle')}
+          description={
+            <div>
+              <div className="font-semibold text-lg">
+                {holidayInfo?.name || t('attendance.publicHoliday')}
+              </div>
+              {holidayInfo?.description && (
+                <div className="mt-1">{holidayInfo.description}</div>
+              )}
+              <div className="mt-2 text-sm">
+                {t('attendance.holidayAlertDescription')}
+              </div>
+            </div>
+          }
+          type="info"
+          showIcon
+          icon={<CoffeeOutlined />}
+          className="mb-4"
+          closable
+        />
+      )}
 
       {/* Statistics */}
       <Row gutter={[16, 16]}>
@@ -1122,7 +1574,7 @@ export const AttendanceListPage: React.FC<AttendanceListPageProps> = ({ role }) 
           value={selectedDepartment}
           onChange={setSelectedDepartment}
         >
-          {departmentsData?.map((dept: any) => (
+          {departmentsData?.filter((dept: any) => dept?.id !== undefined).map((dept: any) => (
             <Option key={dept.id} value={dept.id.toString()}>
               {dept.departmentName}
             </Option>
@@ -1140,6 +1592,53 @@ export const AttendanceListPage: React.FC<AttendanceListPageProps> = ({ role }) 
         </div>
       </FilterBar>
 
+      {/* Bulk Actions Bar */}
+      {selectedEmployeeIds.length > 0 && !isHoliday && (
+        <EnhancedCard className="mb-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <span className="font-medium text-gray-700 dark:text-gray-300">
+                {t('attendance.selectedEmployees', { count: selectedEmployeeIds.length })}
+              </span>
+              <Button
+                size="small"
+                onClick={() => setSelectedEmployeeIds([])}
+              >
+                {t('attendance.clearSelection')}
+              </Button>
+            </div>
+            <Space wrap>
+              <Button
+                type="primary"
+                icon={<LoginOutlined />}
+                onClick={() => setBulkCheckInModal(true)}
+              >
+                {t('attendance.bulkCheckIn')}
+              </Button>
+              <Button
+                icon={<LogoutOutlined />}
+                onClick={() => setBulkCheckOutModal(true)}
+              >
+                {t('attendance.bulkCheckOut')}
+              </Button>
+              <Button
+                icon={<CoffeeOutlined />}
+                onClick={() => setBulkBreakModal(true)}
+              >
+                {t('attendance.bulkBreak')}
+              </Button>
+              <Button
+                danger
+                icon={<CloseCircleOutlined />}
+                onClick={() => setBulkAbsentModal(true)}
+              >
+                {t('attendance.bulkAbsent')}
+              </Button>
+            </Space>
+          </div>
+        </EnhancedCard>
+      )}
+
       {/* Table */}
       <EnhancedCard>
         <Table
@@ -1149,7 +1648,7 @@ export const AttendanceListPage: React.FC<AttendanceListPageProps> = ({ role }) 
           loading={isLoading}
           pagination={{
             pageSize: 20,
-            showTotal: (total) => `Total ${total} employees`,
+            showTotal: (total) => t('attendance.totalEmployeesCount', { total }),
             showSizeChanger: true,
           }}
           scroll={{ x: 1200 }}
@@ -1280,22 +1779,22 @@ export const AttendanceListPage: React.FC<AttendanceListPageProps> = ({ role }) 
         <Form form={defaultTimesForm} layout="vertical" onFinish={onDefaultTimesSubmit}>
           <Form.Item
             name="checkInTime"
-            label="Default Check-In Time"
-            rules={[{ required: true, message: 'Please select default check-in time' }]}
+            label={t('attendance.defaultCheckInTimeLabel')}
+            rules={[{ required: true, message: t('attendance.pleaseSelectDefaultCheckIn') }]}
           >
             <TimePicker format="HH:mm" className="w-full" />
           </Form.Item>
           <Form.Item
             name="checkOutTime"
-            label="Default Check-Out Time"
-            rules={[{ required: true, message: 'Please select default check-out time' }]}
+            label={t('attendance.defaultCheckOutTimeLabel')}
+            rules={[{ required: true, message: t('attendance.pleaseSelectDefaultCheckOut') }]}
           >
             <TimePicker format="HH:mm" className="w-full" />
           </Form.Item>
           <div className="flex justify-end space-x-2">
-            <Button onClick={() => setDefaultTimesModal(false)}>Cancel</Button>
+            <Button onClick={() => setDefaultTimesModal(false)}>{t('attendance.cancel')}</Button>
             <Button type="primary" htmlType="submit" icon={<SettingOutlined />}>
-              Save Settings
+              {t('attendance.saveSettings')}
             </Button>
           </div>
         </Form>
@@ -1303,12 +1802,12 @@ export const AttendanceListPage: React.FC<AttendanceListPageProps> = ({ role }) 
 
       {/* Details Modal */}
       <Modal
-        title="Attendance Details"
+        title={t('attendance.attendanceDetails')}
         open={detailsModal}
         onCancel={() => setDetailsModal(false)}
         footer={[
           <Button key="close" onClick={() => setDetailsModal(false)}>
-            Close
+            {t('attendance.close')}
           </Button>,
         ]}
         width={700}
@@ -1316,16 +1815,16 @@ export const AttendanceListPage: React.FC<AttendanceListPageProps> = ({ role }) 
         {selectedEmployee && (
           <>
             <Descriptions column={2} bordered size="small" className="mb-4">
-              <Descriptions.Item label="Employee">
+              <Descriptions.Item label={t('attendance.employeeLabel')}>
                 {selectedEmployee.fullName}
               </Descriptions.Item>
-              <Descriptions.Item label="Employee Code">
+              <Descriptions.Item label={t('attendance.employeeCodeLabel')}>
                 {selectedEmployee.employeeCode}
               </Descriptions.Item>
-              <Descriptions.Item label="Department">
+              <Descriptions.Item label={t('attendance.departmentLabel')}>
                 {selectedEmployee.department || 'N/A'}
               </Descriptions.Item>
-              <Descriptions.Item label="Date">
+              <Descriptions.Item label={t('attendance.dateLabel')}>
                 {dayjs(selectedDate).format('MMMM DD, YYYY')}
               </Descriptions.Item>
             </Descriptions>
@@ -1748,6 +2247,181 @@ export const AttendanceListPage: React.FC<AttendanceListPageProps> = ({ role }) 
             <Button onClick={() => setOvertimeModal(false)}>{t('common.cancel')}</Button>
             <Button type="primary" htmlType="submit">
               {t('attendance.saveOvertime')}
+            </Button>
+          </div>
+        </Form>
+      </Modal>
+
+      {/* Bulk Check-In Modal */}
+      <Modal
+        title={
+          <div className="flex items-center space-x-2">
+            <LoginOutlined className="text-green-500" />
+            <span>{t('attendance.bulkCheckIn')}</span>
+          </div>
+        }
+        open={bulkCheckInModal}
+        onCancel={() => setBulkCheckInModal(false)}
+        footer={null}
+        width={500}
+      >
+        <Form form={bulkCheckInForm} layout="vertical" onFinish={onBulkCheckInSubmit}>
+          <Alert
+            message={t('attendance.bulkActionWarning', { count: selectedEmployeeIds.length })}
+            type="info"
+            showIcon
+            className="mb-4"
+          />
+          <Form.Item
+            name="checkInTime"
+            label={t('attendance.checkInTime')}
+            rules={[{ required: true, message: t('attendance.pleaseSelectCheckInTime') }]}
+          >
+            <TimePicker format="HH:mm" className="w-full" size="large" />
+          </Form.Item>
+          <Form.Item name="location" label={t('attendance.location')}>
+            <Input placeholder={t('attendance.locationPlaceholder')} />
+          </Form.Item>
+          <Form.Item name="notes" label={t('attendance.notes')}>
+            <Input.TextArea rows={3} placeholder={t('attendance.remarksPlaceholder')} />
+          </Form.Item>
+          <div className="flex justify-end space-x-2">
+            <Button onClick={() => setBulkCheckInModal(false)}>{t('attendance.cancel')}</Button>
+            <Button type="primary" htmlType="submit" icon={<LoginOutlined />}>
+              {t('attendance.confirmCheckIn')}
+            </Button>
+          </div>
+        </Form>
+      </Modal>
+
+      {/* Bulk Check-Out Modal */}
+      <Modal
+        title={
+          <div className="flex items-center space-x-2">
+            <LogoutOutlined className="text-red-500" />
+            <span>{t('attendance.bulkCheckOut')}</span>
+          </div>
+        }
+        open={bulkCheckOutModal}
+        onCancel={() => setBulkCheckOutModal(false)}
+        footer={null}
+        width={500}
+      >
+        <Form form={bulkCheckOutForm} layout="vertical" onFinish={onBulkCheckOutSubmit}>
+          <Alert
+            message={t('attendance.bulkActionWarning', { count: selectedEmployeeIds.length })}
+            type="info"
+            showIcon
+            className="mb-4"
+          />
+          <Form.Item
+            name="checkOutTime"
+            label={t('attendance.checkOutTime')}
+            rules={[{ required: true, message: t('attendance.pleaseSelectCheckOutTime') }]}
+          >
+            <TimePicker format="HH:mm" className="w-full" size="large" />
+          </Form.Item>
+          <Form.Item name="notes" label={t('attendance.notes')}>
+            <Input.TextArea rows={3} placeholder={t('attendance.remarksPlaceholder')} />
+          </Form.Item>
+          <div className="flex justify-end space-x-2">
+            <Button onClick={() => setBulkCheckOutModal(false)}>{t('attendance.cancel')}</Button>
+            <Button type="primary" htmlType="submit" icon={<LogoutOutlined />}>
+              {t('attendance.confirmCheckOut')}
+            </Button>
+          </div>
+        </Form>
+      </Modal>
+
+      {/* Bulk Break Modal */}
+      <Modal
+        title={
+          <div className="flex items-center space-x-2">
+            <CoffeeOutlined className="text-purple-500" />
+            <span>{t('attendance.bulkBreak')}</span>
+          </div>
+        }
+        open={bulkBreakModal}
+        onCancel={() => setBulkBreakModal(false)}
+        footer={null}
+        width={500}
+      >
+        <Form form={bulkBreakForm} layout="vertical" onFinish={onBulkBreakSubmit}>
+          <Alert
+            message={t('attendance.bulkActionWarning', { count: selectedEmployeeIds.length })}
+            type="info"
+            showIcon
+            className="mb-4"
+          />
+          <Form.Item
+            name="breakDuration"
+            label={t('attendance.breakDuration')}
+            rules={[{ required: true, message: t('attendance.selectBreakDuration') }]}
+          >
+            <Select placeholder={t('attendance.breakDurationPlaceholder')} size="large">
+              <Option value="0.25">15 {t('attendance.minutes')}</Option>
+              <Option value="0.5">30 {t('attendance.minutes')}</Option>
+              <Option value="1">1 {t('attendance.hourShort')}</Option>
+              <Option value="1.5">1.5 {t('attendance.hoursShort')}</Option>
+              <Option value="2">2 {t('attendance.hoursShort')}</Option>
+            </Select>
+          </Form.Item>
+          <Form.Item
+            name="breakType"
+            label={t('attendance.breakType')}
+            rules={[{ required: true, message: t('attendance.selectBreakType') }]}
+          >
+            <Select placeholder={t('attendance.breakTypePlaceholder')}>
+              <Option value="lunch">{t('attendance.lunchBreak')}</Option>
+              <Option value="coffee">{t('attendance.coffeeBreak')}</Option>
+              <Option value="prayer">{t('attendance.prayerBreak')}</Option>
+              <Option value="rest">{t('attendance.restBreak')}</Option>
+              <Option value="other">{t('attendance.other')}</Option>
+            </Select>
+          </Form.Item>
+          <Form.Item name="reason" label={t('attendance.notesOptional')}>
+            <Input.TextArea rows={2} placeholder={t('attendance.additionalNotesBreak')} />
+          </Form.Item>
+          <div className="flex justify-end space-x-2">
+            <Button onClick={() => setBulkBreakModal(false)}>{t('attendance.cancel')}</Button>
+            <Button type="primary" htmlType="submit" icon={<CoffeeOutlined />}>
+              {t('attendance.confirmBreakLeave')}
+            </Button>
+          </div>
+        </Form>
+      </Modal>
+
+      {/* Bulk Absent Modal */}
+      <Modal
+        title={
+          <div className="flex items-center space-x-2">
+            <CloseCircleOutlined className="text-red-500" />
+            <span>{t('attendance.bulkAbsent')}</span>
+          </div>
+        }
+        open={bulkAbsentModal}
+        onCancel={() => setBulkAbsentModal(false)}
+        footer={null}
+        width={500}
+      >
+        <Form form={bulkAbsentForm} layout="vertical" onFinish={onBulkAbsentSubmit}>
+          <Alert
+            message={t('attendance.bulkAbsentWarning', { count: selectedEmployeeIds.length })}
+            type="warning"
+            showIcon
+            className="mb-4"
+          />
+          <Form.Item
+            name="reason"
+            label={t('attendance.reason')}
+            rules={[{ required: true, message: t('attendance.pleaseProvideReason') }]}
+          >
+            <Input.TextArea rows={3} placeholder={t('attendance.reasonForAbsence')} />
+          </Form.Item>
+          <div className="flex justify-end space-x-2">
+            <Button onClick={() => setBulkAbsentModal(false)}>{t('attendance.cancel')}</Button>
+            <Button type="primary" danger htmlType="submit" icon={<CloseCircleOutlined />}>
+              {t('attendance.confirmAbsent')}
             </Button>
           </div>
         </Form>

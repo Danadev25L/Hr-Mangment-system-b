@@ -71,6 +71,7 @@ interface EmployeeListPageProps {
 }
 
 export function EmployeeListPage({ role, title, description }: EmployeeListPageProps) {
+  const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const queryClient = useQueryClient()
@@ -91,9 +92,7 @@ export function EmployeeListPage({ role, title, description }: EmployeeListPageP
 
   // Navigate with locale support
   const handleNavigation = (path: string) => {
-    if (typeof window !== 'undefined') {
-      window.location.href = path
-    }
+    router.push(path)
   }
 
   // Fetch departments for admin

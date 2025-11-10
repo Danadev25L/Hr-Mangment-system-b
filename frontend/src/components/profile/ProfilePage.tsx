@@ -237,21 +237,21 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ role }) => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 px-4 md:px-0">
       {/* Header with Role-Specific Gradient - Light/Dark Mode */}
-      <div className={`relative overflow-hidden rounded-2xl bg-gradient-to-r ${theme.gradient} ${theme.darkGradient} p-8 shadow-xl`}>
+      <div className={`relative overflow-hidden rounded-2xl bg-gradient-to-r ${theme.gradient} ${theme.darkGradient} p-4 md:p-8 shadow-xl`}>
         <div className="absolute inset-0 bg-black/10 dark:bg-black/30"></div>
         <div className="relative z-10">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <div className="p-4 bg-white/20 dark:bg-white/10 backdrop-blur-sm rounded-xl">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div className="flex items-center gap-3 md:gap-4">
+              <div className="p-3 md:p-4 bg-white/20 dark:bg-white/10 backdrop-blur-sm rounded-xl">
                 {theme.icon && React.cloneElement(theme.icon as React.ReactElement, { 
-                  className: "text-4xl text-white drop-shadow-lg" 
+                  className: "text-2xl md:text-4xl text-white drop-shadow-lg" 
                 })}
               </div>
               <div>
-                <h1 className="text-3xl font-bold text-white drop-shadow-lg mb-1">{t('profile.title')}</h1>
-                <p className="text-white/90 dark:text-white/80 text-lg drop-shadow">
+                <h1 className="text-xl md:text-3xl font-bold text-white drop-shadow-lg mb-1">{t('profile.title')}</h1>
+                <p className="text-sm md:text-lg text-white/90 dark:text-white/80 drop-shadow">
                   {t('profile.subtitle')}
                 </p>
                 <Badge 
@@ -279,14 +279,14 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ role }) => {
         <Col xs={24} lg={8}>
           <EnhancedCard
             title={
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center gap-2">
                 <span className={theme.iconColor}>{theme.icon}</span>
                 <span>{t('profile.profileOverview')}</span>
               </div>
             }
             className={`h-full border-t-4 ${theme.borderColor}`}
           >
-            <div className="flex flex-col items-center text-center space-y-4">
+            <div className="flex flex-col items-center text-center gap-4">
               {/* Role-colored Avatar with Dark Mode Support */}
               <div className={`p-1 rounded-full bg-gradient-to-br ${theme.gradient} ${theme.darkGradient} shadow-lg`}>
                 <AvatarWithInitials
@@ -313,27 +313,27 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ role }) => {
 
               <Divider className="my-4 dark:border-gray-700" />
 
-              <div className="w-full space-y-3 text-left">
-                <div className={`flex items-center space-x-3 p-2 rounded-lg ${theme.bgGradient} transition-colors ${theme.hoverBg}`}>
-                  <MailOutlined className={theme.iconColor} />
-                  <Text className="dark:text-gray-300">{profile?.email}</Text>
+              <div className="w-full gap-3 flex flex-col text-start rtl:text-right">
+                <div className={`flex items-center gap-3 p-2 rounded-lg ${theme.bgGradient} transition-colors ${theme.hoverBg}`}>
+                  <MailOutlined className={`${theme.iconColor} flex-shrink-0`} />
+                  <Text className="dark:text-gray-300 break-all text-sm md:text-base">{profile?.email}</Text>
                 </div>
                 {profile?.phone && (
-                  <div className={`flex items-center space-x-3 p-2 rounded-lg ${theme.bgGradient} transition-colors ${theme.hoverBg}`}>
-                    <PhoneOutlined className={theme.iconColor} />
-                    <Text className="dark:text-gray-300">{profile.phone}</Text>
+                  <div className={`flex items-center gap-3 p-2 rounded-lg ${theme.bgGradient} transition-colors ${theme.hoverBg}`}>
+                    <PhoneOutlined className={`${theme.iconColor} flex-shrink-0`} />
+                    <Text className="dark:text-gray-300 text-sm md:text-base">{profile.phone}</Text>
                   </div>
                 )}
                 {profile?.department && (
-                  <div className={`flex items-center space-x-3 p-2 rounded-lg ${theme.bgGradient} transition-colors ${theme.hoverBg}`}>
-                    <IdcardOutlined className={theme.iconColor} />
-                    <Text className="dark:text-gray-300">{typeof profile.department === 'string' ? profile.department : (profile.department as any).departmentName || 'N/A'}</Text>
+                  <div className={`flex items-center gap-3 p-2 rounded-lg ${theme.bgGradient} transition-colors ${theme.hoverBg}`}>
+                    <IdcardOutlined className={`${theme.iconColor} flex-shrink-0`} />
+                    <Text className="dark:text-gray-300 break-words text-sm md:text-base">{typeof profile.department === 'string' ? profile.department : (profile.department as any).departmentName || 'N/A'}</Text>
                   </div>
                 )}
                 {profile?.dateOfJoining && (
-                  <div className={`flex items-center space-x-3 p-2 rounded-lg ${theme.bgGradient} transition-colors ${theme.hoverBg}`}>
-                    <CalendarOutlined className={theme.iconColor} />
-                    <Text className="dark:text-gray-300">{t('profile.joined')} {dayjs(profile.dateOfJoining).format('MMM DD, YYYY')}</Text>
+                  <div className={`flex items-center gap-3 p-2 rounded-lg ${theme.bgGradient} transition-colors ${theme.hoverBg}`}>
+                    <CalendarOutlined className={`${theme.iconColor} flex-shrink-0`} />
+                    <Text className="dark:text-gray-300 text-sm md:text-base">{t('profile.joined')} {dayjs(profile.dateOfJoining).format('MMM DD, YYYY')}</Text>
                   </div>
                 )}
               </div>
@@ -358,7 +358,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ role }) => {
             {/* Personal Information Card with Role Color - Light/Dark Mode */}
             <EnhancedCard
               title={
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center gap-2">
                   <UserOutlined className={theme.iconColor} />
                   <span>{t('profile.personalInformation')}</span>
                 </div>
@@ -377,54 +377,54 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ role }) => {
               className={`border-l-4 ${theme.borderColor}`}
             >
               {!editMode ? (
-                <Descriptions column={2} bordered>
-                  <Descriptions.Item label={t('profile.fullName')} span={2}>
-                    <Text strong>{profile?.fullName}</Text>
+                <Descriptions column={{ xs: 1, sm: 1, md: 2 }} bordered>
+                  <Descriptions.Item label={t('profile.fullName')}>
+                    <Text strong className="break-words text-sm md:text-base">{profile?.fullName}</Text>
                   </Descriptions.Item>
-                  <Descriptions.Item label={t('profile.username')} span={1}>
-                    <Text strong>@{profile?.username}</Text>
+                  <Descriptions.Item label={t('profile.username')}>
+                    <Text strong className="break-all text-sm md:text-base">@{profile?.username}</Text>
                   </Descriptions.Item>
-                  <Descriptions.Item label={t('profile.employeeCode')} span={1}>
+                  <Descriptions.Item label={t('profile.employeeCode')}>
                     <Tag color={theme.tagColor}>{profile?.employeeCode}</Tag>
                   </Descriptions.Item>
-                  <Descriptions.Item label={t('profile.role')} span={2}>
+                  <Descriptions.Item label={t('profile.role')}>
                     <Tag color={theme.primary} icon={theme.icon}>
                       {t(`profile.${theme.roleLabel}`)}
                     </Tag>
                   </Descriptions.Item>
-                  <Descriptions.Item label={t('profile.email')} span={2}>
-                    <Space>
+                  <Descriptions.Item label={t('profile.email')}>
+                    <Space className="flex-wrap">
                       <MailOutlined />
-                      {profile?.email}
+                      <Text className="break-all text-sm md:text-base">{profile?.email}</Text>
                     </Space>
                   </Descriptions.Item>
-                  <Descriptions.Item label={t('profile.phone')} span={2}>
+                  <Descriptions.Item label={t('profile.phone')}>
                     <Space>
                       <PhoneOutlined />
-                      {profile?.phone || <Text type="secondary">{t('profile.notProvided')}</Text>}
+                      <Text className="text-sm md:text-base">{profile?.phone || <Text type="secondary">{t('profile.notProvided')}</Text>}</Text>
                     </Space>
                   </Descriptions.Item>
-                  <Descriptions.Item label={t('profile.address')} span={2}>
-                    <Space>
+                  <Descriptions.Item label={t('profile.address')}>
+                    <Space className="flex-wrap">
                       <HomeOutlined />
-                      {profile?.address || <Text type="secondary">{t('profile.notProvided')}</Text>}
+                      <Text className="break-words text-sm md:text-base">{profile?.address || <Text type="secondary">{t('profile.notProvided')}</Text>}</Text>
                     </Space>
                   </Descriptions.Item>
-                  <Descriptions.Item label={t('profile.department')} span={2}>
-                    {profile?.department 
+                  <Descriptions.Item label={t('profile.department')}>
+                    <Text className="break-words text-sm md:text-base">{profile?.department 
                       ? (typeof profile.department === 'string' 
                           ? profile.department 
                           : (profile.department as any).departmentName || 'N/A')
-                      : <Text type="secondary">{t('profile.notAssigned')}</Text>}
+                      : <Text type="secondary">{t('profile.notAssigned')}</Text>}</Text>
                   </Descriptions.Item>
-                  <Descriptions.Item label={t('profile.position')} span={2}>
-                    {profile?.position || <Text type="secondary">{t('profile.notSpecified')}</Text>}
+                  <Descriptions.Item label={t('profile.position')}>
+                    <Text className="break-words text-sm md:text-base">{profile?.position || <Text type="secondary">{t('profile.notSpecified')}</Text>}</Text>
                   </Descriptions.Item>
-                  <Descriptions.Item label={t('profile.memberSince')} span={2}>
-                    <Space>
+                  <Descriptions.Item label={t('profile.memberSince')}>
+                    <Space className="flex-wrap">
                       <CalendarOutlined />
-                      {dayjs(profile?.createdAt).format('MMMM DD, YYYY')}
-                      <Text type="secondary">({dayjs(profile?.createdAt).fromNow()})</Text>
+                      <Text className="text-sm md:text-base">{dayjs(profile?.createdAt).format('MMMM DD, YYYY')}</Text>
+                      <Text type="secondary" className="text-xs md:text-sm">({dayjs(profile?.createdAt).fromNow()})</Text>
                     </Space>
                   </Descriptions.Item>
                 </Descriptions>
@@ -441,7 +441,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ role }) => {
                   }}
                 >
                   <Row gutter={16}>
-                    <Col span={12}>
+                    <Col xs={24} sm={24} md={12}>
                       <Form.Item
                         name="fullName"
                         label={t('profile.fullName')}
@@ -450,7 +450,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ role }) => {
                         <Input prefix={<UserOutlined />} placeholder={t('profile.fullNamePlaceholder')} />
                       </Form.Item>
                     </Col>
-                    <Col span={12}>
+                    <Col xs={24} sm={24} md={12}>
                       <Form.Item
                         name="username"
                         label={t('profile.username')}
@@ -459,12 +459,12 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ role }) => {
                         <Input prefix={<UserOutlined />} placeholder="johndoe" />
                       </Form.Item>
                     </Col>
-                    <Col span={12}>
+                    <Col xs={24} sm={24} md={12}>
                       <Form.Item name="phone" label={t('profile.phoneNumber')}>
                         <Input prefix={<PhoneOutlined />} placeholder="+1234567890" />
                       </Form.Item>
                     </Col>
-                    <Col span={12}>
+                    <Col xs={24} sm={24} md={12}>
                       <Form.Item name="address" label={t('profile.address')}>
                         <Input prefix={<HomeOutlined />} placeholder="123 Main St, City" />
                       </Form.Item>
@@ -481,7 +481,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ role }) => {
             {profile?.salary && (
               <EnhancedCard
                 title={
-                  <div className="flex items-center space-x-2">
+                  <div className="flex items-center gap-2">
                     <DollarOutlined className="text-green-500 dark:text-green-400" />
                     <span>{t('profile.salaryInformation')}</span>
                   </div>
@@ -494,26 +494,26 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ role }) => {
                   showIcon
                   className="mb-4"
                 />
-                <Descriptions column={2} bordered size="small">
-                  <Descriptions.Item label={t('profile.baseSalary')} span={2}>
+                <Descriptions column={{ xs: 1, sm: 1, md: 2 }} bordered size="small">
+                  <Descriptions.Item label={t('profile.baseSalary')}>
                     <div className="flex flex-col">
-                      <Text strong className="text-3xl text-green-600 dark:text-green-400">
+                      <Text strong className="text-xl md:text-3xl text-green-600 dark:text-green-400 break-all">
                         {profile.salary.currency} {profile.salary.baseSalary.toLocaleString()}
                       </Text>
                       <Text type="secondary" className="text-xs mt-1">{t('profile.perMonth')}</Text>
                     </div>
                   </Descriptions.Item>
-                  <Descriptions.Item label={t('profile.currency')} span={1}>
+                  <Descriptions.Item label={t('profile.currency')}>
                     <Tag color="green" className="text-sm">{profile.salary.currency}</Tag>
                   </Descriptions.Item>
-                  <Descriptions.Item label={t('profile.status')} span={1}>
+                  <Descriptions.Item label={t('profile.status')}>
                     <Tag color="success" icon={<CheckCircleOutlined />}>{t('profile.active')}</Tag>
                   </Descriptions.Item>
-                  <Descriptions.Item label={t('profile.lastUpdated')} span={2}>
+                  <Descriptions.Item label={t('profile.lastUpdated')}>
                     <Space direction="vertical" size="small">
-                      <Space>
+                      <Space className="flex-wrap">
                         <CalendarOutlined className="text-blue-500 dark:text-blue-400" />
-                        <Text strong className="dark:text-gray-300">{dayjs(profile.salary.lastUpdated).format('MMMM DD, YYYY [at] HH:mm')}</Text>
+                        <Text strong className="dark:text-gray-300 text-xs md:text-sm break-words">{dayjs(profile.salary.lastUpdated).format('MMMM DD, YYYY [at] HH:mm')}</Text>
                       </Space>
                       <Text type="secondary" className="text-xs dark:text-gray-500">
                         {dayjs(profile.salary.lastUpdated).fromNow()}
@@ -521,10 +521,10 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ role }) => {
                     </Space>
                   </Descriptions.Item>
                   {profile.salary.updatedBy && (
-                    <Descriptions.Item label={t('profile.updatedBy')} span={2}>
+                    <Descriptions.Item label={t('profile.updatedBy')}>
                       <Space>
                         <UserOutlined className="text-purple-500 dark:text-purple-400" />
-                        <Text className="dark:text-gray-300">{profile.salary.updatedBy}</Text>
+                        <Text className="dark:text-gray-300 break-words text-sm">{profile.salary.updatedBy}</Text>
                       </Space>
                     </Descriptions.Item>
                   )}
@@ -535,19 +535,19 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ role }) => {
             {/* Account Activity Card with Role Color - Light/Dark Mode */}
             <EnhancedCard
               title={
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center gap-2">
                   <ClockCircleOutlined className={theme.iconColor} />
                   <span>{t('profile.accountActivity')}</span>
                 </div>
               }
               className={`border-l-4 ${theme.borderColor}`}
             >
-              <Descriptions column={2} bordered size="small">
-                <Descriptions.Item label={t('profile.accountCreated')} span={2}>
+              <Descriptions column={{ xs: 1, sm: 1, md: 2 }} bordered size="small">
+                <Descriptions.Item label={t('profile.accountCreated')}>
                   <Space direction="vertical" size="small">
-                    <Space>
+                    <Space className="flex-wrap">
                       <CalendarOutlined className={theme.iconColor} />
-                      <Text strong className="dark:text-gray-300">{dayjs(profile?.createdAt).format('MMMM DD, YYYY [at] HH:mm')}</Text>
+                      <Text strong className="dark:text-gray-300 text-xs md:text-sm break-words">{dayjs(profile?.createdAt).format('MMMM DD, YYYY [at] HH:mm')}</Text>
                     </Space>
                     <Text type="secondary" className="text-xs dark:text-gray-500">
                       {dayjs(profile?.createdAt).fromNow()}
@@ -555,19 +555,19 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ role }) => {
                   </Space>
                 </Descriptions.Item>
                 {profile?.createdBy && (
-                  <Descriptions.Item label={t('profile.createdBy')} span={2}>
+                  <Descriptions.Item label={t('profile.createdBy')}>
                     <Space>
                       <UserOutlined className={theme.iconColor} />
-                      <Text className="dark:text-gray-300">{profile.createdBy}</Text>
+                      <Text className="dark:text-gray-300 text-sm break-words">{profile.createdBy}</Text>
                     </Space>
                   </Descriptions.Item>
                 )}
                 {profile?.updatedAt && (
-                  <Descriptions.Item label={t('profile.lastProfileUpdate')} span={2}>
+                  <Descriptions.Item label={t('profile.lastProfileUpdate')}>
                     <Space direction="vertical" size="small">
-                      <Space>
+                      <Space className="flex-wrap">
                         <ClockCircleOutlined className="text-orange-500 dark:text-orange-400" />
-                        <Text strong className="dark:text-gray-300">{dayjs(profile.updatedAt).format('MMMM DD, YYYY [at] HH:mm')}</Text>
+                        <Text strong className="dark:text-gray-300 text-xs md:text-sm break-words">{dayjs(profile.updatedAt).format('MMMM DD, YYYY [at] HH:mm')}</Text>
                       </Space>
                       <Text type="secondary" className="text-xs dark:text-gray-500">
                         {dayjs(profile.updatedAt).fromNow()}
@@ -601,7 +601,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ role }) => {
       {/* Change Password Modal with Role Color - Light/Dark Mode */}
       <Modal
         title={
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center gap-2">
             <LockOutlined className={theme.iconColor} />
             <span>{t('profile.changePassword')}</span>
           </div>
@@ -685,7 +685,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ role }) => {
             />
           </Form.Item>
 
-          <div className="flex justify-end space-x-2">
+          <div className="flex justify-end gap-2">
             <Button
               onClick={() => {
                 setPasswordModal(false);

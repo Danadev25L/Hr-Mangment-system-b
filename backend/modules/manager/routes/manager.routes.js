@@ -66,16 +66,21 @@ router.get('/holidays/statistics', managerHolidayController.getOrganizationHolid
 router.get('/holidays/:id', managerHolidayController.getHoliday);
 router.post('/holidays/suggest', managerHolidayController.suggestHoliday);
 
-// Manager Attendance Routes
+// Manager Attendance Routes (VIEW-ONLY)
+// Managers can only view team attendance - all actions handled by admin
 router.get('/attendance/team', managerAttendanceController.getTeamAttendance);
 router.get('/attendance/team/today', managerAttendanceController.getTodayTeamAttendance);
 router.get('/attendance/team/summary', managerAttendanceController.getTeamAttendanceSummary);
 router.get('/attendance/corrections/pending', managerAttendanceController.getPendingCorrections);
-router.put('/attendance/corrections/:id/approve', managerAttendanceController.approveCorrection);
-router.put('/attendance/corrections/:id/reject', managerAttendanceController.rejectCorrection);
 
 // Manager Salary Management Routes (View-Only for Department)
 router.get('/salary-management/department', managerSalaryController.getDepartmentSalaries);
 router.get('/salary-management/employee/:employeeId', managerSalaryController.getEmployeeSalaryDetails);
+router.post('/salary-management/bonus', managerSalaryController.addBonus);
+router.post('/salary-management/deduction', managerSalaryController.addDeduction);
+router.post('/salary-management/overtime', managerSalaryController.addOvertime);
+router.get('/salary-management/adjustments/employee/:employeeId', managerSalaryController.getEmployeeAdjustments);
+router.put('/salary-management/adjustments/:adjustmentId', managerSalaryController.updateAdjustment);
+router.delete('/salary-management/adjustments/:adjustmentId', managerSalaryController.deleteAdjustment);
 
 export default router;

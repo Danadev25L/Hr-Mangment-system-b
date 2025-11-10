@@ -2,8 +2,7 @@
 
 import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Card, Row, Col, Progress, Timeline, List, Avatar, Button, Badge, Calendar, Modal, Form, Input, Select, DatePicker, TimePicker, message } from 'antd'
-import '@/styles/calendar-dark-mode.css'
+import { Card, Row, Col, Progress, Timeline, List, Avatar, Button, Badge, Calendar, Modal, Form, Input, Select, DatePicker, TimePicker, message, Spin } from 'antd'
 import {
   TeamOutlined,
   DollarOutlined,
@@ -56,7 +55,11 @@ import {
 } from 'chart.js'
 import apiClient from '@/lib/api'
 import dayjs from 'dayjs'
+import 'dayjs/locale/ar'
+import 'dayjs/locale/ku'
+import 'dayjs/locale/en'
 import { useRouter } from 'next/navigation'
+import { formatNumber, formatCurrencyKurdish, formatPercentage } from '@/lib/kurdishNumbers'
 
 ChartJS.register(
   CategoryScale,
@@ -71,7 +74,7 @@ ChartJS.register(
   Filler
 )
 
-export default function AdminDashboard() {
+const AdminDashboard = React.memo(function AdminDashboard() {
   const t = useTranslations()
   const locale = useLocale()
   const router = useRouter()
@@ -84,92 +87,143 @@ export default function AdminDashboard() {
   const [selectedEvent, setSelectedEvent] = useState<any | null>(null)
   const [modalMode, setModalMode] = useState<'create' | 'edit'>('create')
 
-  // Fetch comprehensive dashboard data from backend
-  const { data: stats } = useQuery({
+  // OPTIMIZED: Split queries for better performance and caching
+  // Load critical data first
+  const { data: dashboardStats } = useQuery({
     queryKey: ['admin-dashboard-stats'],
-    queryFn: async () => {
-      const [
-        users, 
-        attendance, 
-        expenses, 
-        applications, 
-        departments,
-        holidays,
-        announcements,
-        currentUser,
-        dashboardStats,
-        calendarEvents
-      ] = await Promise.all([
-        apiClient.getUsers(1, 100),
-        apiClient.getAllEmployeesWithAttendance({ date: dayjs().format('YYYY-MM-DD') }),
-        apiClient.getExpenses(1, 1000),
-        apiClient.getApplications(1, 1000),
-        apiClient.getDepartments(),
-        apiClient.getHolidays(),
-        apiClient.getAnnouncements(),
-        apiClient.getCurrentUser(),
-        apiClient.getDashboardStats().catch(() => null),
-        apiClient.getCalendarEvents({
-          startDate: dayjs().startOf('month').format('YYYY-MM-DD'),
-          endDate: dayjs().endOf('month').format('YYYY-MM-DD')
-        }).catch(() => ({ data: [] }))
-      ])
-      return { 
-        users, 
-        attendance, 
-        expenses, 
-        applications, 
-        departments,
-        holidays,
-        announcements,
-        currentUser,
-        dashboardStats,
-        calendarEvents
-      }
-    }
+    queryFn: () => apiClient.getDashboardStats(),
+    staleTime: 5 * 60 * 1000,
   })
 
-  // Mutations for calendar events
+  const { data: userData } = useQuery({
+    queryKey: ['current-user'],
+    queryFn: () => apiClient.getCurrentUser(),
+    staleTime: 10 * 60 * 1000, // User data changes rarely
+  })
+
+  const { data: attendanceData } = useQuery({
+    queryKey: ['today-attendance', dayjs().format('YYYY-MM-DD')],
+    queryFn: () => apiClient.getAllEmployeesWithAttendance({ date: dayjs().format('YYYY-MM-DD') }),
+    staleTime: 2 * 60 * 1000, // Refresh more frequently
+  })
+
+  // Load secondary data with longer stale times
+  const { data: usersData } = useQuery({
+    queryKey: ['users-list', 1, 20],
+    queryFn: () => apiClient.getUsers(1, 20),
+    staleTime: 5 * 60 * 1000,
+  })
+
+  const { data: expensesData } = useQuery({
+    queryKey: ['expenses-list', 1, 50],
+    queryFn: () => apiClient.getExpenses(1, 50),
+    staleTime: 5 * 60 * 1000,
+  })
+
+  const { data: applicationsData } = useQuery({
+    queryKey: ['applications-list', 1, 50],
+    queryFn: () => apiClient.getApplications(1, 50),
+    staleTime: 5 * 60 * 1000,
+  })
+
+  const { data: departmentsData } = useQuery({
+    queryKey: ['departments-list'],
+    queryFn: () => apiClient.getDepartments(),
+    staleTime: 10 * 60 * 1000, // Departments change rarely
+  })
+
+  const { data: holidaysData } = useQuery({
+    queryKey: ['holidays-list'],
+    queryFn: () => apiClient.getHolidays(),
+    staleTime: 10 * 60 * 1000,
+  })
+
+  const { data: announcementsData } = useQuery({
+    queryKey: ['announcements-list'],
+    queryFn: () => apiClient.getAnnouncements(),
+    staleTime: 5 * 60 * 1000,
+  })
+
+  const { data: calendarEventsData } = useQuery({
+    queryKey: ['calendar-events', dayjs().format('YYYY-MM')],
+    queryFn: () => apiClient.getCalendarEvents({
+      startDate: dayjs().startOf('month').format('YYYY-MM-DD'),
+      endDate: dayjs().endOf('month').format('YYYY-MM-DD')
+    }),
+    staleTime: 5 * 60 * 1000,
+  })
+
+  // Combine data for backwards compatibility
+  const stats = {
+    users: usersData,
+    attendance: attendanceData,
+    expenses: expensesData,
+    applications: applicationsData,
+    departments: departmentsData,
+    holidays: holidaysData,
+    announcements: announcementsData,
+    currentUser: userData,
+    dashboardStats,
+    calendarEvents: calendarEventsData
+  }
+
+  // Mutations for calendar events - OPTIMIZED: Don't invalidate entire dashboard
   const createEventMutation = useMutation({
     mutationFn: (data: any) => apiClient.createCalendarEvent(data),
     onSuccess: () => {
-      message.success('Event created successfully!')
-      queryClient.invalidateQueries({ queryKey: ['admin-dashboard-stats'] })
+      message.success(t('dashboard.eventCreatedSuccessfully'))
+      // Only refetch calendar events, not entire dashboard
+      queryClient.invalidateQueries({ queryKey: ['calendar-events'] })
       setIsModalOpen(false)
       form.resetFields()
     },
     onError: () => {
-      message.error('Failed to create event')
+      message.error(t('dashboard.failedToCreateEvent'))
     }
   })
 
   const updateEventMutation = useMutation({
     mutationFn: ({ id, data }: { id: number, data: any }) => apiClient.updateCalendarEvent(id, data),
     onSuccess: () => {
-      message.success('Event updated successfully!')
-      queryClient.invalidateQueries({ queryKey: ['admin-dashboard-stats'] })
+      message.success(t('dashboard.eventUpdatedSuccessfully'))
+      // Only refetch calendar events, not entire dashboard
+      queryClient.invalidateQueries({ queryKey: ['calendar-events'] })
       setIsModalOpen(false)
       form.resetFields()
       setSelectedEvent(null)
     },
     onError: () => {
-      message.error('Failed to update event')
+      message.error(t('dashboard.failedToUpdateEvent'))
     }
   })
 
   const deleteEventMutation = useMutation({
     mutationFn: (id: number) => apiClient.deleteCalendarEvent(id),
     onSuccess: () => {
-      message.success('Event deleted successfully!')
-      queryClient.invalidateQueries({ queryKey: ['admin-dashboard-stats'] })
+      message.success(t('dashboard.eventDeletedSuccessfully'))
+      // Only refetch calendar events, not entire dashboard
+      queryClient.invalidateQueries({ queryKey: ['calendar-events'] })
       setIsModalOpen(false)
       form.resetFields()
       setSelectedEvent(null)
     },
     onError: () => {
-      message.error('Failed to delete event')
+      message.error(t('dashboard.failedToDeleteEvent'))
     }
   })
+
+  // Check if critical data is still loading - AFTER all hooks
+  const isLoading = !userData || !dashboardStats
+  
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Spin size="large">
+          <div className="p-12" />
+        </Spin>
+      </div>
+    )
+  }
 
   // Modal handlers
   const handleDateSelect = (date: dayjs.Dayjs) => {
@@ -220,7 +274,7 @@ export default function AdminDashboard() {
       const values = await form.validateFields()
       
       if (!selectedDate) {
-        message.error('Please select a date from the calendar')
+        message.error(t('dashboard.pleaseSelectDate'))
         return
       }
       
@@ -245,11 +299,11 @@ export default function AdminDashboard() {
   const handleDeleteEvent = () => {
     if (selectedEvent) {
       Modal.confirm({
-        title: 'Delete Event',
-        content: 'Are you sure you want to delete this event?',
-        okText: 'Delete',
+        title: t('dashboard.deleteEventTitle'),
+        content: t('dashboard.deleteEventContent'),
+        okText: t('dashboard.deleteBtn'),
         okType: 'danger',
-        cancelText: 'Cancel',
+        cancelText: t('dashboard.cancelBtn'),
         onOk: () => {
           deleteEventMutation.mutate(selectedEvent.id)
         }
@@ -261,7 +315,7 @@ export default function AdminDashboard() {
   const totalEmployees = stats?.users?.total || 0
   const totalExpenses = stats?.expenses?.total || 0
   const totalApplications = stats?.applications?.total || 0
-  const attendanceData = stats?.attendance?.employees || []
+  const attendanceEmployees = stats?.attendance?.employees || []
   const applications = stats?.applications?.applications || []
   const expenses = stats?.expenses?.expenses || []
   const departments = Array.isArray(stats?.departments) ? stats.departments : []
@@ -271,8 +325,8 @@ export default function AdminDashboard() {
   const calendarEvents = Array.isArray(stats?.calendarEvents?.data) ? stats.calendarEvents.data : []
 
   // Calculate real attendance metrics
-  const presentToday = attendanceData.filter((a: any) => a.status === 'present').length
-  const lateToday = attendanceData.filter((a: any) => a.isLate).length
+  const presentToday = attendanceEmployees.filter((a: any) => a.status === 'present').length
+  const lateToday = attendanceEmployees.filter((a: any) => a.isLate).length
   const absentToday = totalEmployees - presentToday
   const attendanceRate = totalEmployees > 0 ? ((presentToday / totalEmployees) * 100).toFixed(1) : 0
 
@@ -297,14 +351,14 @@ export default function AdminDashboard() {
   const last7Days = Array.from({ length: 7 }, (_, i) => dayjs().subtract(6 - i, 'day'))
   const attendanceByDay = last7Days.map(day => {
     const dayStr = day.format('YYYY-MM-DD')
-    return attendanceData.filter((a: any) => dayjs(a.date).format('YYYY-MM-DD') === dayStr).length
+    return attendanceEmployees.filter((a: any) => dayjs(a.date).format('YYYY-MM-DD') === dayStr).length
   })
   
   const attendanceTrendData = {
     labels: last7Days.map(d => d.format('MMM DD')),
     datasets: [
       {
-        label: 'Employees Present',
+        label: t('dashboard.employeesPresent'),
         data: attendanceByDay,
         borderColor: '#10b981',
         backgroundColor: 'rgba(16, 185, 129, 0.1)',
@@ -316,7 +370,7 @@ export default function AdminDashboard() {
 
   // Real attendance distribution
   const attendanceDistData = {
-    labels: ['Present', 'Late', 'Absent'],
+    labels: [t('dashboard.present'), t('dashboard.late'), t('dashboard.absent')],
     datasets: [{
       data: [presentToday, lateToday, absentToday],
       backgroundColor: ['#10b981', '#f59e0b', '#ef4444'],
@@ -325,8 +379,8 @@ export default function AdminDashboard() {
   }
 
   // Real application status distribution
-  const applicationsData = {
-    labels: ['Pending', 'Approved', 'Rejected'],
+  const applicationsStatusData = {
+    labels: [t('dashboard.pending'), t('dashboard.approved'), t('dashboard.rejected')],
     datasets: [{
       data: [pendingApps, approvedApps, rejectedApps],
       backgroundColor: ['#3b82f6', '#10b981', '#ef4444'],
@@ -336,7 +390,7 @@ export default function AdminDashboard() {
 
   // Real expense status distribution
   const expensesStatusData = {
-    labels: ['Pending', 'Approved', 'Rejected'],
+    labels: [t('dashboard.pending'), t('dashboard.approved'), t('dashboard.rejected')],
     datasets: [{
       data: [pendingExpenses, approvedExpenses, rejectedExpenses],
       backgroundColor: ['#f59e0b', '#10b981', '#ef4444'],
@@ -348,7 +402,7 @@ export default function AdminDashboard() {
   const departmentData = {
     labels: departments.map((d: any) => d.name || d.departmentName).slice(0, 10),
     datasets: [{
-      label: 'Employees',
+      label: t('dashboard.employees'),
       data: departments.map((d: any) => d.employeeCount || 0).slice(0, 10),
       backgroundColor: [
         'rgba(59, 130, 246, 0.8)',
@@ -376,7 +430,7 @@ export default function AdminDashboard() {
   const monthlyExpensesData = {
     labels: last6Months.map(m => m.format('MMM YYYY')),
     datasets: [{
-      label: 'Total Expenses ($)',
+      label: t('dashboard.totalExpensesDollar'),
       data: expensesByMonth,
       borderColor: '#f59e0b',
       backgroundColor: 'rgba(245, 158, 11, 0.1)',
@@ -389,7 +443,7 @@ export default function AdminDashboard() {
   const employeeGrowthData = {
     labels: last6Months.map(m => m.format('MMM')),
     datasets: [{
-      label: 'Total Employees',
+      label: t('dashboard.totalEmployees'),
       data: last6Months.map((_, i) => Math.max(10, totalEmployees - (5 - i) * 3)),
       borderColor: '#3b82f6',
       backgroundColor: 'rgba(59, 130, 246, 0.1)',
@@ -404,7 +458,7 @@ export default function AdminDashboard() {
   const departmentPieData = {
     labels: Array.isArray(departments) && departments.length > 0 
       ? departments.slice(0, 5).map((d: any) => d.name || d.departmentName)
-      : ['No Data'],
+      : [t('dashboard.noData')],
     datasets: [{
       data: Array.isArray(departments) && departments.length > 0
         ? departments.slice(0, 5).map((d: any) => d.employeeCount || 0)
@@ -423,13 +477,13 @@ export default function AdminDashboard() {
 
   // Application types breakdown PIE CHART
   const leaveTypes = Array.isArray(applications) ? applications.reduce((acc: any, app: any) => {
-    const type = app.title || app.type || 'Other'
+    const type = app.title || app.type || t('dashboard.other')
     acc[type] = (acc[type] || 0) + 1
     return acc
   }, {}) : {}
   
   const applicationTypesPieData = {
-    labels: Object.keys(leaveTypes).length > 0 ? Object.keys(leaveTypes).slice(0, 5) : ['No Data'],
+    labels: Object.keys(leaveTypes).length > 0 ? Object.keys(leaveTypes).slice(0, 5) : [t('dashboard.noData')],
     datasets: [{
       data: Object.keys(leaveTypes).length > 0 ? (Object.values(leaveTypes).slice(0, 5) as number[]) : [1],
       backgroundColor: [
@@ -452,7 +506,7 @@ export default function AdminDashboard() {
   }, {}) : {}
 
   const holidaysMonthPieData = {
-    labels: Object.keys(holidaysByMonth).length > 0 ? Object.keys(holidaysByMonth) : ['No Data'],
+    labels: Object.keys(holidaysByMonth).length > 0 ? Object.keys(holidaysByMonth) : [t('dashboard.noData')],
     datasets: [{
       data: Object.keys(holidaysByMonth).length > 0 ? Object.values(holidaysByMonth) as number[] : [1],
       backgroundColor: [
@@ -529,42 +583,42 @@ export default function AdminDashboard() {
 
   const quickActions = [
     {
-      title: 'Add Employee',
+      title: t('dashboard.addEmployee'),
       icon: <UserAddOutlined className="text-2xl" />,
       color: 'blue',
       bgColor: 'from-blue-500 to-blue-600',
       link: `/${locale}/admin/employees/add`
     },
     {
-      title: 'Add Holiday',
+      title: t('dashboard.addHoliday'),
       icon: <CalendarOutlined className="text-2xl" />,
       color: 'green',
       bgColor: 'from-green-500 to-green-600',
       link: `/${locale}/admin/holidays/add`
     },
     {
-      title: 'Add Expense',
+      title: t('dashboard.addExpense'),
       icon: <DollarOutlined className="text-2xl" />,
       color: 'orange',
       bgColor: 'from-orange-500 to-orange-600',
       link: `/${locale}/admin/expenses/add`
     },
     {
-      title: 'Create Announcement',
+      title: t('dashboard.createAnnouncement'),
       icon: <BellOutlined className="text-2xl" />,
       color: 'purple',
       bgColor: 'from-purple-500 to-purple-600',
       link: `/${locale}/admin/announcements/add`
     },
     {
-      title: 'Manage Departments',
+      title: t('dashboard.manageDepartments'),
       icon: <BankOutlined className="text-2xl" />,
       color: 'cyan',
       bgColor: 'from-cyan-500 to-cyan-600',
       link: `/${locale}/admin/departments`
     },
     {
-      title: 'Manage Salary',
+      title: t('dashboard.manageSalary'),
       icon: <FundOutlined className="text-2xl" />,
       color: 'pink',
       bgColor: 'from-pink-500 to-pink-600',
@@ -572,39 +626,35 @@ export default function AdminDashboard() {
     },
   ]
 
-  const recentActivities = [
-    { icon: <UserAddOutlined className="text-blue-500" />, title: 'New employee added', time: '2 hours ago', color: 'blue' },
-    { icon: <CheckCircleOutlined className="text-green-500" />, title: 'Leave approved', time: '4 hours ago', color: 'green' },
-    { icon: <DollarOutlined className="text-orange-500" />, title: 'Expense processed', time: '6 hours ago', color: 'orange' },
-    { icon: <BellOutlined className="text-purple-500" />, title: 'Announcement posted', time: '1 day ago', color: 'purple' },
-  ]
+  // Recent activities - to be implemented with real backend data
+  // const recentActivities = []
 
   const adminName = currentUser?.firstName && currentUser?.lastName 
     ? `${currentUser.firstName} ${currentUser.lastName}`
     : currentUser?.username || 'Admin'
 
   return (
-    <div className="space-y-6 p-6 bg-gray-50 dark:bg-gray-900 min-h-screen">
+    <div className="space-y-4 sm:space-y-6 p-4 sm:p-6 bg-gray-50 dark:bg-gray-900 min-h-screen">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-4xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-3">
-            <span className="text-5xl">🎯</span>
-            Welcome back, {adminName}!
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2 sm:gap-3">
+            <span className="text-3xl sm:text-4xl lg:text-5xl">🎯</span>
+            {t('dashboard.welcomeBack')}, {adminName}!
           </h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-2 text-lg">
-            Here&apos;s what&apos;s happening with your organization today
+          <p className="text-gray-500 dark:text-gray-400 mt-1 sm:mt-2 text-sm sm:text-base lg:text-lg">
+            {t('dashboard.whatsHappeningToday')}
           </p>
         </div>
-        <div className="text-right">
+        <div className="text-left sm:text-right w-full sm:w-auto">
           <div className="text-sm text-gray-500 dark:text-gray-400">
-            {dayjs().format('dddd')}
+            {dayjs().locale(locale).format('dddd')}
           </div>
-          <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-            {dayjs().format('MMM DD, YYYY')}
+          <div className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">
+            {dayjs().locale(locale).format('MMM DD, YYYY')}
           </div>
-          <div className="text-lg text-gray-600 dark:text-gray-300">
-            {dayjs().format('HH:mm A')}
+          <div className="text-base sm:text-lg text-gray-600 dark:text-gray-300">
+            {dayjs().locale(locale).format('HH:mm A')}
           </div>
         </div>
       </div>
@@ -612,93 +662,81 @@ export default function AdminDashboard() {
       {/* Main Stats Cards */}
       <Row gutter={[16, 16]}>
         <Col xs={24} sm={12} lg={6}>
-          <Card
+          <Card 
             hoverable
             onClick={() => router.push(`/${locale}/admin/employees`)}
-            className="border-0 shadow-lg hover:shadow-2xl transition-all duration-300 cursor-pointer"
-            style={{ background: 'linear-gradient(135deg, #3b82f6 0%, #1e40af 100%)' }}
+            className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 cursor-pointer"
           >
-            <div className="text-white">
-              <div className="flex justify-between items-start mb-4">
-                <TeamOutlined className="text-4xl opacity-80" />
-                <div className="text-right">
-                  <div className="text-5xl font-bold">{totalEmployees}</div>
-                  <div className="text-sm opacity-80 mt-1">Total Employees</div>
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-4xl font-bold text-blue-600 dark:text-blue-400">{formatNumber(totalEmployees, locale)}</div>
+                <div className="text-sm text-gray-700 dark:text-gray-400 mt-1">{t('dashboard.totalEmployeesCard')}</div>
+                <div className="text-xs text-gray-600 dark:text-gray-500 mt-1 flex items-center">
+                  <ArrowUpOutlined className="mr-1" />
+                  +{formatPercentage(12, locale)} {t('dashboard.fromLastMonth')}
                 </div>
               </div>
-              <div className="flex items-center text-sm opacity-90">
-                <ArrowUpOutlined className="mr-1" />
-                <span>+12% from last month</span>
-              </div>
+              <TeamOutlined className="text-5xl text-blue-500 opacity-50" />
             </div>
           </Card>
         </Col>
 
         <Col xs={24} sm={12} lg={6}>
-          <Card
+          <Card 
             hoverable
             onClick={() => router.push(`/${locale}/admin/attendance`)}
-            className="border-0 shadow-lg hover:shadow-2xl transition-all duration-300 cursor-pointer"
-            style={{ background: 'linear-gradient(135deg, #10b981 0%, #065f46 100%)' }}
+            className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 cursor-pointer"
           >
-            <div className="text-white">
-              <div className="flex justify-between items-start mb-4">
-                <ClockCircleOutlined className="text-4xl opacity-80" />
-                <div className="text-right">
-                  <div className="text-5xl font-bold">{attendanceRate}%</div>
-                  <div className="text-sm opacity-80 mt-1">Attendance Rate</div>
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-4xl font-bold text-green-600 dark:text-green-400">{formatNumber(Number(attendanceRate), locale)}%</div>
+                <div className="text-sm text-gray-700 dark:text-gray-400 mt-1">{t('dashboard.attendanceRateCard')}</div>
+                <div className="text-xs text-gray-600 dark:text-gray-500 mt-1 flex items-center">
+                  <CheckCircleOutlined className="mr-1" />
+                  {formatNumber(presentToday, locale)} {t('dashboard.presentTodayText')}
                 </div>
               </div>
-              <div className="flex items-center text-sm opacity-90">
-                <CheckCircleOutlined className="mr-1" />
-                <span>{presentToday} present today</span>
-              </div>
+              <ClockCircleOutlined className="text-5xl text-green-500 opacity-50" />
             </div>
           </Card>
         </Col>
 
         <Col xs={24} sm={12} lg={6}>
-          <Card
+          <Card 
             hoverable
             onClick={() => router.push(`/${locale}/admin/expenses`)}
-            className="border-0 shadow-lg hover:shadow-2xl transition-all duration-300 cursor-pointer"
-            style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)' }}
+            className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20 cursor-pointer"
           >
-            <div className="text-white">
-              <div className="flex justify-between items-start mb-4">
-                <DollarOutlined className="text-4xl opacity-80" />
-                <div className="text-right">
-                  <div className="text-5xl font-bold">${totalExpenseAmount.toLocaleString()}</div>
-                  <div className="text-sm opacity-80 mt-1">Total Expenses</div>
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-4xl font-bold text-orange-600 dark:text-orange-400">{formatCurrencyKurdish(totalExpenseAmount, locale, 'USD')}</div>
+                <div className="text-sm text-gray-700 dark:text-gray-400 mt-1">{t('dashboard.totalExpensesCard')}</div>
+                <div className="text-xs text-gray-600 dark:text-gray-500 mt-1 flex items-center">
+                  <RiseOutlined className="mr-1" />
+                  {formatNumber(totalExpenses, locale)} {t('dashboard.expenseRecords')}
                 </div>
               </div>
-              <div className="flex items-center text-sm opacity-90">
-                <RiseOutlined className="mr-1" />
-                <span>{totalExpenses} expense records</span>
-              </div>
+              <DollarOutlined className="text-5xl text-orange-500 opacity-50" />
             </div>
           </Card>
         </Col>
 
         <Col xs={24} sm={12} lg={6}>
-          <Card
+          <Card 
             hoverable
             onClick={() => router.push(`/${locale}/admin/applications`)}
-            className="border-0 shadow-lg hover:shadow-2xl transition-all duration-300 cursor-pointer"
-            style={{ background: 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)' }}
+            className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 cursor-pointer"
           >
-            <div className="text-white">
-              <div className="flex justify-between items-start mb-4">
-                <FileTextOutlined className="text-4xl opacity-80" />
-                <div className="text-right">
-                  <div className="text-5xl font-bold">{totalApplications}</div>
-                  <div className="text-sm opacity-80 mt-1">Applications</div>
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-4xl font-bold text-purple-600 dark:text-purple-400">{formatNumber(totalApplications, locale)}</div>
+                <div className="text-sm text-gray-700 dark:text-gray-400 mt-1">{t('dashboard.applicationsCard')}</div>
+                <div className="text-xs text-gray-600 dark:text-gray-500 mt-1 flex items-center">
+                  <WarningOutlined className="mr-1" />
+                  {formatNumber(pendingApps, locale)} {t('dashboard.pendingText')}
                 </div>
               </div>
-              <div className="flex items-center text-sm opacity-90">
-                <WarningOutlined className="mr-1" />
-                <span>{pendingApps} pending</span>
-              </div>
+              <FileTextOutlined className="text-5xl text-purple-500 opacity-50" />
             </div>
           </Card>
         </Col>
@@ -710,8 +748,8 @@ export default function AdminDashboard() {
           <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-cyan-50 to-cyan-100 dark:from-cyan-900/20 dark:to-cyan-800/20">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-3xl font-bold text-cyan-600 dark:text-cyan-400">{departments.length}</div>
-                <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">Departments</div>
+                <div className="text-3xl font-bold text-cyan-600 dark:text-cyan-400">{formatNumber(departments.length, locale)}</div>
+                <div className="text-sm text-gray-700 dark:text-gray-400 mt-1">{t('dashboard.departmentsCard')}</div>
               </div>
               <BankOutlined className="text-4xl text-cyan-500 opacity-50" />
             </div>
@@ -722,8 +760,8 @@ export default function AdminDashboard() {
           <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-pink-50 to-pink-100 dark:from-pink-900/20 dark:to-pink-800/20">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-3xl font-bold text-pink-600 dark:text-pink-400">{activeHolidays}</div>
-                <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">Upcoming Holidays</div>
+                <div className="text-3xl font-bold text-pink-600 dark:text-pink-400">{formatNumber(activeHolidays, locale)}</div>
+                <div className="text-sm text-gray-700 dark:text-gray-400 mt-1">{t('dashboard.upcomingHolidaysCard')}</div>
               </div>
               <CalendarOutlined className="text-4xl text-pink-500 opacity-50" />
             </div>
@@ -734,8 +772,8 @@ export default function AdminDashboard() {
           <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-indigo-50 to-indigo-100 dark:from-indigo-900/20 dark:to-indigo-800/20">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-3xl font-bold text-indigo-600 dark:text-indigo-400">{announcements.length}</div>
-                <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">Announcements</div>
+                <div className="text-3xl font-bold text-indigo-600 dark:text-indigo-400">{formatNumber(announcements.length, locale)}</div>
+                <div className="text-sm text-gray-700 dark:text-gray-400 mt-1">{t('dashboard.announcementsCard')}</div>
               </div>
               <BellOutlined className="text-4xl text-indigo-500 opacity-50" />
             </div>
@@ -746,8 +784,8 @@ export default function AdminDashboard() {
           <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-900/20 dark:to-amber-800/20">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-3xl font-bold text-amber-600 dark:text-amber-400">{pendingApps + pendingExpenses}</div>
-                <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">Pending Approvals</div>
+                <div className="text-3xl font-bold text-amber-600 dark:text-amber-400">{formatNumber(pendingApps + pendingExpenses, locale)}</div>
+                <div className="text-sm text-gray-700 dark:text-gray-400 mt-1">{t('dashboard.pendingApprovalsCard')}</div>
               </div>
               <WarningOutlined className="text-4xl text-amber-500 opacity-50" />
             </div>
@@ -758,9 +796,9 @@ export default function AdminDashboard() {
       {/* Calendar Section - MOVED UP! */}
       <Card
         title={
-          <span className="text-2xl font-bold flex items-center text-gray-800 dark:text-gray-100">
-            <CalendarOutlined className="mr-3 text-blue-500 dark:text-blue-400" />
-            <span className="text-gray-800 dark:text-gray-100">Calendar & Events</span>
+          <span className="text-xl sm:text-2xl font-bold flex items-center text-gray-800 dark:text-gray-100">
+            <CalendarOutlined className="mr-2 sm:mr-3 text-blue-500 dark:text-blue-400" />
+            <span className="text-gray-800 dark:text-gray-100">{t('dashboard.calendarAndEvents')}</span>
           </span>
         }
         extra={
@@ -768,9 +806,10 @@ export default function AdminDashboard() {
             type="primary" 
             icon={<PlusOutlined />}
             onClick={handleAddEvent}
-            className="bg-blue-500 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700"
+            size="small"
+            className="bg-blue-500 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 sm:size-middle"
           >
-            Add Event
+            <span className="hidden sm:inline">{t('dashboard.addEventButton')}</span>
           </Button>
         }
         className="shadow-lg border-0 bg-white dark:bg-gray-800 transition-colors"
@@ -803,7 +842,7 @@ export default function AdminDashboard() {
               )
             }}
             onSelect={handleDateSelect}
-            className="dark-mode-calendar"
+            className="dark-mode-calendar responsive-calendar"
           />
         </div>
       </Card>
@@ -811,22 +850,22 @@ export default function AdminDashboard() {
       {/* Quick Actions - MOVED DOWN! */}
       <Card
         title={
-          <span className="text-xl font-semibold flex items-center">
-            <RocketOutlined className="mr-2 text-blue-500" />
-            Quick Actions
+          <span className="text-xl font-semibold flex items-center text-gray-900 dark:text-gray-100">
+            <RocketOutlined className="mr-2 text-blue-500 dark:text-blue-400" />
+            {t('dashboard.quickActionsTitle')}
           </span>
         }
-        className="shadow-lg border-0"
+        className="shadow-lg border-0 bg-white dark:bg-gray-800"
       >
         <Row gutter={[16, 16]}>
           {quickActions.map((action, index) => (
-            <Col xs={12} sm={8} lg={4} key={index}>
+            <Col xs={12} sm={8} md={6} lg={4} key={index}>
               <div
                 onClick={() => router.push(action.link)}
-                className={`p-6 rounded-xl bg-gradient-to-br ${action.bgColor} text-white cursor-pointer hover:scale-105 transition-transform duration-300 shadow-lg hover:shadow-xl text-center`}
+                className={`p-4 sm:p-6 rounded-xl bg-gradient-to-br ${action.bgColor} text-white cursor-pointer hover:scale-105 transition-transform duration-300 shadow-lg hover:shadow-xl text-center`}
               >
-                <div className="mb-3">{action.icon}</div>
-                <div className="text-sm font-medium">{action.title}</div>
+                <div className="mb-2 sm:mb-3 text-2xl sm:text-3xl">{action.icon}</div>
+                <div className="text-xs sm:text-sm font-medium">{action.title}</div>
               </div>
             </Col>
           ))}
@@ -838,7 +877,7 @@ export default function AdminDashboard() {
         title={
           <span className="text-2xl font-bold flex items-center">
             <BarChartOutlined className="mr-3 text-indigo-500" />
-            Statistics & Analytics
+            {t('dashboard.statisticsAndAnalytics')}
           </span>
         }
         className="shadow-xl border-0 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-gray-900 dark:to-gray-800"
@@ -846,7 +885,7 @@ export default function AdminDashboard() {
         {/* Attendance Analytics */}
         <div className="mb-6">
           <h3 className="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-300 border-b pb-2">
-            📊 Attendance Analytics
+            📊 {t('dashboard.attendanceAnalytics')}
           </h3>
           <Row gutter={[16, 16]}>
             <Col xs={24} lg={16}>
@@ -854,18 +893,24 @@ export default function AdminDashboard() {
                 title={
                   <span className="text-lg font-semibold flex items-center">
                     <LineChartOutlined className="mr-2 text-green-500" />
-                    Attendance Trend - Last 7 Days
+                    {t('dashboard.attendanceTrendLast7Days')}
                   </span>
                 }
                 extra={
                   <Button type="link" onClick={() => router.push(`/${locale}/admin/attendance`)}>
-                    View Details
+                    {t('dashboard.viewDetails')}
                   </Button>
                 }
                 className="shadow-lg border-0"
               >
                 <div className="h-[300px]">
-                  <Line data={attendanceTrendData} options={chartOptions} />
+                  {attendanceTrendData?.labels ? (
+                    <Line data={attendanceTrendData} options={chartOptions} />
+                  ) : (
+                    <div className="flex items-center justify-center h-full">
+                      <Spin />
+                    </div>
+                  )}
                 </div>
               </Card>
             </Col>
@@ -875,13 +920,17 @@ export default function AdminDashboard() {
                 title={
                   <span className="text-lg font-semibold flex items-center">
                     <PieChartOutlined className="mr-2 text-blue-500" />
-                    Today&apos;s Attendance
+                    {t('dashboard.todaysAttendanceChart')}
                   </span>
                 }
                 className="shadow-lg border-0"
               >
                 <div className="h-[300px] flex items-center justify-center">
-                  <Doughnut data={attendanceDistData} options={doughnutOptions} />
+                  {attendanceDistData?.labels ? (
+                    <Doughnut data={attendanceDistData} options={doughnutOptions} />
+                  ) : (
+                    <Spin />
+                  )}
                 </div>
               </Card>
             </Col>
@@ -891,7 +940,7 @@ export default function AdminDashboard() {
         {/* Application Analytics */}
         <div className="mb-6">
           <h3 className="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-300 border-b pb-2">
-            📝 Application Analytics
+            📝 {t('dashboard.applicationAnalyticsSection')}
           </h3>
           <Row gutter={[16, 16]}>
             <Col xs={24} lg={12}>
@@ -899,13 +948,17 @@ export default function AdminDashboard() {
                 title={
                   <span className="text-lg font-semibold flex items-center">
                     <FileTextOutlined className="mr-2 text-purple-500" />
-                    Applications Status
+                    {t('dashboard.applicationsStatusChart')}
                   </span>
                 }
                 className="shadow-lg border-0"
               >
                 <div className="h-[300px] flex items-center justify-center">
-                  <Pie data={applicationsData} options={pieOptions} />
+                  {applicationsData?.labels ? (
+                    <Pie data={applicationsData} options={pieOptions} />
+                  ) : (
+                    <Spin />
+                  )}
                 </div>
               </Card>
             </Col>
@@ -915,18 +968,22 @@ export default function AdminDashboard() {
                 title={
                   <span className="text-lg font-semibold flex items-center">
                     <FileTextOutlined className="mr-2 text-purple-500" />
-                    Application Types
+                    {t('dashboard.applicationTypesChart')}
                   </span>
                 }
                 extra={
                   <Button type="link" onClick={() => router.push(`/${locale}/admin/applications`)}>
-                    View All
+                    {t('dashboard.viewAll')}
                   </Button>
                 }
                 className="shadow-lg border-0"
               >
                 <div className="h-[300px] flex items-center justify-center">
-                  <Pie data={applicationTypesPieData} options={pieOptions} />
+                  {applicationTypesPieData?.labels ? (
+                    <Pie data={applicationTypesPieData} options={pieOptions} />
+                  ) : (
+                    <Spin />
+                  )}
                 </div>
               </Card>
             </Col>
@@ -936,7 +993,7 @@ export default function AdminDashboard() {
         {/* Financial Analytics */}
         <div className="mb-6">
           <h3 className="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-300 border-b pb-2">
-            💰 Financial Analytics
+            💰 {t('dashboard.financialAnalyticsSection')}
           </h3>
           <Row gutter={[16, 16]}>
             <Col xs={24}>
@@ -944,12 +1001,12 @@ export default function AdminDashboard() {
                 title={
                   <span className="text-xl font-semibold flex items-center">
                     <DollarOutlined className="mr-2 text-orange-500" />
-                    Monthly Expenses Overview - Last 6 Months
+                    {t('dashboard.monthlyExpensesOverviewChart')}
                   </span>
                 }
                 extra={
                   <Button type="link" onClick={() => router.push(`/${locale}/admin/expenses`)}>
-                    View All Expenses
+                    {t('dashboard.viewAllExpenses')}
                   </Button>
                 }
                 className="shadow-lg border-0"
@@ -965,18 +1022,22 @@ export default function AdminDashboard() {
                 title={
                   <span className="text-lg font-semibold flex items-center">
                     <DollarOutlined className="mr-2 text-amber-500" />
-                    Expense Status Distribution
+                    {t('dashboard.expenseStatusDistributionChart')}
                   </span>
                 }
                 extra={
                   <Button type="link" onClick={() => router.push(`/${locale}/admin/expenses`)}>
-                    View Details
+                    {t('dashboard.viewDetails')}
                   </Button>
                 }
                 className="shadow-lg border-0"
               >
                 <div className="h-[300px] flex items-center justify-center">
-                  <Doughnut data={expensesStatusData} options={doughnutOptions} />
+                  {expensesStatusData?.labels ? (
+                    <Doughnut data={expensesStatusData} options={doughnutOptions} />
+                  ) : (
+                    <Spin />
+                  )}
                 </div>
               </Card>
             </Col>
@@ -986,7 +1047,7 @@ export default function AdminDashboard() {
         {/* Organization Analytics */}
         <div className="mb-6">
           <h3 className="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-300 border-b pb-2">
-            🏢 Organization Analytics
+            🏢 {t('dashboard.organizationAnalyticsSection')}
           </h3>
           <Row gutter={[16, 16]}>
             <Col xs={24} lg={12}>
@@ -994,12 +1055,12 @@ export default function AdminDashboard() {
                 title={
                   <span className="text-lg font-semibold flex items-center">
                     <RiseOutlined className="mr-2 text-blue-500" />
-                    Employee Growth Trend
+                    {t('dashboard.employeeGrowthTrendChart')}
                   </span>
                 }
                 extra={
                   <Button type="link" onClick={() => router.push(`/${locale}/admin/employees`)}>
-                    View All Employees
+                    {t('dashboard.viewAllEmployees')}
                   </Button>
                 }
                 className="shadow-lg border-0"
@@ -1015,13 +1076,19 @@ export default function AdminDashboard() {
                 title={
                   <span className="text-lg font-semibold flex items-center">
                     <BarChartOutlined className="mr-2 text-orange-500" />
-                    Department Distribution
+                    {t('dashboard.departmentDistributionChart')}
                   </span>
                 }
                 className="shadow-lg border-0"
               >
                 <div className="h-[300px]">
-                  <Bar data={departmentData} options={chartOptions} />
+                  {departmentData?.labels ? (
+                    <Bar data={departmentData} options={chartOptions} />
+                  ) : (
+                    <div className="flex items-center justify-center h-full">
+                      <Spin />
+                    </div>
+                  )}
                 </div>
               </Card>
             </Col>
@@ -1031,12 +1098,12 @@ export default function AdminDashboard() {
                 title={
                   <span className="text-lg font-semibold flex items-center">
                     <BankOutlined className="mr-2 text-blue-500" />
-                    Employees by Department
+                    {t('dashboard.employeesByDepartmentChart')}
                   </span>
                 }
                 extra={
                   <Button type="link" onClick={() => router.push(`/${locale}/admin/departments`)}>
-                    View All
+                    {t('dashboard.viewAll')}
                   </Button>
                 }
                 className="shadow-lg border-0"
@@ -1052,12 +1119,12 @@ export default function AdminDashboard() {
                 title={
                   <span className="text-lg font-semibold flex items-center">
                     <CalendarOutlined className="mr-2 text-pink-500" />
-                    Holidays by Month
+                    {t('dashboard.holidaysByMonthChart')}
                   </span>
                 }
                 extra={
                   <Button type="link" onClick={() => router.push(`/${locale}/admin/holidays`)}>
-                    View All
+                    {t('dashboard.viewAll')}
                   </Button>
                 }
                 className="shadow-lg border-0"
@@ -1068,34 +1135,23 @@ export default function AdminDashboard() {
               </Card>
             </Col>
 
-            <Col xs={24} lg={8}>
+            {/* Recent Activity Card - Disabled until backend provides real data */}
+            {/* <Col xs={24} lg={8}>
               <Card
                 title={
                   <span className="text-lg font-semibold flex items-center">
                     <FundOutlined className="mr-2 text-green-500" />
-                    Recent Activity
+                    {t('dashboard.recentActivityTitle')}
                   </span>
                 }
-                extra={<Button type="link">View All</Button>}
+                extra={<Button type="link">{t('dashboard.viewAll')}</Button>}
                 className="shadow-lg border-0"
               >
-                <Timeline
-                  items={recentActivities.map((activity) => ({
-                    dot: activity.icon,
-                    children: (
-                      <div>
-                        <div className="font-medium text-gray-900 dark:text-gray-100">
-                          {activity.title}
-                        </div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400">
-                          {activity.time}
-                        </div>
-                      </div>
-                    )
-                  }))}
-                />
+                <div className="text-center text-gray-500 dark:text-gray-400 py-8">
+                  {t('dashboard.noRecentActivity')}
+                </div>
               </Card>
-            </Col>
+            </Col> */}
           </Row>
         </div>
       </Card>
@@ -1107,7 +1163,7 @@ export default function AdminDashboard() {
         title={
           <span className="text-xl font-semibold flex items-center">
             <TrophyOutlined className="mr-2 text-yellow-500" />
-            Organization Overview
+            {t('dashboard.organizationOverview')}
           </span>
         }
         className="shadow-lg border-0"
@@ -1119,7 +1175,7 @@ export default function AdminDashboard() {
               <div className="text-4xl font-bold text-blue-600 dark:text-blue-400 mb-1">
                 {totalEmployees}
               </div>
-              <div className="text-sm text-gray-600 dark:text-gray-400">Total Employees</div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">{t('dashboard.totalEmployeesCard')}</div>
             </div>
           </Col>
           <Col xs={12} sm={6}>
@@ -1128,7 +1184,7 @@ export default function AdminDashboard() {
               <div className="text-4xl font-bold text-green-600 dark:text-green-400 mb-1">
                 {presentToday}
               </div>
-              <div className="text-sm text-gray-600 dark:text-gray-400">Present Today</div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">{t('dashboard.presentToday')}</div>
             </div>
           </Col>
           <Col xs={12} sm={6}>
@@ -1137,7 +1193,7 @@ export default function AdminDashboard() {
               <div className="text-4xl font-bold text-orange-600 dark:text-orange-400 mb-1">
                 {lateToday}
               </div>
-              <div className="text-sm text-gray-600 dark:text-gray-400">Late Today</div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">{t('dashboard.lateToday')}</div>
             </div>
           </Col>
           <Col xs={12} sm={6}>
@@ -1146,7 +1202,7 @@ export default function AdminDashboard() {
               <div className="text-4xl font-bold text-red-600 dark:text-red-400 mb-1">
                 {absentToday}
               </div>
-              <div className="text-sm text-gray-600 dark:text-gray-400">Absent Today</div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">{t('dashboard.absentToday')}</div>
             </div>
           </Col>
           <Col xs={12} sm={6}>
@@ -1155,7 +1211,7 @@ export default function AdminDashboard() {
               <div className="text-4xl font-bold text-purple-600 dark:text-purple-400 mb-1">
                 {pendingApps}
               </div>
-              <div className="text-sm text-gray-600 dark:text-gray-400">Pending Applications</div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">{t('dashboard.pendingApplications')}</div>
             </div>
           </Col>
           <Col xs={12} sm={6}>
@@ -1164,7 +1220,7 @@ export default function AdminDashboard() {
               <div className="text-4xl font-bold text-pink-600 dark:text-pink-400 mb-1">
                 {totalExpenses}
               </div>
-              <div className="text-sm text-gray-600 dark:text-gray-400">Total Expenses</div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">{t('dashboard.totalExpensesOverview')}</div>
             </div>
           </Col>
           <Col xs={12} sm={6}>
@@ -1173,7 +1229,7 @@ export default function AdminDashboard() {
               <div className="text-4xl font-bold text-indigo-600 dark:text-indigo-400 mb-1">
                 {departments.length}
               </div>
-              <div className="text-sm text-gray-600 dark:text-gray-400">Departments</div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">{t('dashboard.departmentsCard')}</div>
             </div>
           </Col>
           <Col xs={12} sm={6}>
@@ -1182,7 +1238,7 @@ export default function AdminDashboard() {
               <div className="text-4xl font-bold text-cyan-600 dark:text-cyan-400 mb-1">
                 {activeHolidays}
               </div>
-              <div className="text-sm text-gray-600 dark:text-gray-400">Upcoming Holidays</div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">{t('dashboard.upcomingHolidaysCard')}</div>
             </div>
           </Col>
         </Row>
@@ -1193,12 +1249,12 @@ export default function AdminDashboard() {
         title={
           <span className="text-xl font-semibold flex items-center">
             <FileTextOutlined className="mr-2 text-blue-500" />
-            Pending Applications
+            {t('dashboard.pendingApplications')}
           </span>
         }
         extra={
           <Button type="primary" onClick={() => router.push(`/${locale}/admin/applications`)}>
-            View All
+            {t('dashboard.viewAllButton')}
           </Button>
         }
         className="shadow-lg border-0"
@@ -1220,7 +1276,7 @@ export default function AdminDashboard() {
                 }
                 title={
                   <span className="font-semibold text-gray-900 dark:text-gray-100">
-                    {app.title || 'Leave Application'}
+                    {app.title || t('dashboard.leaveApplication')}
                   </span>
                 }
                 description={
@@ -1242,7 +1298,7 @@ export default function AdminDashboard() {
       <Modal
         title={
           <span className="text-xl font-semibold text-gray-800 dark:text-gray-100">
-            {modalMode === 'create' ? 'Create New Event' : 'Edit Event'}
+            {modalMode === 'create' ? t('dashboard.createNewEvent') : t('dashboard.editEvent')}
           </span>
         }
         open={isModalOpen}
@@ -1259,7 +1315,7 @@ export default function AdminDashboard() {
               loading={deleteEventMutation.isPending}
               className="dark:bg-red-600 dark:hover:bg-red-700"
             >
-              Delete
+              {t('dashboard.deleteEventBtn')}
             </Button>
           ),
           <Button 
@@ -1267,7 +1323,7 @@ export default function AdminDashboard() {
             onClick={handleModalCancel}
             className="dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-100"
           >
-            Cancel
+            {t('dashboard.cancelBtn')}
           </Button>,
           <Button 
             key="submit" 
@@ -1276,7 +1332,7 @@ export default function AdminDashboard() {
             loading={createEventMutation.isPending || updateEventMutation.isPending}
             className="bg-blue-500 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700"
           >
-            {modalMode === 'create' ? 'Create' : 'Update'}
+            {modalMode === 'create' ? t('dashboard.createBtn') : t('dashboard.updateBtn')}
           </Button>
         ]}
       >
@@ -1287,11 +1343,11 @@ export default function AdminDashboard() {
         >
           <Form.Item
             name="title"
-            label={<span className="text-gray-700 dark:text-gray-300">Event Title</span>}
-            rules={[{ required: true, message: 'Please enter event title' }]}
+            label={<span className="text-gray-700 dark:text-gray-300">{t('dashboard.eventTitle')}</span>}
+            rules={[{ required: true, message: t('dashboard.eventTitleRequired') }]}
           >
             <Input 
-              placeholder="e.g., Team Meeting" 
+              placeholder={t('dashboard.eventTitlePlaceholder')} 
               size="large"
               className="dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600"
             />
@@ -1299,27 +1355,27 @@ export default function AdminDashboard() {
 
           <Form.Item
             name="type"
-            label={<span className="text-gray-700 dark:text-gray-300">Event Type</span>}
-            rules={[{ required: true, message: 'Please select event type' }]}
+            label={<span className="text-gray-700 dark:text-gray-300">{t('dashboard.eventType')}</span>}
+            rules={[{ required: true, message: t('dashboard.eventTypeRequired') }]}
           >
             <Select 
               size="large" 
-              placeholder="Select event type"
+              placeholder={t('dashboard.selectEventType')}
               className="dark:bg-gray-700"
             >
-              <Select.Option value="meeting">Meeting</Select.Option>
-              <Select.Option value="deadline">Deadline</Select.Option>
-              <Select.Option value="holiday">Holiday</Select.Option>
-              <Select.Option value="birthday">Birthday</Select.Option>
-              <Select.Option value="training">Training</Select.Option>
-              <Select.Option value="review">Review</Select.Option>
+              <Select.Option value="meeting">{t('dashboard.eventTypeMeeting')}</Select.Option>
+              <Select.Option value="deadline">{t('dashboard.eventTypeDeadline')}</Select.Option>
+              <Select.Option value="holiday">{t('dashboard.eventTypeHoliday')}</Select.Option>
+              <Select.Option value="birthday">{t('dashboard.eventTypeBirthday')}</Select.Option>
+              <Select.Option value="training">{t('dashboard.eventTypeTraining')}</Select.Option>
+              <Select.Option value="review">{t('dashboard.eventTypeReview')}</Select.Option>
             </Select>
           </Form.Item>
 
           {/* Show selected date as read-only */}
           <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800 transition-colors">
             <div className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-1">
-              📅 Selected Date
+              📅 {t('dashboard.selectedDate')}
             </div>
             <div className="text-lg font-semibold text-blue-700 dark:text-blue-300">
               {selectedDate?.format('MMMM DD, YYYY')}
@@ -1328,7 +1384,7 @@ export default function AdminDashboard() {
 
           <Form.Item
             name="time"
-            label={<span className="text-gray-700 dark:text-gray-300">Time (Optional)</span>}
+            label={<span className="text-gray-700 dark:text-gray-300">{t('dashboard.eventTimeOptional')}</span>}
           >
             <TimePicker 
               size="large" 
@@ -1340,11 +1396,11 @@ export default function AdminDashboard() {
 
           <Form.Item
             name="description"
-            label={<span className="text-gray-700 dark:text-gray-300">Description (Optional)</span>}
+            label={<span className="text-gray-700 dark:text-gray-300">{t('dashboard.eventDescriptionOptional')}</span>}
           >
             <Input.TextArea 
               rows={4} 
-              placeholder="Add event details..."
+              placeholder={t('dashboard.eventDescriptionPlaceholder')}
               className="dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600 dark:placeholder-gray-400"
             />
           </Form.Item>
@@ -1352,4 +1408,8 @@ export default function AdminDashboard() {
       </Modal>
     </div>
   )
-}
+})
+
+AdminDashboard.displayName = 'AdminDashboard'
+
+export default AdminDashboard

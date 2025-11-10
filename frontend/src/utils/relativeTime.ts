@@ -25,7 +25,7 @@ export const useRelativeTime = () => {
 
       if (diffInSeconds < 60) {
         try {
-          return t('justNow')
+          return t('time.justNow')
         } catch {
           return 'Just now'
         }
@@ -34,7 +34,7 @@ export const useRelativeTime = () => {
       const diffInMinutes = Math.floor(diffInSeconds / 60)
       if (diffInMinutes < 60) {
         try {
-          return t('minutesAgo', { count: diffInMinutes })
+          return t('time.minutesAgo', { count: diffInMinutes })
         } catch {
           return getFallbackText(diffInSeconds)
         }
@@ -43,7 +43,7 @@ export const useRelativeTime = () => {
       const diffInHours = Math.floor(diffInMinutes / 60)
       if (diffInHours < 24) {
         try {
-          return t('hoursAgo', { count: diffInHours })
+          return t('time.hoursAgo', { count: diffInHours })
         } catch {
           return getFallbackText(diffInSeconds)
         }
@@ -52,7 +52,7 @@ export const useRelativeTime = () => {
       const diffInDays = Math.floor(diffInHours / 24)
       if (diffInDays < 7) {
         try {
-          return t('daysAgo', { count: diffInDays })
+          return t('time.daysAgo', { count: diffInDays })
         } catch {
           return getFallbackText(diffInSeconds)
         }
@@ -61,7 +61,7 @@ export const useRelativeTime = () => {
       const diffInWeeks = Math.floor(diffInDays / 7)
       if (diffInWeeks < 4) {
         try {
-          return t('weeksAgo', { count: diffInWeeks })
+          return t('time.weeksAgo', { count: diffInWeeks })
         } catch {
           return getFallbackText(diffInSeconds)
         }
@@ -70,7 +70,7 @@ export const useRelativeTime = () => {
       const diffInMonths = Math.floor(diffInDays / 30)
       if (diffInMonths < 12) {
         try {
-          return t('monthsAgo', { count: diffInMonths })
+          return t('time.monthsAgo', { count: diffInMonths })
         } catch {
           return getFallbackText(diffInSeconds)
         }
@@ -78,7 +78,7 @@ export const useRelativeTime = () => {
 
       const diffInYears = Math.floor(diffInDays / 365)
       try {
-        return t('yearsAgo', { count: diffInYears })
+        return t('time.yearsAgo', { count: diffInYears })
       } catch {
         return getFallbackText(diffInSeconds)
       }

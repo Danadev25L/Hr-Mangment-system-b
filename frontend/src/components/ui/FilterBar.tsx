@@ -3,6 +3,7 @@
 import React from 'react'
 import { Select, DatePicker } from 'antd'
 import { FilterOutlined } from '@ant-design/icons'
+import { useLocale, useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
 import { EnhancedCard } from './EnhancedCard'
 
@@ -17,15 +18,19 @@ export const FilterBar: React.FC<FilterBarProps> = ({
   children,
   className = '',
 }) => {
+  const locale = useLocale()
+  const t = useTranslations('common')
+  const isRTL = locale === 'ar' || locale === 'ku'
+
   return (
     <>
       <EnhancedCard className={cn('filter-bar mb-6', className)} noPadding={false}>
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex items-center gap-2 text-gray-600 dark:text-gray-300 font-medium">
+        <div className={`flex items-center gap-3 flex-wrap ${isRTL ? 'flex-row-reverse' : ''}`}>
+          <div className={`flex items-center gap-2 text-gray-600 dark:text-gray-300 font-medium ${isRTL ? 'flex-row-reverse' : ''}`}>
             <FilterOutlined className="text-lg" />
-            <span>Filters:</span>
+            <span>{t('filters')}</span>
           </div>
-          <div className="flex-1 flex items-center gap-3 flex-wrap">
+          <div className={`flex-1 flex items-center gap-3 flex-wrap ${isRTL ? 'flex-row-reverse' : ''}`}>
             {children}
           </div>
         </div>

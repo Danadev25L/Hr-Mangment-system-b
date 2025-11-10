@@ -37,6 +37,9 @@ import {
 import { Line, Pie, Doughnut } from 'react-chartjs-2'
 import apiClient from '@/lib/api'
 import dayjs from 'dayjs'
+import 'dayjs/locale/ar'
+import 'dayjs/locale/ku'
+import 'dayjs/locale/en'
 import { useRouter } from 'next/navigation'
 
 // Register Chart.js components
@@ -53,7 +56,7 @@ ChartJS.register(
   Filler
 )
 
-export default function ManagerDashboard() {
+const ManagerDashboard = React.memo(function ManagerDashboard() {
   const t = useTranslations()
   const locale = useLocale()
   const router = useRouter()
@@ -111,19 +114,19 @@ export default function ManagerDashboard() {
       link: `/${locale}/manager/attendance`
     },
     {
-      title: 'View Reports',
+      title: t('dashboard.viewReportsBtn'),
       icon: <BarChartOutlined className="text-2xl" />,
       bgColor: 'from-orange-500 to-orange-600',
       link: `/${locale}/manager/reports`
     },
     {
-      title: 'Settings',
+      title: t('dashboard.settings'),
       icon: <SettingOutlined className="text-2xl" />,
       bgColor: 'from-indigo-500 to-indigo-600',
       link: `/${locale}/manager/settings`
     },
     {
-      title: 'Announcements',
+      title: t('dashboard.announcementsBtn'),
       icon: <BellOutlined className="text-2xl" />,
       bgColor: 'from-pink-500 to-pink-600',
       link: `/${locale}/manager/announcements`
@@ -141,7 +144,7 @@ export default function ManagerDashboard() {
     labels: last7Days.map(d => d.format('MMM DD')),
     datasets: [
       {
-        label: 'Team Attendance',
+        label: t('dashboard.teamAttendance'),
         data: attendanceByDay,
         borderColor: 'rgb(16, 185, 129)',
         backgroundColor: 'rgba(16, 185, 129, 0.1)',
@@ -152,7 +155,7 @@ export default function ManagerDashboard() {
   }
 
   const todayAttendanceData = {
-    labels: ['Present', 'Absent', 'Late'],
+    labels: [t('attendance.present'), t('attendance.absent'), t('attendance.late')],
     datasets: [
       {
         data: [presentToday, teamSize - presentToday, 0],
@@ -163,7 +166,7 @@ export default function ManagerDashboard() {
   }
 
   const applicationsStatusData = {
-    labels: ['Pending', 'Approved', 'Rejected'],
+    labels: [t('applications.pending'), t('applications.approved'), t('applications.rejected')],
     datasets: [
       {
         data: [pendingApps, 15, 5],
@@ -203,7 +206,7 @@ export default function ManagerDashboard() {
   const createEventMutation = useMutation({
     mutationFn: (data: any) => apiClient.createCalendarEvent(data),
     onSuccess: () => {
-      message.success('Event created successfully')
+      message.success(t('dashboard.eventCreatedSuccessfully'))
       queryClient.invalidateQueries({ queryKey: ['manager-dashboard-stats'] })
       setIsEventModalVisible(false)
       form.resetFields()
@@ -213,7 +216,7 @@ export default function ManagerDashboard() {
   const updateEventMutation = useMutation({
     mutationFn: ({ id, data }: any) => apiClient.updateCalendarEvent(id, data),
     onSuccess: () => {
-      message.success('Event updated successfully')
+      message.success(t('dashboard.eventUpdatedSuccessfully'))
       queryClient.invalidateQueries({ queryKey: ['manager-dashboard-stats'] })
       setIsEventModalVisible(false)
       setEditingEvent(null)
@@ -224,7 +227,7 @@ export default function ManagerDashboard() {
   const deleteEventMutation = useMutation({
     mutationFn: (id: number) => apiClient.deleteCalendarEvent(id),
     onSuccess: () => {
-      message.success('Event deleted successfully')
+      message.success(t('dashboard.eventDeletedSuccessfully'))
       queryClient.invalidateQueries({ queryKey: ['manager-dashboard-stats'] })
     },
   })
@@ -278,9 +281,9 @@ export default function ManagerDashboard() {
 
   const handleDeleteEvent = (eventId: number) => {
     Modal.confirm({
-      title: 'Delete Event',
-      content: 'Are you sure you want to delete this event?',
-      okText: 'Delete',
+      title: t('dashboard.deleteEventTitle'),
+      content: t('dashboard.deleteEventContent'),
+      okText: t('dashboard.deleteBtn'),
       okType: 'danger',
       onOk: () => deleteEventMutation.mutate(eventId),
     })
@@ -345,38 +348,35 @@ export default function ManagerDashboard() {
         </div>
         <div className="text-right">
           <div className="text-sm text-gray-500 dark:text-gray-400">
-            {dayjs().format('dddd')}
+            {dayjs().locale(locale).format('dddd')}
           </div>
           <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-            {dayjs().format('MMM DD, YYYY')}
+            {dayjs().locale(locale).format('MMM DD, YYYY')}
           </div>
           <div className="text-lg text-gray-600 dark:text-gray-300">
-            {dayjs().format('HH:mm A')}
+            {dayjs().locale(locale).format('HH:mm A')}
           </div>
         </div>
       </div>
 
-      {/* Main Stats Cards with Gradients */}
+      {/* Main Stats Cards */}
       <Row gutter={[16, 16]}>
         <Col xs={24} sm={12} lg={8}>
           <Card
             hoverable
             onClick={() => router.push(`/${locale}/manager/employees`)}
-            className="border-0 shadow-lg hover:shadow-2xl transition-all duration-300 cursor-pointer"
-            style={{ background: 'linear-gradient(135deg, #3b82f6 0%, #1e40af 100%)' }}
+            className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 cursor-pointer"
           >
-            <div className="text-white">
-              <div className="flex justify-between items-start mb-4">
-                <TeamOutlined className="text-4xl opacity-80" />
-                <div className="text-right">
-                  <div className="text-5xl font-bold">{teamSize}</div>
-                  <div className="text-sm opacity-80 mt-1">{t('dashboard.teamSize')}</div>
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-4xl font-bold text-blue-600 dark:text-blue-400">{teamSize}</div>
+                <div className="text-sm text-gray-700 dark:text-gray-400 mt-1">{t('dashboard.teamSize')}</div>
+                <div className="text-xs text-gray-600 dark:text-gray-500 mt-1 flex items-center">
+                  <CheckCircleOutlined className="mr-1" />
+                  {t('dashboard.totalTeamMembers')}
                 </div>
               </div>
-              <div className="flex items-center text-sm opacity-90">
-                <CheckCircleOutlined className="mr-1" />
-                <span>+3 this month</span>
-              </div>
+              <TeamOutlined className="text-5xl text-blue-500 opacity-50" />
             </div>
           </Card>
         </Col>
@@ -385,21 +385,18 @@ export default function ManagerDashboard() {
           <Card
             hoverable
             onClick={() => router.push(`/${locale}/manager/attendance`)}
-            className="border-0 shadow-lg hover:shadow-2xl transition-all duration-300 cursor-pointer"
-            style={{ background: 'linear-gradient(135deg, #10b981 0%, #065f46 100%)' }}
+            className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 cursor-pointer"
           >
-            <div className="text-white">
-              <div className="flex justify-between items-start mb-4">
-                <ClockCircleOutlined className="text-4xl opacity-80" />
-                <div className="text-right">
-                  <div className="text-5xl font-bold">{attendanceRate}%</div>
-                  <div className="text-sm opacity-80 mt-1">{t('attendance.todayAttendance')}</div>
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-4xl font-bold text-green-600 dark:text-green-400">{attendanceRate}%</div>
+                <div className="text-sm text-gray-700 dark:text-gray-400 mt-1">{t('attendance.todayAttendance')}</div>
+                <div className="text-xs text-gray-600 dark:text-gray-500 mt-1 flex items-center">
+                  <CheckCircleOutlined className="mr-1" />
+                  {presentToday} {t('dashboard.employeesPresent')}
                 </div>
               </div>
-              <div className="flex items-center text-sm opacity-90">
-                <CheckCircleOutlined className="mr-1" />
-                <span>{presentToday} present today</span>
-              </div>
+              <ClockCircleOutlined className="text-5xl text-green-500 opacity-50" />
             </div>
           </Card>
         </Col>
@@ -408,21 +405,18 @@ export default function ManagerDashboard() {
           <Card
             hoverable
             onClick={() => router.push(`/${locale}/manager/applications`)}
-            className="border-0 shadow-lg hover:shadow-2xl transition-all duration-300 cursor-pointer"
-            style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)' }}
+            className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20 cursor-pointer"
           >
-            <div className="text-white">
-              <div className="flex justify-between items-start mb-4">
-                <FileTextOutlined className="text-4xl opacity-80" />
-                <div className="text-right">
-                  <div className="text-5xl font-bold">{pendingApps}</div>
-                  <div className="text-sm opacity-80 mt-1">{t('applications.pendingReview')}</div>
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-4xl font-bold text-orange-600 dark:text-orange-400">{pendingApps}</div>
+                <div className="text-sm text-gray-700 dark:text-gray-400 mt-1">{t('applications.pendingReview')}</div>
+                <div className="text-xs text-gray-600 dark:text-gray-500 mt-1 flex items-center">
+                  <FileTextOutlined className="mr-1" />
+                  {t('dashboard.requiresAction')}
                 </div>
               </div>
-              <div className="flex items-center text-sm opacity-90">
-                <FileTextOutlined className="mr-1" />
-                <span>Requires action</span>
-              </div>
+              <FileTextOutlined className="text-5xl text-orange-500 opacity-50" />
             </div>
           </Card>
         </Col>
@@ -433,17 +427,17 @@ export default function ManagerDashboard() {
         title={
           <span className="text-2xl font-bold flex items-center text-gray-800 dark:text-gray-100">
             <CalendarOutlined className="mr-3 text-blue-500 dark:text-blue-400" />
-            <span className="text-gray-800 dark:text-gray-100">Calendar & Events</span>
+            <span className="text-gray-800 dark:text-gray-100">{t('dashboard.calendarSectionTitle')}</span>
           </span>
         }
         extra={
-          <Button 
-            type="primary" 
+          <Button
+            type="primary"
             icon={<PlusOutlined />}
             onClick={handleAddEvent}
             className="bg-blue-500 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700"
           >
-            Add Event
+            {t('dashboard.addEventBtn')}
           </Button>
         }
         className="shadow-lg border-0 bg-white dark:bg-gray-800 transition-colors"
@@ -491,7 +485,7 @@ export default function ManagerDashboard() {
         title={
           <span className="text-2xl font-bold flex items-center">
             <RightOutlined className="mr-3 text-purple-500" />
-            Quick Actions
+            {t('dashboard.quickActions')}
           </span>
         }
         className="shadow-xl border-0 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-gray-900 dark:to-gray-800"
@@ -516,7 +510,7 @@ export default function ManagerDashboard() {
         title={
           <span className="text-2xl font-bold flex items-center">
             <BarChartOutlined className="mr-3 text-indigo-500" />
-            Statistics & Analytics
+            {t('dashboard.statisticsAnalytics')}
           </span>
         }
         className="shadow-xl border-0 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-gray-900 dark:to-gray-800"
@@ -524,7 +518,7 @@ export default function ManagerDashboard() {
         {/* Team Performance */}
         <div className="mb-6">
           <h3 className="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-300 border-b pb-2">
-            📊 Team Performance
+            📊 {t('dashboard.teamPerformanceSection')}
           </h3>
           <Row gutter={[16, 16]}>
             <Col xs={24} lg={16}>
@@ -537,7 +531,7 @@ export default function ManagerDashboard() {
                 }
                 extra={
                   <Button type="link" onClick={() => router.push(`/${locale}/manager/attendance`)}>
-                    View Details
+                    {t('dashboard.attendanceViewAll')}
                   </Button>
                 }
                 className="shadow-lg border-0"
@@ -553,7 +547,7 @@ export default function ManagerDashboard() {
                 title={
                   <span className="text-lg font-semibold flex items-center">
                     <PieChartOutlined className="mr-2 text-blue-500" />
-                    Today&apos;s Attendance
+                    {t('dashboard.todaysAttendance')}
                   </span>
                 }
                 className="shadow-lg border-0"
@@ -569,7 +563,7 @@ export default function ManagerDashboard() {
         {/* Application Analytics */}
         <div className="mb-6">
           <h3 className="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-300 border-b pb-2">
-            📝 Application Analytics
+            📝 {t('dashboard.applicationAnalytics')}
           </h3>
           <Row gutter={[16, 16]}>
             <Col xs={24} lg={12}>
@@ -577,7 +571,7 @@ export default function ManagerDashboard() {
                 title={
                   <span className="text-lg font-semibold flex items-center">
                     <FileTextOutlined className="mr-2 text-purple-500" />
-                    Applications Status
+                    {t('dashboard.applicationsStatus')}
                   </span>
                 }
                 className="shadow-lg border-0"
@@ -643,7 +637,7 @@ export default function ManagerDashboard() {
       <Modal
         title={
           <span className="text-lg font-semibold text-gray-800 dark:text-gray-100">
-            {editingEvent ? 'Edit Event' : 'Add New Event'}
+            {editingEvent ? t('dashboard.editEventTitle') : t('dashboard.createNewEvent')}
           </span>
         }
         open={isEventModalVisible}
@@ -653,7 +647,7 @@ export default function ManagerDashboard() {
           setEditingEvent(null)
           form.resetFields()
         }}
-        okText={editingEvent ? 'Update' : 'Create'}
+        okText={editingEvent ? t('dashboard.updateBtn') : t('dashboard.createBtn')}
         okButtonProps={{
           className: 'bg-blue-500 hover:bg-blue-600',
           loading: createEventMutation.isPending || updateEventMutation.isPending
@@ -663,39 +657,39 @@ export default function ManagerDashboard() {
         <Form form={form} layout="vertical" className="mt-4">
           <Form.Item
             name="title"
-            label="Event Title"
-            rules={[{ required: true, message: 'Please enter event title' }]}
+            label={t('dashboard.eventTitle')}
+            rules={[{ required: true, message: t('dashboard.eventTitleRequired') }]}
           >
-            <Input placeholder="Enter event title" />
+            <Input placeholder={t('dashboard.eventTitlePlaceholder')} />
           </Form.Item>
 
           <Form.Item
             name="type"
-            label="Event Type"
-            rules={[{ required: true, message: 'Please select event type' }]}
+            label={t('dashboard.eventType')}
+            rules={[{ required: true, message: t('dashboard.eventTypeRequired') }]}
           >
-            <Select placeholder="Select event type">
-              <Select.Option value="meeting">Meeting</Select.Option>
-              <Select.Option value="deadline">Deadline</Select.Option>
-              <Select.Option value="holiday">Holiday</Select.Option>
-              <Select.Option value="birthday">Birthday</Select.Option>
-              <Select.Option value="training">Training</Select.Option>
-              <Select.Option value="review">Review</Select.Option>
+            <Select placeholder={t('dashboard.selectEventType')}>
+              <Select.Option value="meeting">{t('dashboard.eventTypeMeeting')}</Select.Option>
+              <Select.Option value="deadline">{t('dashboard.eventTypeDeadline')}</Select.Option>
+              <Select.Option value="holiday">{t('dashboard.eventTypeHoliday')}</Select.Option>
+              <Select.Option value="birthday">{t('dashboard.eventTypeBirthday')}</Select.Option>
+              <Select.Option value="training">{t('dashboard.eventTypeTraining')}</Select.Option>
+              <Select.Option value="review">{t('dashboard.eventTypeReview')}</Select.Option>
             </Select>
           </Form.Item>
 
-          <Form.Item label="Date">
+          <Form.Item label={t('dashboard.selectedDate')}>
             <div className="text-gray-700 dark:text-gray-300 font-medium">
               {selectedDate?.format('MMMM DD, YYYY')}
             </div>
           </Form.Item>
 
-          <Form.Item name="time" label="Time (Optional)">
+          <Form.Item name="time" label={t('dashboard.eventTimeOptional')}>
             <TimePicker format="HH:mm" className="w-full" />
           </Form.Item>
 
-          <Form.Item name="description" label="Description (Optional)">
-            <Input.TextArea rows={3} placeholder="Enter event description" />
+          <Form.Item name="description" label={t('dashboard.eventDescriptionOptional')}>
+            <Input.TextArea rows={3} placeholder={t('dashboard.eventDescriptionPlaceholder')} />
           </Form.Item>
 
           {editingEvent && (
@@ -705,11 +699,15 @@ export default function ManagerDashboard() {
               onClick={() => handleDeleteEvent(editingEvent.id)}
               loading={deleteEventMutation.isPending}
             >
-              Delete Event
+              {t('dashboard.deleteEventBtn')}
             </Button>
           )}
         </Form>
       </Modal>
     </div>
   )
-}
+})
+
+ManagerDashboard.displayName = 'ManagerDashboard'
+
+export default ManagerDashboard

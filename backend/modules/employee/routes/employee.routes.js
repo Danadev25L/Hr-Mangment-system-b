@@ -43,9 +43,8 @@ router.get('/holidays/today', employeeHolidayController.getTodayHolidayStatus);
 router.get('/holidays/next', employeeHolidayController.getNextHoliday);
 router.get('/holidays/:id', employeeHolidayController.getHoliday);
 
-// Employee Attendance Routes
-router.post('/attendance/check-in', employeeAttendanceController.checkIn);
-router.post('/attendance/check-out', employeeAttendanceController.checkOut);
+// Employee Attendance Routes (VIEW-ONLY)
+// Employees can only view their attendance - all actions (check-in/check-out) handled by admin
 router.get('/attendance', employeeAttendanceController.getMyAttendance);
 router.get('/attendance/today', employeeAttendanceController.getTodayAttendance);
 router.get('/attendance/summary', employeeAttendanceController.getMyAttendanceSummary);

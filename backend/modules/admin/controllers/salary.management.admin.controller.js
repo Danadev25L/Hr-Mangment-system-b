@@ -751,20 +751,34 @@ export const addDeduction = async (req, res) => {
 // Add overtime to employee
 export const addOvertime = async (req, res) => {
   try {
-    const { employeeId, amount, reason, month, year } = req.body;
+    const { employeeId, amount, hours, reason, month, year, date } = req.body;
     
-    if (!employeeId || !amount || !reason || !month || !year) {
-      return res.status(400).json({ message: 'All fields are required' });
+    if (!employeeId || !month || !year) {
+      return res.status(400).json({ message: 'Employee ID, month, and year are required' });
+    }
+
+    if (!amount && !hours) {
+      return res.status(400).json({ message: 'Either amount or hours must be provided' });
     }
     
     const userData = JSON.parse(req.headers.user || '{}');
+    
+    // Build reason string
+    let finalReason = reason || 'Overtime payment';
+    if (date) {
+      finalReason = `${finalReason} (Date: ${date})`;
+    }
+    if (hours) {
+      finalReason = `${finalReason} - ${hours} hours`;
+    }
     
     const [adjustment] = await db.insert(salaryAdjustments)
       .values({
         employeeId: parseInt(employeeId),
         adjustmentType: 'overtime',
-        amount: String(amount),
-        reason,
+        amount: String(amount || 0),
+        hours: hours ? parseInt(hours) : null,
+        reason: finalReason,
         month: parseInt(month),
         year: parseInt(year),
         createdBy: userData.id
@@ -772,16 +786,122 @@ export const addOvertime = async (req, res) => {
       .returning();
     
     // Send notification
+    const hoursText = hours ? ` for ${hours} hours` : '';
+    const amountText = amount ? `$${amount}` : `${hours} hours`;
     await db.insert(notifications).values({
       userId: parseInt(employeeId),
       title: '⏰ Overtime Added',
-      message: `Overtime payment of $${amount} has been added to your salary for ${month}/${year}. ${reason}`,
+      message: `Overtime payment of ${amountText}${hoursText} has been added to your salary for ${month}/${year}. ${reason || ''}`,
       type: 'salary'
     });
     
     res.json({
       message: 'Overtime added successfully',
       adjustment
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Get all adjustments for an employee (with optional month/year filter)
+export const getEmployeeAdjustments = async (req, res) => {
+  try {
+    const { employeeId } = req.params;
+    const { month, year, type } = req.query;
+    
+    let whereConditions = [eq(salaryAdjustments.employeeId, parseInt(employeeId))];
+    
+    if (month) whereConditions.push(eq(salaryAdjustments.month, parseInt(month)));
+    if (year) whereConditions.push(eq(salaryAdjustments.year, parseInt(year)));
+    if (type) whereConditions.push(eq(salaryAdjustments.adjustmentType, type));
+    
+    const adjustments = await db.select({
+      id: salaryAdjustments.id,
+      adjustmentType: salaryAdjustments.adjustmentType,
+      amount: salaryAdjustments.amount,
+      reason: salaryAdjustments.reason,
+      month: salaryAdjustments.month,
+      year: salaryAdjustments.year,
+      isApplied: salaryAdjustments.isApplied,
+      appliedAt: salaryAdjustments.appliedAt,
+      createdAt: salaryAdjustments.createdAt,
+      createdBy: salaryAdjustments.createdBy,
+      approvedBy: salaryAdjustments.approvedBy,
+      approvedAt: salaryAdjustments.approvedAt
+    })
+    .from(salaryAdjustments)
+    .where(and(...whereConditions))
+    .orderBy(desc(salaryAdjustments.createdAt));
+    
+    res.json({
+      message: 'Adjustments retrieved successfully',
+      adjustments
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Update an adjustment
+export const updateAdjustment = async (req, res) => {
+  try {
+    const { adjustmentId } = req.params;
+    const { amount, reason } = req.body;
+    
+    if (!amount && !reason) {
+      return res.status(400).json({ message: 'At least one field (amount or reason) is required' });
+    }
+    
+    const updateData = {};
+    if (amount !== undefined) updateData.amount = String(amount);
+    if (reason !== undefined) updateData.reason = reason;
+    updateData.updatedAt = new Date();
+    
+    const [adjustment] = await db.update(salaryAdjustments)
+      .set(updateData)
+      .where(eq(salaryAdjustments.id, parseInt(adjustmentId)))
+      .returning();
+    
+    if (!adjustment) {
+      return res.status(404).json({ message: 'Adjustment not found' });
+    }
+    
+    res.json({
+      message: 'Adjustment updated successfully',
+      adjustment
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Delete an adjustment
+export const deleteAdjustment = async (req, res) => {
+  try {
+    const { adjustmentId } = req.params;
+    
+    // Check if adjustment is already applied
+    const [existing] = await db.select()
+      .from(salaryAdjustments)
+      .where(eq(salaryAdjustments.id, parseInt(adjustmentId)))
+      .limit(1);
+    
+    if (!existing) {
+      return res.status(404).json({ message: 'Adjustment not found' });
+    }
+    
+    if (existing.isApplied) {
+      return res.status(400).json({ 
+        message: 'Cannot delete an adjustment that has already been applied to a salary calculation' 
+      });
+    }
+    
+    await db.delete(salaryAdjustments)
+      .where(eq(salaryAdjustments.id, parseInt(adjustmentId)));
+    
+    res.json({
+      message: 'Adjustment deleted successfully'
     });
   } catch (error) {
     res.status(500).json({ message: error.message });

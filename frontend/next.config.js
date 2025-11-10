@@ -12,11 +12,23 @@ const nextConfig = {
     optimizePackageImports: ['antd', '@ant-design/icons', 'recharts'], // Tree-shake heavy packages
   },
 
-  // Performance optimizations
-  reactStrictMode: false, // Disable for production performance
+  // Performance optimizations - ENHANCED
+  reactStrictMode: true, // Enable for better development experience and performance debugging
   swcMinify: true, // Use SWC for faster minification
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production', // Remove console logs in production
+  },
+  
+  // Production optimizations
+  poweredByHeader: false, // Remove X-Powered-By header
+  compress: true, // Enable gzip compression
+  
+  // Optimize page loading
+  onDemandEntries: {
+    // Period (in ms) where the server will keep pages in the buffer
+    maxInactiveAge: 60 * 1000,
+    // Number of pages that should be kept simultaneously without being disposed
+    pagesBufferLength: 5,
   },
 
   // Optimize images and fonts
@@ -50,7 +62,7 @@ const nextConfig = {
       fs: false,
     };
 
-    // Disable WebSocket in development
+    // Reduce console noise in development
     if (dev && !isServer) {
       config.infrastructureLogging = {
         level: 'error',

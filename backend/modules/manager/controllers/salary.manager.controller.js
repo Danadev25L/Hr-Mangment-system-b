@@ -7,7 +7,8 @@ import {
   salaryComponents,
   employeeSalaryComponents,
   absenceDeductions,
-  latencyDeductions
+  latencyDeductions,
+  notifications
 } from '../../../db/schema.js';
 
 /**
@@ -144,7 +145,8 @@ export const getDepartmentSalaries = async (req, res) => {
       department: userData.departmentName
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('Error in getDepartmentSalaries:', error);
+    res.status(500).json({ message: error.message, error: error.toString() });
   }
 };
 
@@ -219,6 +221,301 @@ export const getEmployeeSalaryDetails = async (req, res) => {
       message: 'Salary details retrieved successfully',
       salary,
       adjustments
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Add bonus to employee (Manager - department only)
+export const addBonus = async (req, res) => {
+  try {
+    const { employeeId, amount, reason, month, year } = req.body;
+    
+    if (!employeeId || !amount || !reason || !month || !year) {
+      return res.status(400).json({ message: 'All fields are required' });
+    }
+    
+    const userData = JSON.parse(req.headers.user || '{}');
+    
+    // Verify employee is in manager's department
+    const [employee] = await db.select()
+      .from(users)
+      .where(eq(users.id, parseInt(employeeId)))
+      .limit(1);
+    
+    if (!employee || employee.departmentId !== userData.departmentId) {
+      return res.status(403).json({ message: 'You can only add bonuses to employees in your department' });
+    }
+    
+    const [adjustment] = await db.insert(salaryAdjustments)
+      .values({
+        employeeId: parseInt(employeeId),
+        adjustmentType: 'bonus',
+        amount: String(amount),
+        reason,
+        month: parseInt(month),
+        year: parseInt(year),
+        createdBy: userData.id
+      })
+      .returning();
+    
+    // Send notification
+    await db.insert(notifications).values({
+      userId: parseInt(employeeId),
+      title: '🎉 Bonus Added',
+      message: `A bonus of $${amount} has been added to your salary for ${month}/${year}. Reason: ${reason}`,
+      type: 'salary'
+    });
+    
+    res.json({
+      message: 'Bonus added successfully',
+      adjustment
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Add deduction to employee (Manager - department only)
+export const addDeduction = async (req, res) => {
+  try {
+    const { employeeId, amount, reason, month, year } = req.body;
+    
+    if (!employeeId || !amount || !reason || !month || !year) {
+      return res.status(400).json({ message: 'All fields are required' });
+    }
+    
+    const userData = JSON.parse(req.headers.user || '{}');
+    
+    // Verify employee is in manager's department
+    const [employee] = await db.select()
+      .from(users)
+      .where(eq(users.id, parseInt(employeeId)))
+      .limit(1);
+    
+    if (!employee || employee.departmentId !== userData.departmentId) {
+      return res.status(403).json({ message: 'You can only add deductions to employees in your department' });
+    }
+    
+    const [adjustment] = await db.insert(salaryAdjustments)
+      .values({
+        employeeId: parseInt(employeeId),
+        adjustmentType: 'deduction',
+        amount: String(amount),
+        reason,
+        month: parseInt(month),
+        year: parseInt(year),
+        createdBy: userData.id
+      })
+      .returning();
+    
+    // Send notification
+    await db.insert(notifications).values({
+      userId: parseInt(employeeId),
+      title: '⚠️ Deduction Applied',
+      message: `A deduction of $${amount} has been applied to your salary for ${month}/${year}. Reason: ${reason}`,
+      type: 'salary'
+    });
+    
+    res.json({
+      message: 'Deduction added successfully',
+      adjustment
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Add overtime to employee (Manager - department only)
+export const addOvertime = async (req, res) => {
+  try {
+    const { employeeId, amount, hours, reason, month, year, date } = req.body;
+    
+    if (!employeeId || !month || !year) {
+      return res.status(400).json({ message: 'Employee ID, month, and year are required' });
+    }
+
+    if (!amount && !hours) {
+      return res.status(400).json({ message: 'Either amount or hours must be provided' });
+    }
+    
+    const userData = JSON.parse(req.headers.user || '{}');
+    
+    // Verify employee is in manager's department
+    const [employee] = await db.select()
+      .from(users)
+      .where(eq(users.id, parseInt(employeeId)))
+      .limit(1);
+    
+    if (!employee || employee.departmentId !== userData.departmentId) {
+      return res.status(403).json({ message: 'You can only add overtime to employees in your department' });
+    }
+    
+    // Build reason string
+    let finalReason = reason || 'Overtime payment';
+    if (date) {
+      finalReason = `${finalReason} (Date: ${date})`;
+    }
+    if (hours) {
+      finalReason = `${finalReason} - ${hours} hours`;
+    }
+    
+    const [adjustment] = await db.insert(salaryAdjustments)
+      .values({
+        employeeId: parseInt(employeeId),
+        adjustmentType: 'overtime',
+        amount: String(amount || 0),
+        hours: hours ? parseInt(hours) : null,
+        reason: finalReason,
+        month: parseInt(month),
+        year: parseInt(year),
+        createdBy: userData.id
+      })
+      .returning();
+    
+    // Send notification
+    const hoursText = hours ? ` for ${hours} hours` : '';
+    const amountText = amount ? `$${amount}` : `${hours} hours`;
+    await db.insert(notifications).values({
+      userId: parseInt(employeeId),
+      title: '⏰ Overtime Added',
+      message: `Overtime payment of ${amountText}${hoursText} has been added to your salary for ${month}/${year}. ${reason || ''}`,
+      type: 'salary'
+    });
+    
+    res.json({
+      message: 'Overtime added successfully',
+      adjustment
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Get all adjustments for an employee (Manager - department only)
+export const getEmployeeAdjustments = async (req, res) => {
+  try {
+    const { employeeId } = req.params;
+    const { month, year, type } = req.query;
+    const userData = JSON.parse(req.headers.user || '{}');
+    
+    // Verify employee is in manager's department
+    const [employee] = await db.select()
+      .from(users)
+      .where(eq(users.id, parseInt(employeeId)))
+      .limit(1);
+    
+    if (!employee || employee.departmentId !== userData.departmentId) {
+      return res.status(403).json({ message: 'You can only view adjustments for employees in your department' });
+    }
+    
+    let whereConditions = [eq(salaryAdjustments.employeeId, parseInt(employeeId))];
+    
+    if (month) whereConditions.push(eq(salaryAdjustments.month, parseInt(month)));
+    if (year) whereConditions.push(eq(salaryAdjustments.year, parseInt(year)));
+    if (type) whereConditions.push(eq(salaryAdjustments.adjustmentType, type));
+    
+    const adjustments = await db.select({
+      id: salaryAdjustments.id,
+      adjustmentType: salaryAdjustments.adjustmentType,
+      amount: salaryAdjustments.amount,
+      reason: salaryAdjustments.reason,
+      month: salaryAdjustments.month,
+      year: salaryAdjustments.year,
+      isApplied: salaryAdjustments.isApplied,
+      appliedAt: salaryAdjustments.appliedAt,
+      createdAt: salaryAdjustments.createdAt,
+      createdBy: salaryAdjustments.createdBy,
+      approvedBy: salaryAdjustments.approvedBy,
+      approvedAt: salaryAdjustments.approvedAt
+    })
+    .from(salaryAdjustments)
+    .where(and(...whereConditions))
+    .orderBy(desc(salaryAdjustments.createdAt));
+    
+    res.json({
+      message: 'Adjustments retrieved successfully',
+      adjustments
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Update an adjustment (Manager - department only)
+export const updateAdjustment = async (req, res) => {
+  try {
+    const { adjustmentId } = req.params;
+    const { amount, reason } = req.body;
+    const userData = JSON.parse(req.headers.user || '{}');
+    
+    if (!amount && !reason) {
+      return res.status(400).json({ message: 'At least one field (amount or reason) is required' });
+    }
+    
+    // Check if adjustment exists and is in manager's department
+    const [existing] = await db.select()
+      .from(salaryAdjustments)
+      .leftJoin(users, eq(salaryAdjustments.employeeId, users.id))
+      .where(eq(salaryAdjustments.id, parseInt(adjustmentId)))
+      .limit(1);
+    
+    if (!existing || existing.users.departmentId !== userData.departmentId) {
+      return res.status(403).json({ message: 'You can only update adjustments for employees in your department' });
+    }
+    
+    const updateData = {};
+    if (amount !== undefined) updateData.amount = String(amount);
+    if (reason !== undefined) updateData.reason = reason;
+    updateData.updatedAt = new Date();
+    
+    const [adjustment] = await db.update(salaryAdjustments)
+      .set(updateData)
+      .where(eq(salaryAdjustments.id, parseInt(adjustmentId)))
+      .returning();
+    
+    res.json({
+      message: 'Adjustment updated successfully',
+      adjustment
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Delete an adjustment (Manager - department only)
+export const deleteAdjustment = async (req, res) => {
+  try {
+    const { adjustmentId } = req.params;
+    const userData = JSON.parse(req.headers.user || '{}');
+    
+    // Check if adjustment exists and is in manager's department
+    const [existing] = await db.select()
+      .from(salaryAdjustments)
+      .leftJoin(users, eq(salaryAdjustments.employeeId, users.id))
+      .where(eq(salaryAdjustments.id, parseInt(adjustmentId)))
+      .limit(1);
+    
+    if (!existing) {
+      return res.status(404).json({ message: 'Adjustment not found' });
+    }
+    
+    if (existing.users.departmentId !== userData.departmentId) {
+      return res.status(403).json({ message: 'You can only delete adjustments for employees in your department' });
+    }
+    
+    if (existing.salary_adjustments.isApplied) {
+      return res.status(400).json({ 
+        message: 'Cannot delete an adjustment that has already been applied to a salary calculation' 
+      });
+    }
+    
+    await db.delete(salaryAdjustments)
+      .where(eq(salaryAdjustments.id, parseInt(adjustmentId)));
+    
+    res.json({
+      message: 'Adjustment deleted successfully'
     });
   } catch (error) {
     res.status(500).json({ message: error.message });

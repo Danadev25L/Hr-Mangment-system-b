@@ -1,4 +1,4 @@
-import { eq, desc, and } from 'drizzle-orm';
+import { eq, desc, and, or, like, sql } from 'drizzle-orm';
 import { db } from '../../../db/index.js';
 import { notifications, users } from '../../../db/schema.js';
 
@@ -49,7 +49,7 @@ export const createNotification = async (req, res) => {
   }
 };
 
-// Retrieve all Notifications for current user
+// Retrieve all Notifications for current user with pagination, search, and filters
 export const getMyNotifications = async (req, res) => {
   try {
     const userId = req.user?.id;
@@ -59,15 +59,62 @@ export const getMyNotifications = async (req, res) => {
         message: "Unauthorized - user not found"
       });
     }
-    
+
+    // Extract query parameters
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const search = req.query.search || '';
+    const type = req.query.type || '';
+    const status = req.query.status || ''; // 'read', 'unread', or empty for all
+    const offset = (page - 1) * limit;
+
+    // Build where conditions
+    const conditions = [eq(notifications.userId, userId)];
+
+    // Add search filter (search in title and message)
+    if (search) {
+      conditions.push(
+        or(
+          like(notifications.title, `%${search}%`),
+          like(notifications.message, `%${search}%`)
+        )
+      );
+    }
+
+    // Add type filter
+    if (type) {
+      conditions.push(like(notifications.type, `%${type}%`));
+    }
+
+    // Add status filter (read/unread)
+    if (status === 'read') {
+      conditions.push(eq(notifications.isRead, true));
+    } else if (status === 'unread') {
+      conditions.push(eq(notifications.isRead, false));
+    }
+
+    // Get total count for pagination
+    const [{ count }] = await db.select({ count: sql`count(*)` })
+      .from(notifications)
+      .where(and(...conditions));
+
+    // Get paginated results
     const result = await db.select()
       .from(notifications)
-      .where(eq(notifications.userId, userId))
-      .orderBy(desc(notifications.createdAt));
+      .where(and(...conditions))
+      .orderBy(desc(notifications.createdAt))
+      .limit(limit)
+      .offset(offset);
     
     res.json({
       message: "Notifications retrieved successfully",
-      notifications: result
+      notifications: result,
+      pagination: {
+        page,
+        limit,
+        total: Number(count),
+        totalPages: Math.ceil(Number(count) / limit)
+      }
     });
   } catch (error) {
     console.error('Error in getMyNotifications:', error);

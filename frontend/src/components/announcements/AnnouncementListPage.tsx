@@ -1,7 +1,8 @@
 ﻿'use client'
 
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
+import { useRouter } from 'next/navigation'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { message, Modal, Table, Tag, Space, Avatar, Tooltip, Dropdown, Row, Col } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
@@ -38,6 +39,10 @@ import {
   AvatarWithInitials,
 } from '@/components/ui'
 import { AnnouncementsIllustration } from '@/components/ui/illustrations/AnnouncementsIllustration'
+import {
+  TableSkeleton,
+  FilterSkeleton,
+} from '@/components/ui/skeletons/SkeletonComponents'
 import type { MenuProps } from 'antd'
 
 const { confirm } = Modal
@@ -48,9 +53,10 @@ interface AnnouncementListPageProps {
   description: string
 }
 
-export function AnnouncementListPage({ role, title, description }: AnnouncementListPageProps) {
+export const AnnouncementListPage = React.memo(function AnnouncementListPage({ role, title, description }: AnnouncementListPageProps) {
   const locale = useLocale()
   const t = useTranslations()
+  const router = useRouter()
   const queryClient = useQueryClient()
   const searchParams = useSearchParams()
 
@@ -67,9 +73,7 @@ export function AnnouncementListPage({ role, title, description }: AnnouncementL
   const basePath = role === 'admin' ? '/admin/announcements' : role === 'manager' ? '/manager/announcements' : '/employee/announcements'
 
   const handleNavigation = (path: string) => {
-    if (typeof window !== 'undefined') {
-      window.location.href = path
-    }
+    router.push(path)
   }
 
   // Update URL params when filters change
@@ -150,40 +154,45 @@ export function AnnouncementListPage({ role, title, description }: AnnouncementL
     }
   }
 
-  const announcements = Array.isArray(announcementsData)
-    ? announcementsData
-    : announcementsData?.announcements || []
+  // Memoize announcements to prevent re-creation on every render
+  const announcements = useMemo(() => {
+    return Array.isArray(announcementsData)
+      ? announcementsData
+      : announcementsData?.announcements || []
+  }, [announcementsData])
 
   const departments = Array.isArray(departmentsData)
     ? departmentsData
     : departmentsData?.data || []
 
-  // Filter announcements
-  const filteredAnnouncements = announcements.filter((announcement: any) => {
-    const matchesSearch = !searchText || 
-      announcement.title?.toLowerCase().includes(searchText.toLowerCase()) ||
-      announcement.description?.toLowerCase().includes(searchText.toLowerCase())
-    
-    const matchesStatus = !filters.status || 
-      (filters.status === 'active' && announcement.isActive) ||
-      (filters.status === 'inactive' && !announcement.isActive)
-    
-    const matchesDepartment = !filters.department || 
-      announcement.department?.id?.toString() === filters.department
+  // Memoized filter announcements
+  const filteredAnnouncements = useMemo(() => {
+    return announcements.filter((announcement: any) => {
+      const matchesSearch = !searchText ||
+        announcement.title?.toLowerCase().includes(searchText.toLowerCase()) ||
+        announcement.description?.toLowerCase().includes(searchText.toLowerCase())
 
-    return matchesSearch && matchesStatus && matchesDepartment
-  })
+      const matchesStatus = !filters.status ||
+        (filters.status === 'active' && announcement.isActive) ||
+        (filters.status === 'inactive' && !announcement.isActive)
 
-  // Calculate statistics
-  const stats = {
+      const matchesDepartment = !filters.department ||
+        announcement.department?.id?.toString() === filters.department
+
+      return matchesSearch && matchesStatus && matchesDepartment
+    })
+  }, [announcements, searchText, filters.status, filters.department])
+
+  // Memoized statistics
+  const stats = useMemo(() => ({
     total: filteredAnnouncements.length,
     active: filteredAnnouncements.filter((a: any) => a.isActive).length,
     inactive: filteredAnnouncements.filter((a: any) => !a.isActive).length,
     unread: role === 'employee' ? filteredAnnouncements.filter((a: any) => !a.isRead).length : 0,
-  }
+  }), [filteredAnnouncements, role])
 
-  // Export functions
-  const exportToExcel = () => {
+  // Memoized export functions
+  const exportToExcel = useCallback(() => {
     if (filteredAnnouncements.length === 0) {
       message.warning(t('common.noDataToExport'))
       return
@@ -203,9 +212,9 @@ export function AnnouncementListPage({ role, title, description }: AnnouncementL
     XLSX.utils.book_append_sheet(wb, ws, 'Announcements')
     XLSX.writeFile(wb, `announcements-${dayjs().format('YYYY-MM-DD')}.xlsx`)
     message.success(t('common.exportSuccess'))
-  }
+  }, [filteredAnnouncements, t])
 
-  const exportToPDF = () => {
+  const exportToPDF = useCallback(() => {
     if (filteredAnnouncements.length === 0) {
       message.warning(t('common.noDataToExport'))
       return
@@ -214,7 +223,7 @@ export function AnnouncementListPage({ role, title, description }: AnnouncementL
     const doc = new jsPDF()
     doc.setFontSize(18)
     doc.text(title, 14, 20)
-    
+
     autoTable(doc, {
       startY: 30,
       head: [[
@@ -233,7 +242,7 @@ export function AnnouncementListPage({ role, title, description }: AnnouncementL
 
     doc.save(`announcements-${dayjs().format('YYYY-MM-DD')}.pdf`)
     message.success(t('common.exportSuccess'))
-  }
+  }, [filteredAnnouncements, t, title])
 
   const handlePrint = () => {
     if (typeof window === 'undefined') return
@@ -276,7 +285,7 @@ export function AnnouncementListPage({ role, title, description }: AnnouncementL
       dataIndex: 'title',
       key: 'title',
       render: (text: string, record: any) => (
-        <Space>
+        <Space direction={locale === 'ar' || locale === 'ku' ? 'horizontal' : 'horizontal'}>
           <NotificationOutlined className="text-amber-500" />
           <span className="font-medium">{text}</span>
           {role === 'employee' && record.isRead && (
@@ -329,7 +338,7 @@ export function AnnouncementListPage({ role, title, description }: AnnouncementL
       dataIndex: ['creator', 'fullName'],
       key: 'creator',
       render: (text: string) => (
-        <div className="flex items-center space-x-3">
+        <div className={`flex items-center ${locale === 'ar' || locale === 'ku' ? 'flex-row-reverse space-x-reverse' : ''} space-x-3`}>
           <AvatarWithInitials name={text || t('announcements.unknown')} size="md" />
           <span className="font-medium">{text || t('announcements.unknown')}</span>
         </div>
@@ -382,6 +391,22 @@ export function AnnouncementListPage({ role, title, description }: AnnouncementL
     },
   ]
 
+  // Show skeleton during initial load
+  if (isLoading && !announcements.length) {
+    return (
+      <div className="space-y-6">
+        <PageHeader
+          title={title}
+          description={description}
+          icon={<AnnouncementsIllustration className="w-20 h-20" />}
+          gradient="amber"
+        />
+        <FilterSkeleton filterCount={3} />
+        <TableSkeleton rows={10} columns={6} />
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -415,7 +440,7 @@ export function AnnouncementListPage({ role, title, description }: AnnouncementL
       {/* Statistics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <EnhancedCard className="bg-gradient-to-br from-amber-50 to-white dark:from-amber-900/20 dark:to-gray-800">
-          <div className="flex items-center justify-between">
+          <div className={`flex items-center justify-between ${locale === 'ar' || locale === 'ku' ? 'flex-row-reverse' : ''}`}>
             <div>
               <p className="text-sm text-gray-600 dark:text-gray-400">{t('announcements.title')}</p>
               <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">{stats.total}</p>
@@ -427,7 +452,7 @@ export function AnnouncementListPage({ role, title, description }: AnnouncementL
         {role !== 'employee' ? (
           <>
             <EnhancedCard className="bg-gradient-to-br from-green-50 to-white dark:from-green-900/20 dark:to-gray-800">
-              <div className="flex items-center justify-between">
+              <div className={`flex items-center justify-between ${locale === 'ar' || locale === 'ku' ? 'flex-row-reverse' : ''}`}>
                 <div>
                   <p className="text-sm text-gray-600 dark:text-gray-400">{t('announcements.active')}</p>
                   <p className="text-2xl font-bold text-green-600 dark:text-green-400">{stats.active}</p>
@@ -437,7 +462,7 @@ export function AnnouncementListPage({ role, title, description }: AnnouncementL
             </EnhancedCard>
 
             <EnhancedCard className="bg-gradient-to-br from-red-50 to-white dark:from-red-900/20 dark:to-gray-800">
-              <div className="flex items-center justify-between">
+              <div className={`flex items-center justify-between ${locale === 'ar' || locale === 'ku' ? 'flex-row-reverse' : ''}`}>
                 <div>
                   <p className="text-sm text-gray-600 dark:text-gray-400">{t('announcements.inactive')}</p>
                   <p className="text-2xl font-bold text-red-600 dark:text-red-400">{stats.inactive}</p>
@@ -448,7 +473,7 @@ export function AnnouncementListPage({ role, title, description }: AnnouncementL
           </>
         ) : (
           <EnhancedCard className="bg-gradient-to-br from-orange-50 to-white dark:from-orange-900/20 dark:to-gray-800">
-            <div className="flex items-center justify-between">
+            <div className={`flex items-center justify-between ${locale === 'ar' || locale === 'ku' ? 'flex-row-reverse' : ''}`}>
               <div>
                 <p className="text-sm text-gray-600 dark:text-gray-400">{t('announcements.unread')}</p>
                 <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">{stats.unread}</p>
@@ -498,7 +523,7 @@ export function AnnouncementListPage({ role, title, description }: AnnouncementL
             </Col>
           )}
           <Col flex="auto">
-            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+            <div className={`flex gap-2 ${locale === 'ar' || locale === 'ku' ? 'justify-start' : 'justify-end'}`}>
               <EnhancedButton
                 variant="ghost"
                 icon={<ReloadOutlined />}
@@ -536,4 +561,6 @@ export function AnnouncementListPage({ role, title, description }: AnnouncementL
       </EnhancedCard>
     </div>
   )
-}
+})
+
+AnnouncementListPage.displayName = 'AnnouncementListPage'

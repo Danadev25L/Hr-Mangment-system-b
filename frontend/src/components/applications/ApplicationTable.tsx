@@ -14,6 +14,7 @@ import {
 import { AvatarWithInitials } from '@/components/ui'
 import dayjs from 'dayjs'
 import type { MenuProps } from 'antd'
+import { useTranslations } from 'next-intl'
 
 export interface Application {
   id: number
@@ -60,38 +61,50 @@ export function ApplicationTable({
   onReject,
   role,
 }: ApplicationTableProps) {
+  const t = useTranslations('applications')
+  
   const getStatusTag = (status: string) => {
     const statusConfig = {
-      pending: { color: 'orange', icon: <ClockCircleOutlined /> },
-      approved: { color: 'green', icon: <CheckCircleOutlined /> },
-      rejected: { color: 'red', icon: <CloseCircleOutlined /> },
+      pending: { color: 'orange', icon: <ClockCircleOutlined />, label: t('pending') },
+      approved: { color: 'green', icon: <CheckCircleOutlined />, label: t('approved') },
+      rejected: { color: 'red', icon: <CloseCircleOutlined />, label: t('rejected') },
     }
     const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.pending
     return (
       <Tag color={config.color} icon={config.icon} className="font-medium">
-        {status.toUpperCase()}
+        {config.label.toUpperCase()}
       </Tag>
     )
   }
 
   const getPriorityTag = (priority: string) => {
     const priorityConfig = {
-      low: { color: 'default' },
-      medium: { color: 'blue' },
-      high: { color: 'orange' },
-      urgent: { color: 'red' },
+      low: { color: 'default', label: t('low') },
+      medium: { color: 'blue', label: t('medium') },
+      high: { color: 'orange', label: t('high') },
+      urgent: { color: 'red', label: t('urgent') },
     }
     const config = priorityConfig[priority as keyof typeof priorityConfig] || priorityConfig.low
     return (
       <Tag color={config.color} icon={<FlagOutlined />} className="font-medium">
-        {priority.toUpperCase()}
+        {config.label.toUpperCase()}
       </Tag>
     )
   }
 
+  const getTypeLabel = (type: string) => {
+    const typeLabels: Record<string, string> = {
+      leave: t('leave'),
+      overtime: t('overtime'),
+      remote: t('remoteWork'),
+      other: t('other'),
+    }
+    return typeLabels[type] || type
+  }
+
   const columns: any[] = [
     {
-      title: 'Submitted By',
+      title: t('submittedBy'),
       dataIndex: 'userName',
       key: 'userName',
       width: 200,
@@ -105,18 +118,18 @@ export function ApplicationTable({
     ...(role === 'admin'
       ? [
           {
-            title: 'Department',
+            title: t('department'),
             dataIndex: 'departmentName',
             key: 'departmentName',
             width: 150,
             render: (text: string) => (
-              <span className="text-gray-600 dark:text-gray-400">{text || 'N/A'}</span>
+              <span className="text-gray-600 dark:text-gray-400">{text || t('na')}</span>
             ),
           },
         ]
       : []),
     {
-      title: 'Title',
+      title: t('title'),
       dataIndex: 'title',
       key: 'title',
       width: 200,
@@ -126,32 +139,32 @@ export function ApplicationTable({
       ),
     },
     {
-      title: 'Type',
+      title: t('type'),
       dataIndex: 'applicationType',
       key: 'applicationType',
       width: 120,
       render: (text: string) => (
         <Tag color="blue" className="font-medium">
-          {text.toUpperCase()}
+          {getTypeLabel(text).toUpperCase()}
         </Tag>
       ),
     },
     {
-      title: 'Priority',
+      title: t('priority'),
       dataIndex: 'priority',
       key: 'priority',
       width: 100,
       render: (priority: string) => getPriorityTag(priority),
     },
     {
-      title: 'Status',
+      title: t('status'),
       dataIndex: 'status',
       key: 'status',
       width: 120,
       render: (status: string) => getStatusTag(status),
     },
     {
-      title: 'Start Date',
+      title: t('startDate'),
       dataIndex: 'startDate',
       key: 'startDate',
       width: 120,
@@ -162,7 +175,7 @@ export function ApplicationTable({
       ),
     },
     {
-      title: 'Actions',
+      title: t('actions'),
       key: 'actions',
       width: 80,
       fixed: 'right' as const,
@@ -171,13 +184,13 @@ export function ApplicationTable({
           {
             key: 'view',
             icon: <EyeOutlined />,
-            label: 'View Details',
+            label: t('viewDetails'),
             onClick: () => onView(record),
           },
           {
             key: 'edit',
             icon: <EditOutlined />,
-            label: 'Edit',
+            label: t('edit'),
             onClick: () => onEdit(record),
           },
           ...(record.status === 'pending'
@@ -186,13 +199,13 @@ export function ApplicationTable({
                 {
                   key: 'approve',
                   icon: <CheckCircleOutlined />,
-                  label: 'Approve',
+                  label: t('approve'),
                   onClick: () => onApprove(record),
                 },
                 {
                   key: 'reject',
                   icon: <CloseCircleOutlined />,
-                  label: 'Reject',
+                  label: t('reject'),
                   onClick: () => onReject(record),
                 },
               ]
@@ -202,7 +215,7 @@ export function ApplicationTable({
             key: 'delete',
             icon: <DeleteOutlined />,
             danger: true,
-            label: 'Delete',
+            label: t('delete'),
             onClick: () => onDelete(record),
           },
         ]
@@ -231,7 +244,7 @@ export function ApplicationTable({
         pageSize: pagination.pageSize,
         total: pagination.total,
         showSizeChanger: true,
-        showTotal: (total) => `Total ${total} applications`,
+        showTotal: (total) => t('totalApplications', { count: total }),
         onChange: onPaginationChange,
         showQuickJumper: true,
       }}

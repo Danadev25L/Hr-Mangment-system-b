@@ -225,7 +225,7 @@ export function HolidayListPage({ role, title, description }: HolidayListPagePro
     return listData
   }
 
-  const dateCellRender = (value: Dayjs) => {
+  const cellRender = (value: Dayjs) => {
     const listData = getListData(value)
     return (
       <ul className="list-none p-0 m-0">
@@ -461,7 +461,7 @@ export function HolidayListPage({ role, title, description }: HolidayListPagePro
             />
           )
         ) : (
-          <Calendar dateCellRender={dateCellRender} />
+          <Calendar cellRender={cellRender} />
         )}
       </EnhancedCard>
     </div>

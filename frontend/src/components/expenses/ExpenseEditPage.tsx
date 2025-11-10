@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import {
   Card,
   Button,
@@ -41,6 +42,7 @@ interface ExpenseEditPageProps {
 }
 
 export function ExpenseEditPage({ role }: ExpenseEditPageProps) {
+  const router = useRouter()
   const t = useTranslations()
   const params = useParams()
   const locale = useLocale()
@@ -56,7 +58,7 @@ export function ExpenseEditPage({ role }: ExpenseEditPageProps) {
   // Navigate with locale support
   const handleNavigation = (path: string) => {
     if (typeof window !== 'undefined') {
-      window.location.href = path
+      router.push(path)
     }
   }
 
@@ -222,7 +224,7 @@ export function ExpenseEditPage({ role }: ExpenseEditPageProps) {
                   placeholder="0.00"
                   precision={2}
                   min={0.01}
-                  formatter={(value) => `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                  formatter={(value) => t('expenses.amountValue', { amount: value || 0 })}
                   parser={(value) => value!.replace(/\$\s?|(,*)/g, '') as any}
                 />
               </Form.Item>

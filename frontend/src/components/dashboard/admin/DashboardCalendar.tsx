@@ -145,7 +145,7 @@ export function DashboardCalendar() {
     )
   }
 
-  const dateCellRender = (value: Dayjs) => {
+  const cellRender = (value: Dayjs) => {
     const listData = getListData(value)
     return (
       <ul className="list-none p-0">
@@ -246,7 +246,7 @@ export function DashboardCalendar() {
       </div>
 
       <Calendar
-        dateCellRender={dateCellRender}
+        cellRender={cellRender}
         onSelect={handleDateSelect}
         className="dark:text-gray-200"
       />

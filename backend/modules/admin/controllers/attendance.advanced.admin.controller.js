@@ -9,6 +9,7 @@ import {
   departments,
   workShifts,
   employeeShifts,
+  daysHoliday,
   attendancePolicies,
   departmentPolicies,
   breakTypes,
@@ -37,6 +38,23 @@ export const getAllEmployeesWithAttendance = async (req, res) => {
     const { date, departmentId, search } = req.query;
     const targetDate = date ? new Date(date) : new Date();
     targetDate.setHours(0, 0, 0, 0);
+
+    // Check if the selected date is a holiday
+    const startOfDay = new Date(targetDate);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(targetDate);
+    endOfDay.setHours(23, 59, 59, 999);
+    
+    const holidayCheck = await db.select()
+      .from(daysHoliday)
+      .where(and(
+        gte(daysHoliday.date, startOfDay.toISOString()),
+        lte(daysHoliday.date, endOfDay.toISOString())
+      ))
+      .limit(1);
+
+    const isHoliday = holidayCheck.length > 0;
+    const holidayInfo = isHoliday ? holidayCheck[0] : null;
 
     // Get all active users
     let userFilters = [eq(users.active, true)];
@@ -147,6 +165,8 @@ export const getAllEmployeesWithAttendance = async (req, res) => {
     res.json({
       message: "Employees with attendance retrieved successfully",
       date: targetDate,
+      isHoliday: isHoliday,
+      holiday: holidayInfo,
       employees: employeesWithAttendance,
       count: employeesWithAttendance.length
     });

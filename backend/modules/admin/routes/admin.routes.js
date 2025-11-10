@@ -10,6 +10,7 @@ import * as adminAnnouncementController from '../controllers/announcement.admin.
 import * as adminHolidayController from '../controllers/holidays.admin.controller.js';
 import * as adminAttendanceController from '../controllers/attendance.admin.controller.js';
 import * as advancedAttendanceController from '../controllers/attendance.advanced.admin.controller.js';
+import * as autoAttendanceController from '../controllers/autoAttendance.admin.controller.js';
 
 const router = express.Router();
 
@@ -71,6 +72,9 @@ router.get('/salary-management/employee/:employeeId', salaryManagementController
 router.post('/salary-management/bonus', salaryManagementController.addBonus);
 router.post('/salary-management/deduction', salaryManagementController.addDeduction);
 router.post('/salary-management/overtime', salaryManagementController.addOvertime);
+router.get('/salary-management/adjustments/employee/:employeeId', salaryManagementController.getEmployeeAdjustments);
+router.put('/salary-management/adjustments/:adjustmentId', salaryManagementController.updateAdjustment);
+router.delete('/salary-management/adjustments/:adjustmentId', salaryManagementController.deleteAdjustment);
 router.put('/salary-management/:salaryId/approve', salaryManagementController.approveSalary);
 router.put('/salary-management/:salaryId/paid', salaryManagementController.markAsPaid);
 router.get('/salary-management/components', salaryManagementController.getAllComponents);
@@ -141,6 +145,12 @@ router.get('/attendance/employee/:employeeId/details', advancedAttendanceControl
 router.get('/attendance/report', advancedAttendanceController.getAttendanceReport);
 router.get('/attendance/export/csv', advancedAttendanceController.exportAttendanceCSV);
 router.get('/attendance/check-leave', adminAttendanceController.checkEmployeeLeave);
+
+// Auto-Attendance Management Routes
+router.get('/auto-attendance/status', autoAttendanceController.getAutoAttendanceStatus);
+router.post('/auto-attendance/trigger', autoAttendanceController.triggerAutoAttendanceManual);
+router.post('/auto-attendance/trigger-range', autoAttendanceController.triggerAutoAttendanceRange);
+router.post('/auto-attendance/backfill', autoAttendanceController.backfillMissingAttendance);
 
 // POST routes - specific routes first
 router.post('/attendance/checkin', advancedAttendanceController.markEmployeeCheckIn);

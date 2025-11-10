@@ -198,7 +198,7 @@ export default function ExpenseAddPage({ role }: ExpenseAddPageProps) {
                   className="w-full rounded-lg"
                   precision={2}
                   min={0}
-                  formatter={(value) => `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                  formatter={(value) => t('expenses.amountValue', { amount: value || 0 })}
                   parser={(value) => value!.replace(/\$\s?|(,*)/g, '') as any}
                 />
               </Form.Item>

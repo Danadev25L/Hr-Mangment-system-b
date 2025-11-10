@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useTransition } from "react";
+import { useState, useRef, useEffect, useTransition, useCallback } from "react";
 import { Globe } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -25,25 +25,25 @@ export default function LocaleSwitcher() {
     { code: "ar", label: "Arabic", flag: "🇮🇶", fullName: "العربية (Iraq)", useSvg: true, svgPath: IraqFlag },
   ];
 
+  const [currentLang, setCurrentLang] = useState("EN");
+
   // Get current language from URL
-  const getCurrentLang = () => {
+  const getCurrentLang = useCallback(() => {
     if (!mounted) return "EN"; // Prevent hydration mismatch
     const pathSegments = pathname.split('/');
     return pathSegments[1]?.toUpperCase() || "EN";
-  };
-
-  const [currentLang, setCurrentLang] = useState("EN");
+  }, [mounted, pathname]);
 
   useEffect(() => {
     setMounted(true);
     setCurrentLang(getCurrentLang());
-  }, []);
+  }, [getCurrentLang]);
 
   useEffect(() => {
     if (mounted) {
       setCurrentLang(getCurrentLang());
     }
-  }, [pathname, mounted]);
+  }, [pathname, mounted, getCurrentLang]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -89,7 +89,7 @@ export default function LocaleSwitcher() {
         aria-label="Change Language"
       >
         {getCurrentFlag()?.useSvg && getCurrentFlag()?.svgPath ? (
-          <Image src={getCurrentFlag()!.svgPath} alt={getCurrentFlag()!.label} width={24} height={24} className="rounded" />
+          <Image src={getCurrentFlag()!.svgPath} alt={getCurrentFlag()!.label} width={24} height={16} className="rounded object-cover" style={{ width: '24px', height: '16px' }} />
         ) : (
           <span className="text-xl">{getCurrentFlag()?.flag || "🌐"}</span>
         )}
@@ -140,7 +140,7 @@ export default function LocaleSwitcher() {
                 >
                   <div className="flex items-center gap-3 pointer-events-none">
                     {lang.useSvg && lang.svgPath ? (
-                      <Image src={lang.svgPath} alt={lang.label} width={32} height={32} className="rounded pointer-events-none" />
+                      <Image src={lang.svgPath} alt={lang.label} width={32} height={21} className="rounded pointer-events-none object-cover" style={{ width: '32px', height: '21px' }} />
                     ) : (
                       <span className="text-2xl pointer-events-none">{lang.flag}</span>
                     )}

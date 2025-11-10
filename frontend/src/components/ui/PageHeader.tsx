@@ -34,29 +34,29 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
   return (
     <div
       className={cn(
-        'bg-gradient-to-r text-white rounded-2xl p-8 mb-6 shadow-lg',
+        'bg-gradient-to-r text-white rounded-2xl p-4 md:p-8 mb-6 shadow-lg',
         gradientClasses[gradient],
         className
       )}
     >
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div className="flex items-center gap-3 md:gap-4">
           {icon && (
-            <div className="text-5xl opacity-90 flex items-center justify-center">
+            <div className="text-3xl md:text-5xl opacity-90 flex items-center justify-center flex-shrink-0">
               {icon}
             </div>
           )}
           <div>
-            <h1 className="text-3xl font-bold mb-2">{title}</h1>
+            <h1 className="text-xl md:text-3xl font-bold mb-1 md:mb-2">{title}</h1>
             {description && (
-              <p className="text-white/90 text-base max-w-2xl">
+              <p className="text-white/90 text-sm md:text-base max-w-2xl">
                 {description}
               </p>
             )}
           </div>
         </div>
         {action && (
-          <div className="flex-shrink-0">
+          <div className="flex-shrink-0 w-full md:w-auto">
             {action}
           </div>
         )}

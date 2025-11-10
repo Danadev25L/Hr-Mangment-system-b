@@ -8,6 +8,7 @@ import {
   RiseOutlined,
   TrophyOutlined 
 } from '@ant-design/icons'
+import { useTranslations } from 'next-intl'
 
 interface SalaryStatsProps {
   totalEmployees: number
@@ -22,28 +23,30 @@ export const SalaryStats: React.FC<SalaryStatsProps> = ({
   totalNetSalary,
   totalBonuses,
 }) => {
+  const t = useTranslations()
+  
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
       <StatCard
-        title="Total Employees"
+        title={t('salary.totalEmployees')}
         value={totalEmployees}
         icon={<TeamOutlined />}
         color="blue"
       />
       <StatCard
-        title="Total Gross Salary"
+        title={t('salary.totalGrossSalary')}
         value={`$${totalGrossSalary.toLocaleString()}`}
         icon={<RiseOutlined />}
         color="green"
       />
       <StatCard
-        title="Total Net Salary"
+        title={t('salary.totalNetSalary')}
         value={`$${totalNetSalary.toLocaleString()}`}
         icon={<DollarOutlined />}
         color="cyan"
       />
       <StatCard
-        title="Total Bonuses"
+        title={t('salary.totalBonuses')}
         value={`$${totalBonuses.toLocaleString()}`}
         icon={<TrophyOutlined />}
         color="orange"

@@ -7,6 +7,7 @@ import {
   FilterSelect,
   EnhancedButton,
 } from '@/components/ui'
+import { useTranslations } from 'next-intl'
 import dayjs from 'dayjs'
 
 interface SalaryFiltersProps {
@@ -33,6 +34,7 @@ export const SalaryFilters: React.FC<SalaryFiltersProps> = ({
   onRefresh,
   isLoading = false,
 }) => {
+  const t = useTranslations()
   const currentDate = dayjs()
   
   // Generate month options
@@ -50,16 +52,16 @@ export const SalaryFilters: React.FC<SalaryFiltersProps> = ({
   return (
     <FilterBar>
       <div className="flex items-center gap-2">
-        <span className="text-sm text-gray-600 font-medium">Period:</span>
+        <span className="text-sm text-gray-600 dark:text-gray-400 font-medium">{t('salary.period')}:</span>
         <FilterSelect
-          placeholder="Month"
+          placeholder={t('salary.month')}
           options={monthOptions}
           value={filters.month}
           onChange={(value) => onFilterChange('month', value)}
           className="w-32"
         />
         <FilterSelect
-          placeholder="Year"
+          placeholder={t('salary.year')}
           options={yearOptions}
           value={filters.year}
           onChange={(value) => onFilterChange('year', value)}
@@ -69,7 +71,7 @@ export const SalaryFilters: React.FC<SalaryFiltersProps> = ({
       
       {role === 'admin' && departments.length > 0 && (
         <FilterSelect
-          placeholder="Department"
+          placeholder={t('salary.department')}
           options={departments.map((dept: any) => ({
             label: dept.departmentName || dept.name,
             value: dept.departmentName || dept.name,
@@ -86,14 +88,14 @@ export const SalaryFilters: React.FC<SalaryFiltersProps> = ({
           onClick={onRefresh}
           loading={isLoading}
         >
-          Refresh
+          {t('salary.refresh')}
         </EnhancedButton>
         <EnhancedButton
           variant="secondary"
           icon={<ClearOutlined />}
           onClick={onReset}
         >
-          Reset
+          {t('salary.reset')}
         </EnhancedButton>
       </div>
     </FilterBar>

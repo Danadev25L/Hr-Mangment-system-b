@@ -186,7 +186,7 @@ export default function ExpenseListPage({ role, title, description }: ExpenseLis
   const handleApprove = (expense: Expense) => {
     Modal.confirm({
       title: t('expenses.approve'),
-      content: `${t('expenses.approve')} $${expense.amount} - "${expense.reason}"?`,
+      content: t('expenses.approveConfirm', { amount: expense.amount, reason: expense.reason }),
       okText: t('expenses.approve'),
       okType: 'primary',
       cancelText: t('common.cancel'),
@@ -197,7 +197,7 @@ export default function ExpenseListPage({ role, title, description }: ExpenseLis
   const handleReject = (expense: Expense) => {
     Modal.confirm({
       title: t('expenses.reject'),
-      content: `${t('expenses.reject')} $${expense.amount} - "${expense.reason}"?`,
+      content: t('expenses.rejectConfirm', { amount: expense.amount, reason: expense.reason }),
       okText: t('expenses.reject'),
       okType: 'danger',
       cancelText: t('common.cancel'),
@@ -224,7 +224,7 @@ export default function ExpenseListPage({ role, title, description }: ExpenseLis
         [t('expenses.submittedBy')]: expense.userName,
         [t('expenses.department')]: expense.departmentName || t('expenses.na'),
         [t('expenses.reason')]: expense.reason,
-        [t('expenses.amount')]: `$${expense.amount}`,
+        [t('expenses.amount')]: t('expenses.amountValue', { amount: expense.amount }),
         [t('expenses.status')]: expense.status,
         [t('expenses.date')]: dayjs(expense.date).format('YYYY-MM-DD'),
         [t('expenses.createdAt')]: dayjs(expense.createdAt).format('YYYY-MM-DD HH:mm'),
@@ -249,7 +249,7 @@ export default function ExpenseListPage({ role, title, description }: ExpenseLis
       expense.userName,
       expense.departmentName || t('expenses.na'),
       expense.reason,
-      `$${expense.amount}`,
+      t('expenses.amountValue', { amount: expense.amount }),
       expense.status,
       dayjs(expense.date).format('YYYY-MM-DD'),
     ])
@@ -395,7 +395,7 @@ export default function ExpenseListPage({ role, title, description }: ExpenseLis
           <FilterSelect
             placeholder={t('expenses.department')}
             options={[
-              { label: t('common.allDepartments') || 'Company-wide', value: '0' },
+              { label: t('expenses.companyWide'), value: '0' },
               ...(Array.isArray(departmentsData)
                 ? departmentsData.map((dept: any) => ({
                     label: dept.departmentName,

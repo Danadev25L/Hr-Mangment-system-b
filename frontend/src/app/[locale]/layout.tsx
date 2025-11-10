@@ -1,12 +1,13 @@
+import './globals.css';
 import AntdRegistry from '@/lib/antd-registry';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import RootProviderClient from '@/lib/root-provider-client';
 import { AntdAppProvider } from '@/components/providers/AntdAppProvider';
-import '@/styles/antd.css';
 
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages } from "next-intl/server";
+
 import { notFound } from "next/navigation";
 
 export default async function LocaleLayout({

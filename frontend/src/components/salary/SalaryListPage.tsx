@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import { 
   Modal,
@@ -82,6 +83,7 @@ interface SalaryListProps {
 }
 
 export default function SalaryListPage({ role, title, description }: SalaryListProps) {
+  const router = useRouter()
   const t = useTranslations()
   const locale = useLocale()
   const currentDate = dayjs()
@@ -219,25 +221,25 @@ export default function SalaryListPage({ role, title, description }: SalaryListP
   }
 
   const handleNavigation = (path: string) => {
-    window.location.href = path
+    router.push(path)
   }
 
   const exportMenuItems: MenuProps['items'] = [
     {
       key: 'excel',
       icon: <FileExcelOutlined />,
-      label: 'Export Excel',
+      label: t('salary.exportExcel'),
       onClick: handleExportCSV,
     },
     {
       key: 'pdf',
       icon: <FilePdfOutlined />,
-      label: 'Export PDF',
+      label: t('salary.exportPDF'),
     },
     {
       key: 'print',
       icon: <PrinterOutlined />,
-      label: 'Print',
+      label: t('salary.print'),
       onClick: handlePrint,
     },
   ]
@@ -278,11 +280,11 @@ export default function SalaryListPage({ role, title, description }: SalaryListP
                 onClick={() => handleNavigation(`/${locale}/admin/salary/adjustments`)}
                 icon={<DollarOutlined />}
               >
-                Adjust Salary
+                {t('salary.adjustSalary')}
               </EnhancedButton>
               <Dropdown menu={{ items: exportMenuItems }} placement="bottomRight">
                 <EnhancedButton variant="secondary" icon={<DownloadOutlined />}>
-                  Export
+                  {t('salary.export')}
                 </EnhancedButton>
               </Dropdown>
             </div>

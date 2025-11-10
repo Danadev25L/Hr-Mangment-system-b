@@ -50,13 +50,12 @@ export default function EmployeeAttendancePage() {
   const [loading, setLoading] = useState(false)
   const [todayAttendance, setTodayAttendance] = useState<TodayAttendance | null>(null)
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([])
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([])
   const [dateRange, setDateRange] = useState<[Dayjs, Dayjs]>([
     dayjs().startOf('month'),
     dayjs().endOf('month')
   ])
   const [correctionModalVisible, setCorrectionModalVisible] = useState(false)
-  const [checkInLoading, setCheckInLoading] = useState(false)
-  const [checkOutLoading, setCheckOutLoading] = useState(false)
   const [form] = Form.useForm()
 
   const fetchAttendanceRecords = useCallback(async () => {
@@ -96,42 +95,6 @@ export default function EmployeeAttendancePage() {
   useEffect(() => {
     fetchAttendanceRecords()
   }, [dateRange, fetchAttendanceRecords])
-
-  const handleCheckIn = async () => {
-    try {
-      setCheckInLoading(true)
-      const deviceInfo = `${navigator.platform} - ${navigator.userAgent.split(' ')[0]}`
-      
-      const response = await apiClient.checkIn({
-        location: 'Office',
-        deviceInfo,
-        notes: ''
-      })
-      
-      message.success(response.message || 'Checked in successfully!')
-      await fetchTodayAttendance()
-      await fetchAttendanceRecords()
-    } catch (error: any) {
-      message.error(error.response?.data?.message || 'Failed to check in')
-    } finally {
-      setCheckInLoading(false)
-    }
-  }
-
-  const handleCheckOut = async () => {
-    try {
-      setCheckOutLoading(true)
-      const response = await apiClient.checkOut({})
-      
-      message.success(response.message || 'Checked out successfully!')
-      await fetchTodayAttendance()
-      await fetchAttendanceRecords()
-    } catch (error: any) {
-      message.error(error.response?.data?.message || 'Failed to check out')
-    } finally {
-      setCheckOutLoading(false)
-    }
-  }
 
   const handleRequestCorrection = async (values: any) => {
     try {
@@ -218,12 +181,36 @@ export default function EmployeeAttendancePage() {
     totalHours: Math.floor(attendanceRecords.reduce((sum, r) => sum + (r.workingHours || 0), 0) / 60)
   }
 
+  // Row selection configuration
+  const rowSelection = {
+    selectedRowKeys,
+    onChange: (selectedKeys: React.Key[]) => {
+      setSelectedRowKeys(selectedKeys)
+    },
+    selections: [
+      Table.SELECTION_ALL,
+      Table.SELECTION_INVERT,
+      Table.SELECTION_NONE,
+    ],
+  }
+
+  const clearSelection = () => {
+    setSelectedRowKeys([])
+    message.success('Selection cleared')
+  }
+
   return (
     <DashboardLayout role={user?.role || 'ROLE_EMPLOYEE'}>
       <div className="p-6">
         <h1 className="text-2xl font-bold mb-6">
           <ClockCircleOutlined /> My Attendance
         </h1>
+        
+        <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded">
+          <p className="text-sm text-blue-800">
+            <strong>Note:</strong> Attendance is managed by administrators. Check-in and check-out actions are handled by admin staff. You can view your attendance records and request corrections if needed.
+          </p>
+        </div>
 
       {/* Today's Status Card */}
       <Card 
@@ -234,33 +221,6 @@ export default function EmployeeAttendancePage() {
           </Space>
         }
         style={{ marginBottom: '24px' }}
-        extra={
-          <Space>
-            {!todayAttendance?.hasCheckedIn && (
-              <Button 
-                type="primary" 
-                icon={<LoginOutlined />}
-                onClick={handleCheckIn}
-                loading={checkInLoading}
-                size="large"
-              >
-                Check In
-              </Button>
-            )}
-            {todayAttendance?.hasCheckedIn && !todayAttendance?.hasCheckedOut && (
-              <Button 
-                type="primary"
-                danger
-                icon={<LogoutOutlined />}
-                onClick={handleCheckOut}
-                loading={checkOutLoading}
-                size="large"
-              >
-                Check Out
-              </Button>
-            )}
-          </Space>
-        }
       >
         <Row gutter={16}>
           <Col span={6}>
@@ -353,6 +313,16 @@ export default function EmployeeAttendancePage() {
               onChange={(dates) => dates && setDateRange(dates as [Dayjs, Dayjs])}
               format="YYYY-MM-DD"
             />
+            {selectedRowKeys.length > 0 && (
+              <>
+                <Button onClick={clearSelection} size="small">
+                  Clear Selection
+                </Button>
+                <span className="text-sm text-gray-600">
+                  {selectedRowKeys.length} selected
+                </span>
+              </>
+            )}
             <Button 
               icon={<EditOutlined />}
               onClick={() => setCorrectionModalVisible(true)}
@@ -367,6 +337,7 @@ export default function EmployeeAttendancePage() {
           dataSource={attendanceRecords}
           rowKey="id"
           loading={loading}
+          rowSelection={rowSelection}
           pagination={{
             pageSize: 10,
             showSizeChanger: true,

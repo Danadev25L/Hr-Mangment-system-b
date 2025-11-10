@@ -12,6 +12,7 @@ import {
   CheckOutlined,
 } from '@ant-design/icons'
 import { EnhancedTable } from '@/components/ui'
+import { useTranslations } from 'next-intl'
 import dayjs from 'dayjs'
 
 interface SalaryRecord {
@@ -50,17 +51,6 @@ interface SalaryTableProps {
   onViewDetails: (record: SalaryRecord) => void
 }
 
-const getStatusTag = (status: string) => {
-  const statusConfig = {
-    draft: { color: 'default', icon: <ClockCircleOutlined />, label: 'Draft' },
-    calculated: { color: 'processing', icon: <CalculatorOutlined />, label: 'Calculated' },
-    approved: { color: 'success', icon: <CheckOutlined />, label: 'Approved' },
-    paid: { color: 'success', icon: <DollarOutlined />, label: 'Paid' }
-  }
-  const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.draft
-  return <Tag icon={config.icon} color={config.color}>{config.label.toUpperCase()}</Tag>
-}
-
 export const SalaryTable: React.FC<SalaryTableProps> = ({
   data,
   loading,
@@ -68,9 +58,22 @@ export const SalaryTable: React.FC<SalaryTableProps> = ({
   onTableChange,
   onViewDetails,
 }) => {
+  const t = useTranslations()
+
+  const getStatusTag = (status: string) => {
+    const statusConfig = {
+      draft: { color: 'default', icon: <ClockCircleOutlined />, label: t('salary.draft') },
+      calculated: { color: 'processing', icon: <CalculatorOutlined />, label: t('salary.calculated') },
+      approved: { color: 'success', icon: <CheckOutlined />, label: t('salary.approved') },
+      paid: { color: 'success', icon: <DollarOutlined />, label: t('salary.paid') }
+    }
+    const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.draft
+    return <Tag icon={config.icon} color={config.color}>{config.label.toUpperCase()}</Tag>
+  }
+  
   const columns: ColumnsType<SalaryRecord> = [
     {
-      title: 'Employee',
+      title: t('salary.employee'),
       key: 'employee',
       fixed: 'left',
       width: 200,
@@ -82,7 +85,7 @@ export const SalaryTable: React.FC<SalaryTableProps> = ({
       ),
     },
     {
-      title: 'Department',
+      title: t('salary.department'),
       dataIndex: 'department',
       key: 'department',
       width: 150,
@@ -94,7 +97,7 @@ export const SalaryTable: React.FC<SalaryTableProps> = ({
       ),
     },
     {
-      title: 'Period',
+      title: t('salary.period'),
       key: 'period',
       width: 120,
       align: 'center',
@@ -105,7 +108,7 @@ export const SalaryTable: React.FC<SalaryTableProps> = ({
       ),
     },
     {
-      title: 'Base Salary',
+      title: t('salary.baseSalary'),
       dataIndex: 'baseSalary',
       key: 'baseSalary',
       width: 130,
@@ -116,7 +119,7 @@ export const SalaryTable: React.FC<SalaryTableProps> = ({
       },
     },
     {
-      title: 'Bonuses',
+      title: t('salary.bonuses'),
       dataIndex: 'totalBonuses',
       key: 'totalBonuses',
       width: 120,
@@ -131,7 +134,7 @@ export const SalaryTable: React.FC<SalaryTableProps> = ({
       },
     },
     {
-      title: 'Overtime',
+      title: t('salary.overtime'),
       dataIndex: 'overtimePay',
       key: 'overtimePay',
       width: 120,
@@ -146,7 +149,7 @@ export const SalaryTable: React.FC<SalaryTableProps> = ({
       },
     },
     {
-      title: 'Deductions',
+      title: t('salary.deductions'),
       key: 'deductions',
       width: 130,
       align: 'right',
@@ -159,9 +162,9 @@ export const SalaryTable: React.FC<SalaryTableProps> = ({
         return (
           <Tooltip title={
             <div className="text-xs">
-              <div>Absence: ${absence.toFixed(2)}</div>
-              <div>Latency: ${latency.toFixed(2)}</div>
-              <div>Tax: ${tax.toFixed(2)}</div>
+              <div>{t('attendance.absence')}: ${absence.toFixed(2)}</div>
+              <div>{t('attendance.late')}: ${latency.toFixed(2)}</div>
+              <div>{t('common.tax')}: ${tax.toFixed(2)}</div>
             </div>
           }>
             <span className="text-red-600 dark:text-red-400 font-medium cursor-help">
@@ -172,7 +175,7 @@ export const SalaryTable: React.FC<SalaryTableProps> = ({
       },
     },
     {
-      title: 'Net Salary',
+      title: t('salary.netSalary'),
       dataIndex: 'netSalary',
       key: 'netSalary',
       width: 150,
@@ -188,13 +191,21 @@ export const SalaryTable: React.FC<SalaryTableProps> = ({
       },
     },
     {
-      title: 'Actions',
+      title: t('salary.status'),
+      key: 'status',
+      dataIndex: 'status',
+      width: 120,
+      align: 'center',
+      render: (status) => getStatusTag(status),
+    },
+    {
+      title: t('salary.actions'),
       key: 'actions',
       fixed: 'right',
       width: 100,
       align: 'center',
       render: (_, record) => (
-        <Tooltip title="View Details">
+        <Tooltip title={t('salary.viewDetails')}>
           <Button
             type="text"
             size="small"
@@ -215,7 +226,7 @@ export const SalaryTable: React.FC<SalaryTableProps> = ({
       loading={loading}
       pagination={{
         ...pagination,
-        showTotal: (total) => `Total ${total} records`,
+        showTotal: (total) => t('salary.totalRecords', { total }),
         showSizeChanger: true,
         pageSizeOptions: ['10', '20', '50', '100'],
       }}

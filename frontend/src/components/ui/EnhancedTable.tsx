@@ -3,6 +3,7 @@
 import React from 'react'
 import { Table, TableProps, Empty } from 'antd'
 import { InboxOutlined } from '@ant-design/icons'
+import { TableSkeleton } from './SkeletonLoader'
 
 interface EnhancedTableProps extends TableProps<any> {
   className?: string
@@ -12,12 +13,19 @@ interface EnhancedTableProps extends TableProps<any> {
 export const EnhancedTable: React.FC<EnhancedTableProps> = ({ 
   className = '',
   variant = 'striped',
+  loading,
   ...props 
 }) => {
+  // Show skeleton loading
+  if (loading === true || (typeof loading === 'object' && loading.spinning)) {
+    return <TableSkeleton rows={5} />
+  }
+
   return (
     <div className={`enhanced-table-wrapper enhanced-table-${variant} ${className}`}>
       <Table
         {...props}
+        loading={loading}
         className="enhanced-table"
         locale={{
           emptyText: (
@@ -116,15 +124,6 @@ export const EnhancedTable: React.FC<EnhancedTableProps> = ({
         
         .dark .enhanced-table .ant-table-tbody > tr:hover > td {
           background: rgb(30 58 138) !important;
-        }
-        
-        .enhanced-table .ant-table-tbody > tr.ant-table-row-selected > td {
-          background: rgb(219 234 254);
-          border-left: 3px solid rgb(59 130 246);
-        }
-        
-        .dark .enhanced-table .ant-table-tbody > tr.ant-table-row-selected > td {
-          background: rgb(30 64 175);
         }
         
         /* Pagination */

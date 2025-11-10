@@ -1,21 +1,15 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Card, Table, Tag, Button, Space, Modal, Form, Input, message } from 'antd'
+import { Card, Table, Tag, message } from 'antd'
 import { 
-  CheckCircleOutlined, 
-  CloseCircleOutlined, 
-  ClockCircleOutlined,
-  CheckOutlined,
-  CloseOutlined
+  ClockCircleOutlined
 } from '@ant-design/icons'
 import { DashboardLayout } from '@/components/layout/DashboardLayout'
 import { useAuth } from '@/hooks/useAuth'
 import apiClient from '@/lib/api'
 import dayjs from 'dayjs'
 import type { ColumnsType } from 'antd/es/table'
-
-const { TextArea } = Input
 
 interface CorrectionRequest {
   id: number
@@ -41,10 +35,6 @@ export default function ManagerCorrectionsPage() {
   const { user } = useAuth()
   const [loading, setLoading] = useState(false)
   const [corrections, setCorrections] = useState<CorrectionRequest[]>([])
-  const [reviewModalVisible, setReviewModalVisible] = useState(false)
-  const [selectedCorrection, setSelectedCorrection] = useState<CorrectionRequest | null>(null)
-  const [reviewAction, setReviewAction] = useState<'approve' | 'reject'>('approve')
-  const [form] = Form.useForm()
 
   useEffect(() => {
     fetchPendingCorrections()
@@ -59,32 +49,6 @@ export default function ManagerCorrectionsPage() {
       message.error('Failed to fetch correction requests')
     } finally {
       setLoading(false)
-    }
-  }
-
-  const handleReview = (correction: CorrectionRequest, action: 'approve' | 'reject') => {
-    setSelectedCorrection(correction)
-    setReviewAction(action)
-    setReviewModalVisible(true)
-  }
-
-  const handleSubmitReview = async (values: any) => {
-    if (!selectedCorrection) return
-
-    try {
-      if (reviewAction === 'approve') {
-        await apiClient.approveCorrection(selectedCorrection.id, values.reviewNotes)
-        message.success('Correction request approved successfully!')
-      } else {
-        await apiClient.rejectCorrection(selectedCorrection.id, values.reviewNotes)
-        message.success('Correction request rejected')
-      }
-      
-      setReviewModalVisible(false)
-      form.resetFields()
-      fetchPendingCorrections()
-    } catch (error: any) {
-      message.error(error.response?.data?.message || 'Failed to process correction')
     }
   }
 
@@ -154,30 +118,6 @@ export default function ManagerCorrectionsPage() {
       dataIndex: 'createdAt',
       key: 'createdAt',
       render: (date) => dayjs(date).format('MMM DD, hh:mm A')
-    },
-    {
-      title: 'Actions',
-      key: 'actions',
-      render: (_, record) => (
-        <Space>
-          <Button
-            type="primary"
-            size="small"
-            icon={<CheckOutlined />}
-            onClick={() => handleReview(record, 'approve')}
-          >
-            Approve
-          </Button>
-          <Button
-            danger
-            size="small"
-            icon={<CloseOutlined />}
-            onClick={() => handleReview(record, 'reject')}
-          >
-            Reject
-          </Button>
-        </Space>
-      )
     }
   ]
 
@@ -185,8 +125,13 @@ export default function ManagerCorrectionsPage() {
     <DashboardLayout role={user?.role || 'ROLE_MANAGER'}>
       <div className="p-6">
         <h1 className="text-2xl font-bold mb-6">
-          <ClockCircleOutlined /> Pending Correction Requests
+          <ClockCircleOutlined /> Pending Correction Requests (View Only)
         </h1>
+        <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded">
+          <p className="text-sm text-blue-800">
+            <strong>Note:</strong> Managers can view correction requests. Only admins can approve or reject requests.
+          </p>
+        </div>
 
       <Card>
         <Table
@@ -200,71 +145,6 @@ export default function ManagerCorrectionsPage() {
           }}
         />
       </Card>
-
-      {/* Review Modal */}
-      <Modal
-        title={
-          <Space>
-            {reviewAction === 'approve' ? (
-              <CheckCircleOutlined style={{ color: '#52c41a' }} />
-            ) : (
-              <CloseCircleOutlined style={{ color: '#ff4d4f' }} />
-            )}
-            <span>{reviewAction === 'approve' ? 'Approve' : 'Reject'} Correction Request</span>
-          </Space>
-        }
-        open={reviewModalVisible}
-        onCancel={() => {
-          setReviewModalVisible(false)
-          form.resetFields()
-        }}
-        onOk={() => form.submit()}
-        okText={reviewAction === 'approve' ? 'Approve' : 'Reject'}
-        okButtonProps={{ 
-          danger: reviewAction === 'reject',
-          type: reviewAction === 'approve' ? 'primary' : 'default'
-        }}
-      >
-        {selectedCorrection && (
-          <div className="mb-4">
-            <p><strong>Employee:</strong> {selectedCorrection.user.fullName}</p>
-            <p><strong>Date:</strong> {dayjs(selectedCorrection.date).format('MMMM DD, YYYY')}</p>
-            <p><strong>Request Type:</strong> {selectedCorrection.requestType.replace(/_/g, ' ')}</p>
-            <p><strong>Reason:</strong> {selectedCorrection.reason}</p>
-            {selectedCorrection.requestedCheckIn && (
-              <p><strong>Requested Check-in:</strong> {dayjs(selectedCorrection.requestedCheckIn).format('hh:mm A')}</p>
-            )}
-            {selectedCorrection.requestedCheckOut && (
-              <p><strong>Requested Check-out:</strong> {dayjs(selectedCorrection.requestedCheckOut).format('hh:mm A')}</p>
-            )}
-          </div>
-        )}
-
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleSubmitReview}
-        >
-          <Form.Item
-            name="reviewNotes"
-            label="Review Notes"
-            rules={
-              reviewAction === 'reject' 
-                ? [{ required: true, message: 'Please provide reason for rejection' }]
-                : []
-            }
-          >
-            <TextArea 
-              rows={4} 
-              placeholder={
-                reviewAction === 'approve' 
-                  ? 'Optional notes about the approval...' 
-                  : 'Provide reason for rejection...'
-              } 
-            />
-          </Form.Item>
-          </Form>
-        </Modal>
       </div>
     </DashboardLayout>
   )

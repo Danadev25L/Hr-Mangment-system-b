@@ -35,9 +35,16 @@ import authRoutes from './modules/auth.routes.js';
 import moduleRoutes from './modules/index.js';
 import { errorHandler, notFoundHandler } from './utils/errorHandler.js';
 import dashboardRoutes from './modules/shared/routes/dashboard.routes.js';
+import { initializeScheduler } from './services/scheduler.service.js';
 
 // Load environment variables
 dotenv.config();
+
+// Initialize scheduler for auto-attendance and other cron jobs
+// This runs async in the background and backfills all missing attendance
+initializeScheduler().catch(err => {
+  console.error('[App] Error initializing scheduler:', err);
+});
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);

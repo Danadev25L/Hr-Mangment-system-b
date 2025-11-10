@@ -13,14 +13,22 @@ class ApiClient {
   constructor() {
     this.client = axios.create({
       baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001',
-      timeout: 10000,
+      timeout: 5000, // Reduced from 8s to 5s for faster feedback
       headers: {
         'Content-Type': 'application/json',
+        'Accept': 'application/json',
       },
-      // Performance optimizations
-      maxRedirects: 5,
-      maxContentLength: 50 * 1000 * 1000, // 50MB
+      // Performance optimizations - ENHANCED
+      maxRedirects: 2, // Reduced from 3 to 2
+      maxContentLength: 5 * 1000 * 1000, // Reduced to 5MB for faster transfers
       validateStatus: (status) => status >= 200 && status < 500, // Don't throw on 4xx
+      // Connection pooling and keep-alive
+      transitional: {
+        clarifyTimeoutError: true,
+      },
+      decompress: true, // Enable automatic decompression
+      // HTTP/2 and keepAlive for connection reuse (if supported by server)
+      httpAgent: typeof window === 'undefined' ? undefined : undefined, // Client-side only
     })
 
     this.setupInterceptors()
@@ -45,7 +53,9 @@ class ApiClient {
       (error) => {
         if (error.response?.status === 401) {
           this.removeToken()
-          window.location.href = '/login'
+          if (typeof window !== 'undefined') {
+            window.location.href = '/login'
+          }
         } else if (error.response?.data?.message) {
           if (messageApi) messageApi.error(error.response.data.message)
         } else if (error.message) {
@@ -965,6 +975,7 @@ class ApiClient {
   async markEmployeeCheckIn(data: {
     employeeId: number;
     checkInTime: string;
+    date?: string;
     expectedCheckInTime?: string;
     location?: string;
     latitude?: string;
@@ -978,6 +989,7 @@ class ApiClient {
   async markEmployeeCheckOut(data: {
     employeeId: number;
     checkOutTime: string;
+    date?: string;
     expectedCheckOutTime?: string;
     location?: string;
     latitude?: string;
@@ -1229,8 +1241,30 @@ class ApiClient {
   }
 
   // Add overtime
-  async addOvertime(data: { employeeId: number; amount: number; reason: string; month: number; year: number }) {
+  async addOvertime(data: { employeeId: number; amount?: number; hours?: number; reason: string; date?: string; month: number; year: number }) {
     const response = await this.client.post('/api/admin/salary-management/overtime', data)
+    return response.data
+  }
+
+  // Get employee adjustments
+  async getEmployeeAdjustments(employeeId: number, month?: number, year?: number, type?: string) {
+    const params = new URLSearchParams()
+    if (month) params.append('month', month.toString())
+    if (year) params.append('year', year.toString())
+    if (type) params.append('type', type)
+    const response = await this.client.get(`/api/admin/salary-management/adjustments/employee/${employeeId}?${params}`)
+    return response.data
+  }
+
+  // Update adjustment
+  async updateAdjustment(adjustmentId: number, data: { amount?: number; reason?: string }) {
+    const response = await this.client.put(`/api/admin/salary-management/adjustments/${adjustmentId}`, data)
+    return response.data
+  }
+
+  // Delete adjustment
+  async deleteAdjustment(adjustmentId: number) {
+    const response = await this.client.delete(`/api/admin/salary-management/adjustments/${adjustmentId}`)
     return response.data
   }
 

@@ -33,7 +33,8 @@ import {
 } from '@ant-design/icons'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/lib/api'
-import { useLocale } from 'next-intl'
+import { useRouter } from 'next/navigation'
+import { useLocale, useTranslations } from 'next-intl'
 import dayjs from 'dayjs'
 import {
   PageHeader,
@@ -49,7 +50,9 @@ interface ApplicationAddPageProps {
 }
 
 export function ApplicationAddPage({ role }: ApplicationAddPageProps) {
+  const router = useRouter()
   const locale = useLocale()
+  const t = useTranslations('applicationForm')
   const queryClient = useQueryClient()
   const [form] = Form.useForm()
   const [selectedDepartment, setSelectedDepartment] = useState<number | null>(null)
@@ -62,7 +65,7 @@ export function ApplicationAddPage({ role }: ApplicationAddPageProps) {
 
   const handleNavigation = (path: string) => {
     if (typeof window !== 'undefined') {
-      window.location.href = path
+      router.push(path)
     }
   }
 
@@ -102,8 +105,8 @@ export function ApplicationAddPage({ role }: ApplicationAddPageProps) {
       message.success({
         content: (
           <div>
-            <div className="font-semibold">✅ Application Created Successfully</div>
-            <div className="text-xs mt-1">{response.message || 'Your application has been submitted for approval'}</div>
+            <div className="font-semibold">✅ {t('createdSuccessfully')}</div>
+            <div className="text-xs mt-1">{response.message || t('submittedForApproval')}</div>
           </div>
         ),
         duration: 4,
@@ -123,9 +126,9 @@ export function ApplicationAddPage({ role }: ApplicationAddPageProps) {
         message.error({
           content: (
             <div>
-              <div className="font-semibold">📅 Invalid Date Range</div>
-              <div>End date must be after or equal to start date</div>
-              <div className="text-xs mt-1">Please check your date selection</div>
+              <div className="font-semibold">📅 {t('invalidDateRange')}</div>
+              <div>{t('endDateAfterStart')}</div>
+              <div className="text-xs mt-1">{t('checkDateSelection')}</div>
             </div>
           ),
           duration: 5,
@@ -134,9 +137,9 @@ export function ApplicationAddPage({ role }: ApplicationAddPageProps) {
         message.error({
           content: (
             <div>
-              <div className="font-semibold">⚠️ Missing Required Information</div>
+              <div className="font-semibold">⚠️ {t('missingRequiredInfo')}</div>
               <div>{errorMessage}</div>
-              <div className="text-xs mt-1">Please fill in all required fields</div>
+              <div className="text-xs mt-1">{t('fillAllRequired')}</div>
             </div>
           ),
           duration: 5,
@@ -145,8 +148,8 @@ export function ApplicationAddPage({ role }: ApplicationAddPageProps) {
         message.error({
           content: (
             <div>
-              <div className="font-semibold">❌ Invalid Date Format</div>
-              <div>Please provide valid dates in the correct format</div>
+              <div className="font-semibold">❌ {t('invalidDateFormat')}</div>
+              <div>{t('provideValidDates')}</div>
             </div>
           ),
           duration: 4,
@@ -156,9 +159,9 @@ export function ApplicationAddPage({ role }: ApplicationAddPageProps) {
         message.error({
           content: (
             <div>
-              <div className="font-semibold">🔄 Conflicting Application</div>
+              <div className="font-semibold">🔄 {t('conflictingApplication')}</div>
               <div>{errorMessage}</div>
-              <div className="text-xs mt-1">Check existing applications for this period</div>
+              <div className="text-xs mt-1">{t('checkExistingApplications')}</div>
             </div>
           ),
           duration: 6,
@@ -167,7 +170,7 @@ export function ApplicationAddPage({ role }: ApplicationAddPageProps) {
         message.error({
           content: (
             <div>
-              <div className="font-semibold">🚫 Access Denied</div>
+              <div className="font-semibold">🚫 {t('accessDenied')}</div>
               <div>{errorMessage}</div>
             </div>
           ),
@@ -177,8 +180,8 @@ export function ApplicationAddPage({ role }: ApplicationAddPageProps) {
         message.error({
           content: (
             <div>
-              <div className="font-semibold">⚠️ Required Field Missing</div>
-              <div>Please fill in all required fields before submitting</div>
+              <div className="font-semibold">⚠️ {t('requiredFieldMissing')}</div>
+              <div>{t('fillRequiredBeforeSubmit')}</div>
             </div>
           ),
           duration: 4,
@@ -187,7 +190,7 @@ export function ApplicationAddPage({ role }: ApplicationAddPageProps) {
         message.error({
           content: (
             <div>
-              <div className="font-semibold">❌ Error Creating Application</div>
+              <div className="font-semibold">❌ {t('errorCreatingApplication')}</div>
               <div>{errorMessage}</div>
             </div>
           ),
@@ -207,8 +210,8 @@ export function ApplicationAddPage({ role }: ApplicationAddPageProps) {
         message.error({
           content: (
             <div>
-              <div className="font-semibold">⚠️ Missing Dates</div>
-              <div>Both start date and end date are required</div>
+              <div className="font-semibold">⚠️ {t('missingDates')}</div>
+              <div>{t('bothDatesRequired')}</div>
             </div>
           ),
           duration: 4,
@@ -221,8 +224,8 @@ export function ApplicationAddPage({ role }: ApplicationAddPageProps) {
         message.error({
           content: (
             <div>
-              <div className="font-semibold">📅 Invalid Date Range</div>
-              <div>End date cannot be before start date</div>
+              <div className="font-semibold">📅 {t('invalidDateRange')}</div>
+              <div>{t('endDateBeforeStart')}</div>
               <div className="text-xs mt-1">
                 Start: {startDate.format('MMM DD, YYYY')} | End: {endDate.format('MMM DD, YYYY')}
               </div>
@@ -237,10 +240,10 @@ export function ApplicationAddPage({ role }: ApplicationAddPageProps) {
       const today = dayjs()
       if (startDate.isBefore(today.subtract(30, 'days'), 'day')) {
         Modal.confirm({
-          title: '⚠️ Old Date Warning',
-          content: `The start date is more than 30 days in the past (${startDate.format('MMM DD, YYYY')}). Are you sure you want to continue?`,
-          okText: 'Yes, Continue',
-          cancelText: 'Cancel',
+          title: `⚠️ ${t('oldDateWarning')}`,
+          content: `${t('oldDateConfirm').replace('{date}', startDate.format('MMM DD, YYYY'))}`,
+          okText: t('yesContinue'),
+          cancelText: t('common.cancel'),
           onOk: () => {
             submitApplication(values)
           },
@@ -251,7 +254,7 @@ export function ApplicationAddPage({ role }: ApplicationAddPageProps) {
       submitApplication(values)
     } catch (error) {
       console.error('Error in handleSubmit:', error)
-      message.error('An unexpected error occurred. Please try again.')
+      message.error(t('unexpectedError'))
     }
   }
 
@@ -269,8 +272,8 @@ export function ApplicationAddPage({ role }: ApplicationAddPageProps) {
     <div className="space-y-6">
       {/* Header */}
       <PageHeader
-        title="Create New Application"
-        description="Submit a new application request for approval"
+        title={t('title')}
+        description={t('subtitle')}
         icon={<ApplicationsIllustration className="w-20 h-20" />}
         gradient="cyan"
         action={
@@ -279,7 +282,7 @@ export function ApplicationAddPage({ role }: ApplicationAddPageProps) {
             icon={<ArrowLeftOutlined />}
             onClick={() => handleNavigation(listPath)}
           >
-            Back to Applications
+            {t('backToApplications')}
           </EnhancedButton>
         }
       />
@@ -301,7 +304,7 @@ export function ApplicationAddPage({ role }: ApplicationAddPageProps) {
               <Divider orientation="left">
                 <Space>
                   <TeamOutlined className="text-blue-600" />
-                  <span className="text-gray-700 dark:text-gray-300 font-semibold">Select Employee</span>
+                  <span className="text-gray-700 dark:text-gray-300 font-semibold">{t('selectEmployeeSection')}</span>
                 </Space>
               </Divider>
               <Row gutter={[16, 16]}>
@@ -311,13 +314,13 @@ export function ApplicationAddPage({ role }: ApplicationAddPageProps) {
                     label={
                       <span className="flex items-center gap-2 font-medium">
                         <BankOutlined className="text-blue-600" />
-                        Department
+                        {t('department')}
                       </span>
                     }
-                    rules={[{ required: true, message: 'Please select a department first' }]}
+                    rules={[{ required: true, message: t('departmentRequired') }]}
                   >
                     <Select
-                      placeholder="Select department first"
+                      placeholder={t('selectDepartment')}
                       loading={isLoadingDepartments}
                       size="large"
                       className="rounded-lg"
@@ -345,13 +348,13 @@ export function ApplicationAddPage({ role }: ApplicationAddPageProps) {
                     label={
                       <span className="flex items-center gap-2 font-medium">
                         <UserOutlined className="text-blue-600" />
-                        Employee
+                        {t('employee')}
                       </span>
                     }
-                    rules={[{ required: true, message: 'Please select an employee' }]}
+                    rules={[{ required: true, message: t('employeeRequired') }]}
                   >
                     <Select
-                      placeholder={selectedDepartment ? "Select employee from department" : "Select department first"}
+                      placeholder={selectedDepartment ? t('selectEmployee') : t('selectEmployeeFirst')}
                       loading={isLoadingUsers}
                       disabled={!selectedDepartment}
                       showSearch
@@ -382,8 +385,8 @@ export function ApplicationAddPage({ role }: ApplicationAddPageProps) {
           {role === 'manager' && (
             <EnhancedCard className="mb-6 bg-gradient-to-r from-green-50 to-teal-50 dark:from-gray-800 dark:to-gray-700 border-l-4 border-l-green-500">
               <Alert
-                message="Application Creation"
-                description="You can create an application for yourself or for any employee in your department"
+                message={t('applicationCreation')}
+                description={t('managerApplicationDescription')}
                 type="info"
                 showIcon
                 icon={<InfoCircleOutlined />}
@@ -396,14 +399,14 @@ export function ApplicationAddPage({ role }: ApplicationAddPageProps) {
                     label={
                       <span className="flex items-center gap-2 font-medium">
                         <TeamOutlined className="text-green-600" />
-                        Create Application For
+                        {t('createApplicationFor')}
                       </span>
                     }
-                    rules={[{ required: true, message: 'Please select who this application is for' }]}
-                    tooltip="Select yourself or an employee from your department"
+                    rules={[{ required: true, message: t('selectUserRequired') }]}
+                    tooltip={t('selectYourselfOrEmployee')}
                   >
                     <Select
-                      placeholder="Select yourself or an employee from your department"
+                      placeholder={t('selectYourselfOrEmployee')}
                       loading={isLoadingUsers}
                       showSearch
                       size="large"
@@ -434,8 +437,8 @@ export function ApplicationAddPage({ role }: ApplicationAddPageProps) {
           {role === 'employee' && (
             <EnhancedCard className="mb-6 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-gray-800 dark:to-gray-700 border-l-4 border-l-purple-500">
               <Alert
-                message="Submit Your Application"
-                description="Fill out the form below to submit an application request for approval"
+                message={t('submitYourApplication')}
+                description={t('employeeApplicationDescription')}
                 type="success"
                 showIcon
                 icon={<CheckCircleOutlined />}
@@ -447,7 +450,7 @@ export function ApplicationAddPage({ role }: ApplicationAddPageProps) {
           <Divider orientation="left">
             <Space>
               <FileTextOutlined className="text-cyan-600" />
-              <span className="text-gray-700 dark:text-gray-300 font-semibold">Application Details</span>
+              <span className="text-gray-700 dark:text-gray-300 font-semibold">{t('applicationDetails')}</span>
             </Space>
           </Divider>
 
@@ -458,20 +461,20 @@ export function ApplicationAddPage({ role }: ApplicationAddPageProps) {
                 label={
                   <span className="flex items-center gap-2 font-medium">
                     <FileTextOutlined className="text-cyan-600" />
-                    Application Title
+                    {t('applicationTitle')}
                   </span>
                 }
                 rules={[
-                  { required: true, message: 'Please enter application title' },
-                  { max: 200, message: 'Title cannot exceed 200 characters' },
+                  { required: true, message: t('titleRequired') },
+                  { max: 200, message: t('titleMaxLength') },
                 ]}
               >
                 <Input 
-                  placeholder="e.g., Annual Leave Request, Sick Leave" 
+                  placeholder={t('titlePlaceholder')}
                   size="large"
                   className="rounded-lg"
                   prefix={<FileTextOutlined className="text-gray-400" />}
-                  suffix={<Tag color="blue">Max 200 chars</Tag>}
+                  suffix={<Tag color="blue">{t('maxChars')}</Tag>}
                 />
               </Form.Item>
             </Col>
@@ -482,38 +485,38 @@ export function ApplicationAddPage({ role }: ApplicationAddPageProps) {
                 label={
                   <span className="flex items-center gap-2 font-medium">
                     <CheckCircleOutlined className="text-cyan-600" />
-                    Application Type
+                    {t('applicationType')}
                   </span>
                 }
-                rules={[{ required: true, message: 'Please select application type' }]}
+                rules={[{ required: true, message: t('typeRequired') }]}
               >
                 <Select 
-                  placeholder="Select type" 
+                  placeholder={t('selectType')}
                   size="large"
                   className="rounded-lg"
                 >
                   <Select.Option value="leave">
                     <Space>
                       <CalendarOutlined className="text-blue-500" />
-                      Leave
+                      {t('leave')}
                     </Space>
                   </Select.Option>
                   <Select.Option value="overtime">
                     <Space>
                       <ClockCircleOutlined className="text-orange-500" />
-                      Overtime
+                      {t('overtime')}
                     </Space>
                   </Select.Option>
                   <Select.Option value="remote">
                     <Space>
                       <EnvironmentOutlined className="text-green-500" />
-                      Remote Work
+                      {t('remoteWork')}
                     </Space>
                   </Select.Option>
                   <Select.Option value="other">
                     <Space>
                       <FileTextOutlined className="text-gray-500" />
-                      Other
+                      {t('other')}
                     </Space>
                   </Select.Option>
                 </Select>
@@ -528,40 +531,40 @@ export function ApplicationAddPage({ role }: ApplicationAddPageProps) {
                 label={
                   <span className="flex items-center gap-2 font-medium">
                     <AlertOutlined className="text-cyan-600" />
-                    Priority Level
+                    {t('priorityLevel')}
                   </span>
                 }
-                rules={[{ required: true, message: 'Please select priority' }]}
-                tooltip="Select the urgency level of this application"
+                rules={[{ required: true, message: t('priorityRequired') }]}
+                tooltip={t('selectUrgencyLevel')}
               >
                 <Select 
-                  placeholder="Select priority" 
+                  placeholder={t('selectPriority')}
                   size="large"
                   className="rounded-lg"
                 >
                   <Select.Option value="low">
                     <Space>
-                      <Tag color="default">Low</Tag>
-                      Can wait
+                      <Tag color="default">{t('low')}</Tag>
+                      {t('canWait')}
                     </Space>
                   </Select.Option>
                   <Select.Option value="medium">
                     <Space>
-                      <Tag color="blue">Medium</Tag>
-                      Normal priority
+                      <Tag color="blue">{t('medium')}</Tag>
+                      {t('normalPriority')}
                     </Space>
                   </Select.Option>
                   <Select.Option value="high">
                     <Space>
-                      <Tag color="orange">High</Tag>
-                      Important
+                      <Tag color="orange">{t('high')}</Tag>
+                      {t('important')}
                     </Space>
                   </Select.Option>
                   <Select.Option value="urgent">
                     <Space>
-                      <Tag color="red">Urgent</Tag>
+                      <Tag color="red">{t('urgent')}</Tag>
                       <ThunderboltOutlined className="text-red-500" />
-                      Immediate attention
+                      {t('immediateAttention')}
                     </Space>
                   </Select.Option>
                 </Select>
@@ -570,8 +573,8 @@ export function ApplicationAddPage({ role }: ApplicationAddPageProps) {
             <Col xs={24} md={12}>
               <div className="h-full flex items-center">
                 <Alert
-                  message="Priority Guide"
-                  description="Select urgency based on how soon approval is needed"
+                  message={t('priorityGuide')}
+                  description={t('priorityGuideDescription')}
                   type="info"
                   showIcon
                   className="w-full"
@@ -583,7 +586,7 @@ export function ApplicationAddPage({ role }: ApplicationAddPageProps) {
           <Divider orientation="left">
             <Space>
               <CalendarOutlined className="text-cyan-600" />
-              <span className="text-gray-700 dark:text-gray-300 font-semibold">Date Range</span>
+              <span className="text-gray-700 dark:text-gray-300 font-semibold">{t('dateRange')}</span>
             </Space>
           </Divider>
 
@@ -594,10 +597,10 @@ export function ApplicationAddPage({ role }: ApplicationAddPageProps) {
                 label={
                   <span className="flex items-center gap-2 font-medium">
                     <CalendarOutlined className="text-cyan-600" />
-                    Start Date
+                    {t('startDate')}
                   </span>
                 }
-                rules={[{ required: true, message: 'Please select start date' }]}
+                rules={[{ required: true, message: t('startDateRequired') }]}
               >
                 <DatePicker
                   style={{ width: '100%' }}
@@ -615,17 +618,17 @@ export function ApplicationAddPage({ role }: ApplicationAddPageProps) {
                 label={
                   <span className="flex items-center gap-2 font-medium">
                     <CalendarOutlined className="text-cyan-600" />
-                    End Date
+                    {t('endDate')}
                   </span>
                 }
                 rules={[
-                  { required: true, message: 'Please select end date' },
+                  { required: true, message: t('endDateRequired') },
                   ({ getFieldValue }) => ({
                     validator(_, value) {
                       if (!value || !getFieldValue('startDate') || value >= getFieldValue('startDate')) {
                         return Promise.resolve()
                       }
-                      return Promise.reject(new Error('End date must be after or equal to start date'))
+                      return Promise.reject(new Error(t('endDateAfterStart')))
                     },
                   }),
                 ]}
@@ -644,7 +647,7 @@ export function ApplicationAddPage({ role }: ApplicationAddPageProps) {
           <Divider orientation="left">
             <Space>
               <FileTextOutlined className="text-cyan-600" />
-              <span className="text-gray-700 dark:text-gray-300 font-semibold">Reason & Justification</span>
+              <span className="text-gray-700 dark:text-gray-300 font-semibold">{t('reasonJustification')}</span>
             </Space>
           </Divider>
 
@@ -653,18 +656,18 @@ export function ApplicationAddPage({ role }: ApplicationAddPageProps) {
             label={
               <span className="flex items-center gap-2 font-medium">
                 <FileTextOutlined className="text-cyan-600" />
-                Reason for Application
+                {t('reasonForApplication')}
               </span>
             }
             rules={[
-              { required: true, message: 'Please enter a reason' },
-              { max: 500, message: 'Reason cannot exceed 500 characters' },
+              { required: true, message: t('reasonRequired') },
+              { max: 500, message: t('reasonMaxLength') },
             ]}
-            tooltip="Provide a clear explanation for this application"
+            tooltip={t('provideExplanation')}
           >
             <TextArea
               rows={5}
-              placeholder="Please provide detailed information about your application..."
+              placeholder={t('reasonPlaceholder')}
               showCount
               maxLength={500}
               className="rounded-lg"
@@ -680,7 +683,7 @@ export function ApplicationAddPage({ role }: ApplicationAddPageProps) {
                 onClick={() => handleNavigation(listPath)}
                 icon={<ArrowLeftOutlined />}
               >
-                Cancel
+                {t('cancel')}
               </EnhancedButton>
               <EnhancedButton
                 variant="primary"
@@ -688,7 +691,7 @@ export function ApplicationAddPage({ role }: ApplicationAddPageProps) {
                 icon={<PlusOutlined />}
                 loading={createApplicationMutation.isPending}
               >
-                Create Application
+                {t('createApplication')}
               </EnhancedButton>
             </div>
           </Form.Item>

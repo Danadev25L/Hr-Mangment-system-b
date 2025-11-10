@@ -3,6 +3,7 @@
 import React from 'react'
 import { Input } from 'antd'
 import { SearchOutlined } from '@ant-design/icons'
+import { useLocale } from 'next-intl'
 
 interface SearchInputProps {
   placeholder?: string
@@ -21,6 +22,9 @@ export const SearchInput: React.FC<SearchInputProps> = ({
   className = '',
   size = 'large',
 }) => {
+  const locale = useLocale()
+  const isRTL = locale === 'ar' || locale === 'ku'
+
   return (
     <div className={`search-input-wrapper ${className}`}>
       <Input.Search
@@ -50,8 +54,9 @@ export const SearchInput: React.FC<SearchInputProps> = ({
         }
         
         .enhanced-search .ant-input {
-          border-radius: 10px 0 0 10px;
-          border-right: none;
+          border-radius: ${isRTL ? '0 10px 10px 0' : '10px 0 0 10px'};
+          border-right: ${isRTL ? 'initial' : 'none'};
+          border-left: ${isRTL ? 'none' : 'initial'};
           font-size: 14px;
           padding: 12px 16px;
           background: rgb(249 250 251);
@@ -76,7 +81,7 @@ export const SearchInput: React.FC<SearchInputProps> = ({
         }
         
         .enhanced-search .ant-btn {
-          border-radius: 0 10px 10px 0;
+          border-radius: ${isRTL ? '10px 0 0 10px' : '0 10px 10px 0'};
           height: 48px;
           padding: 0 24px;
           background: rgb(59 130 246);

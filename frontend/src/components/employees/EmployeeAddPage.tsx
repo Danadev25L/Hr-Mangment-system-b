@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { Form, message } from 'antd'
 import { ArrowLeftOutlined, HomeOutlined, TeamOutlined, PlusOutlined, UserAddOutlined } from '@ant-design/icons'
 import { useRouter } from 'next/navigation'
@@ -42,14 +42,7 @@ export function EmployeeAddPage({ role }: EmployeeAddPageProps) {
   const managerDepartmentId = typeof managerDepartment === 'object' ? managerDepartment?.id : managerDepartment
   const managerDepartmentName = typeof managerDepartment === 'object' ? managerDepartment?.departmentName : t('employees.addPage.yourDepartment') || 'Your Department'
 
-  useEffect(() => {
-    // Only fetch departments if user is admin
-    if (isAdmin) {
-      fetchDepartments()
-    }
-  }, [isAdmin])
-
-  const fetchDepartments = async () => {
+  const fetchDepartments = useCallback(async () => {
     try {
       const response = await apiClient.getDepartments()
       
@@ -76,7 +69,14 @@ export function EmployeeAddPage({ role }: EmployeeAddPageProps) {
       console.error('Error fetching departments:', error)
       message.error(t('employees.addPage.failedToFetchDepartments'))
     }
-  }
+  }, [t])
+
+  useEffect(() => {
+    // Only fetch departments if user is admin
+    if (isAdmin) {
+      fetchDepartments()
+    }
+  }, [isAdmin, fetchDepartments])
 
   const onFinish = async (values: any) => {
     try {

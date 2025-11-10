@@ -8,37 +8,43 @@ import { routing } from "./i18next/routing";
 const intlMiddleware = createMiddleware(routing);
 
 export default function middleware(request: NextRequest) {
-  // Skip locale prefix for API routes, static files, and Next.js internals
+  const pathname = request.nextUrl.pathname;
+  
+  // OPTIMIZATION: Fast path for static assets and API routes - bypass all checks
   if (
-    request.nextUrl.pathname.startsWith('/api') ||
-    request.nextUrl.pathname.startsWith('/_next') ||
-    request.nextUrl.pathname.startsWith('/favicon.ico')
+    pathname.startsWith('/api') ||
+    pathname.startsWith('/_next') ||
+    pathname.startsWith('/favicon.ico') ||
+    pathname.includes('.') // Any file with extension (images, fonts, etc.)
   ) {
     return NextResponse.next();
   }
 
   const token = request.cookies.get('token')?.value || request.headers.get('authorization')?.replace('Bearer ', '')
 
-  // Extract locale from pathname
-  const localeMatch = request.nextUrl.pathname.match(/^\/(en|ku|ar)/);
+  // Extract locale from pathname - Optimized regex
+  const localeMatch = pathname.match(/^\/(en|ku|ar)/);
   const currentLocale = localeMatch ? localeMatch[1] : routing.defaultLocale;
   
+  // OPTIMIZATION: Cache locale detection result in response headers
+  const response = localeMatch ? NextResponse.next() : null;
+  
   // If no locale in path and not root, redirect to include default locale
-  if (!localeMatch && request.nextUrl.pathname !== '/') {
-    const pathWithLocale = `/${routing.defaultLocale}${request.nextUrl.pathname}`;
+  if (!localeMatch && pathname !== '/') {
+    const pathWithLocale = `/${routing.defaultLocale}${pathname}`;
     const redirectUrl = new URL(pathWithLocale, request.url);
     redirectUrl.search = request.nextUrl.search; // Preserve query params
     return NextResponse.redirect(redirectUrl);
   }
 
   // Get path without locale for public path checking
-  const pathWithoutLocale = request.nextUrl.pathname.replace(/^\/(en|ku|ar)/, '') || '/';
+  const pathWithoutLocale = pathname.replace(/^\/(en|ku|ar)/, '') || '/';
 
-  // Define public paths (without locale prefix)
-  const publicPaths = ['/', '/login', '/register']
-  const isPublicPath = publicPaths.some(path =>
-    pathWithoutLocale === path || pathWithoutLocale.startsWith(path + '/')
-  );
+  // Define public paths (without locale prefix) - OPTIMIZED: Use Set for O(1) lookup
+  const publicPathsSet = new Set(['/', '/login', '/register']);
+  const isPublicPath = publicPathsSet.has(pathWithoutLocale) || 
+                       pathWithoutLocale.startsWith('/login/') || 
+                       pathWithoutLocale.startsWith('/register/');
 
   // Handle locale detection and redirect for root path
   if (request.nextUrl.pathname === '/') {

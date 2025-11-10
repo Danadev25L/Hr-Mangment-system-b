@@ -2,6 +2,7 @@
 
 import { useAuth } from '@/hooks/useAuth';
 import apiClient from '@/lib/api';
+import { useTranslations } from 'next-intl';
 import {
   CheckCircleOutlined,
   CloseCircleOutlined,
@@ -68,6 +69,7 @@ interface AttendanceProps {
 export default function ComprehensiveAttendancePage({ role }: AttendanceProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const t = useTranslations('attendance');
   
   // Form instances
   const [checkInForm] = Form.useForm();
@@ -150,80 +152,185 @@ export default function ComprehensiveAttendancePage({ role }: AttendanceProps) {
 
   // Mutations
   const checkInMutation = useMutation({
-    mutationFn: (data: any) => apiClient.markEmployeeCheckIn(data),
-    onSuccess: () => {
-      message.success('Employee checked in successfully!');
-      setCheckInModal(false);
-      checkInForm.resetFields();
-      refetch();
+    mutationFn: (data: any) => {
+      // Add flag to skip global error handling since we handle errors locally
+      return apiClient.httpClient.post('/api/admin/attendance/checkin', data, { skipGlobalError: true });
+    },
+    onSuccess: (response) => {
+      if (response.data.success !== false) {
+        const msg = response.data.message || t('checkInSuccess');
+        message.success(msg);
+        setCheckInModal(false);
+        checkInForm.resetFields();
+        refetch();
+      } else {
+        message.error(response.data.message || t('checkInError'));
+      }
     },
     onError: (error: any) => {
-      message.error(error.response?.data?.message || 'Failed to check in');
+      console.error('Check-in error details:', error);
+      let errorMessage = t('checkInError');
+
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error.response?.data?.errors && Array.isArray(error.response.data.errors)) {
+        errorMessage = error.response.data.errors.join(', ');
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      message.error(errorMessage);
     }
   });
 
   const checkOutMutation = useMutation({
-    mutationFn: (data: any) => apiClient.markEmployeeCheckOut(data),
-    onSuccess: () => {
-      message.success('Employee checked out successfully!');
-      setCheckOutModal(false);
-      checkOutForm.resetFields();
-      refetch();
+    mutationFn: (data: any) => {
+      // Add flag to skip global error handling since we handle errors locally
+      return apiClient.httpClient.post('/api/admin/attendance/checkout', data, { skipGlobalError: true });
+    },
+    onSuccess: (response) => {
+      if (response.data.success !== false) {
+        const msg = response.data.message || t('checkOutSuccess');
+        message.success(msg);
+        setCheckOutModal(false);
+        checkOutForm.resetFields();
+        refetch();
+      } else {
+        message.error(response.data.message || t('checkOutError'));
+      }
     },
     onError: (error: any) => {
-      message.error(error.response?.data?.message || 'Failed to check out');
+      console.error('Check-out error details:', error);
+      let errorMessage = t('checkOutError');
+
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error.response?.data?.errors && Array.isArray(error.response.data.errors)) {
+        errorMessage = error.response.data.errors.join(', ');
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      message.error(errorMessage);
     }
   });
 
   const markAbsentMutation = useMutation({
-    mutationFn: (data: any) => apiClient.markEmployeeAbsent(data),
-    onSuccess: () => {
-      message.success('Employee marked as absent!');
-      setAbsentModal(false);
-      absentForm.resetFields();
-      refetch();
+    mutationFn: (data: any) => {
+      // Add flag to skip global error handling since we handle errors locally
+      return apiClient.httpClient.post('/api/admin/attendance/absent', data, { skipGlobalError: true });
+    },
+    onSuccess: (response) => {
+      if (response.data.success !== false) {
+        const msg = response.data.message || t('markedAbsentSuccess');
+        message.success(msg);
+        setAbsentModal(false);
+        absentForm.resetFields();
+        refetch();
+      } else {
+        message.error(response.data.message || t('markAbsentError'));
+      }
     },
     onError: (error: any) => {
-      message.error(error.response?.data?.message || 'Failed to mark absent');
+      console.error('Mark absent error details:', error);
+      let errorMessage = t('markAbsentError');
+
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error.response?.data?.errors && Array.isArray(error.response.data.errors)) {
+        errorMessage = error.response.data.errors.join(', ');
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      message.error(errorMessage);
     }
   });
 
   const addLatencyMutation = useMutation({
-    mutationFn: (data: any) => apiClient.addLatency(data),
-    onSuccess: () => {
-      message.success('Latency added successfully!');
-      setLatencyModal(false);
-      latencyForm.resetFields();
-      refetch();
+    mutationFn: (data: any) => {
+      // Add flag to skip global error handling since we handle errors locally
+      return apiClient.httpClient.post('/api/admin/attendance/latency', data, { skipGlobalError: true });
+    },
+    onSuccess: (response) => {
+      if (response.data.success !== false) {
+        const msg = response.data.message || t('latencyAddedSuccess');
+        message.success(msg);
+        setLatencyModal(false);
+        latencyForm.resetFields();
+        refetch();
+      } else {
+        message.error(response.data.message || t('addLatencyError'));
+      }
     },
     onError: (error: any) => {
-      message.error(error.response?.data?.message || 'Failed to add latency');
+      console.error('Add latency error details:', error);
+      let errorMessage = t('addLatencyError');
+
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error.response?.data?.errors && Array.isArray(error.response.data.errors)) {
+        errorMessage = error.response.data.errors.join(', ');
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      message.error(errorMessage);
     }
   });
 
   const addEarlyDepartureMutation = useMutation({
-    mutationFn: (data: any) => apiClient.addEarlyDeparture(data),
-    onSuccess: () => {
-      message.success('Early departure added successfully!');
-      setEarlyDepartureModal(false);
-      earlyDepartureForm.resetFields();
-      refetch();
+    mutationFn: (data: any) => {
+      // Add flag to skip global error handling since we handle errors locally
+      return apiClient.httpClient.post('/api/admin/attendance/early-departure', data, { skipGlobalError: true });
+    },
+    onSuccess: (response) => {
+      if (response.data.success !== false) {
+        const msg = response.data.message || t('earlyDepartureAddedSuccess');
+        message.success(msg);
+        setEarlyDepartureModal(false);
+        earlyDepartureForm.resetFields();
+        refetch();
+      } else {
+        message.error(response.data.message || t('addEarlyDepartureError'));
+      }
     },
     onError: (error: any) => {
-      message.error(error.response?.data?.message || 'Failed to add early departure');
+      console.error('Add early departure error details:', error);
+      let errorMessage = t('addEarlyDepartureError');
+
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error.response?.data?.errors && Array.isArray(error.response.data.errors)) {
+        errorMessage = error.response.data.errors.join(', ');
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      message.error(errorMessage);
     }
   });
 
   const addLeaveMutation = useMutation({
     mutationFn: (data: any) => apiClient.addPartialLeave(data),
     onSuccess: () => {
-      message.success('Leave period added successfully!');
+      message.success(t('leaveAddedSuccess'));
       setLeaveModal(false);
       leaveForm.resetFields();
       refetch();
     },
     onError: (error: any) => {
-      message.error(error.response?.data?.message || 'Failed to add leave');
+      message.error(error.response?.data?.message || t('addLeaveError'));
     }
   });
 
@@ -233,7 +340,7 @@ export default function ComprehensiveAttendancePage({ role }: AttendanceProps) {
     const [hours, minutes] = defaultCheckInTime.split(':');
     checkInForm.setFieldsValue({
       checkInTime: dayjs().hour(parseInt(hours)).minute(parseInt(minutes)),
-      location: 'Office',
+      location: t('office'),
       notes: ''
     });
     setCheckInModal(true);
@@ -244,7 +351,7 @@ export default function ComprehensiveAttendancePage({ role }: AttendanceProps) {
     const [hours, minutes] = defaultCheckOutTime.split(':');
     checkOutForm.setFieldsValue({
       checkOutTime: dayjs().hour(parseInt(hours)).minute(parseInt(minutes)),
-      location: 'Office',
+      location: t('office'),
       notes: ''
     });
     setCheckOutModal(true);
@@ -747,10 +854,11 @@ export default function ComprehensiveAttendancePage({ role }: AttendanceProps) {
               const minutesLate = actualCheckIn.diff(expectedCheckIn, 'minute');
               
               checkInMutation.mutate({
-                employeeId: selectedEmployee!.id,
-                checkInTime: checkInDateTime.toISOString(),
-                expectedCheckInTime: expectedCheckIn.toISOString(), // Send expected time
-                location: values.location,
+                employeeId: parseInt(selectedEmployee!.id), // Ensure employeeId is a number
+                date: selectedDate,
+                checkInTime: checkInDateTime.format('YYYY-MM-DD HH:mm:ss'),
+                expectedCheckInTime: expectedCheckIn.format('YYYY-MM-DD HH:mm:ss'),
+                location: values.location || '',
                 notes: values.notes + (minutesLate > 0 ? ` (${minutesLate} min late)` : '')
               });
             }}

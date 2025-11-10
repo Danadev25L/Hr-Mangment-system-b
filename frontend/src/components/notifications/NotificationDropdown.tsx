@@ -124,6 +124,25 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ loca
   const unreadNotifications = notifications?.filter((n: Notification) => !n.isRead) || []
   const recentNotifications = unreadNotifications.slice(0, 5)
 
+  // Helper function to translate notification title/message with metadata
+  const translateNotificationText = (text: string, metadata: any) => {
+    // Check if text is a translation key (contains dots)
+    if (text && text.includes('.') && !text.includes(' ')) {
+      try {
+        // Try to translate the key
+        const translated = t(text as any, metadata || {})
+        // If translation was successful and not the same as key, return it
+        if (translated && translated !== text) {
+          return translated
+        }
+      } catch (error) {
+        console.warn('Translation failed for:', text)
+      }
+    }
+    // Return original text if not a translation key or translation failed
+    return text
+  }
+
   const getNotificationIcon = (type: string) => {
     const iconMap: Record<string, string> = {
       'salary_generated': '💰',
@@ -194,11 +213,11 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ loca
   // }
 
   const dropdownContent = (
-    <div className="w-96 max-h-[500px] overflow-hidden bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700">
+    <div className="w-[calc(100vw-2rem)] sm:w-96 max-h-[70vh] sm:max-h-[500px] overflow-hidden bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700">
       {/* Header */}
-      <div className="px-4 py-3 bg-gradient-to-r from-blue-500 to-blue-600 dark:from-blue-600 dark:to-blue-700">
+      <div className="px-3 sm:px-4 py-2 sm:py-3 bg-gradient-to-r from-blue-500 to-blue-600 dark:from-blue-600 dark:to-blue-700">
         <div className="flex items-center justify-between">
-          <h3 className="text-white font-semibold text-base">
+          <h3 className="text-white font-semibold text-sm sm:text-base">
             {t('notifications.title')}
           </h3>
           {unreadCount > 0 && (
@@ -207,23 +226,24 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ loca
               size="small"
               icon={<CheckOutlined />}
               onClick={handleMarkAllRead}
-              className="!text-white hover:!text-blue-100"
+              className="!text-white hover:!text-blue-100 !text-xs sm:!text-sm"
               loading={markAllAsReadMutation.isPending}
             >
-              {t('notifications.markAllRead')}
+              <span className="hidden sm:inline">{t('notifications.markAllRead')}</span>
+              <span className="sm:hidden">{t('notifications.markAllRead')}</span>
             </Button>
           )}
         </div>
       </div>
 
       {/* Notifications List */}
-      <div className="overflow-y-auto max-h-[400px]">
+      <div className="overflow-y-auto max-h-[calc(70vh-120px)] sm:max-h-[400px]">
         {isLoading ? (
-          <div className="flex items-center justify-center py-12">
+          <div className="flex items-center justify-center py-8 sm:py-12">
             <Spin />
           </div>
         ) : recentNotifications.length === 0 ? (
-          <div className="py-12">
+          <div className="py-8 sm:py-12">
             <Empty
               image={Empty.PRESENTED_IMAGE_SIMPLE}
               description={t('notifications.noNotifications')}
@@ -234,13 +254,13 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ loca
             <div
               key={notification.id}
               onClick={() => handleNotificationClick(notification)}
-              className={`px-4 py-4 border-b border-gray-100 dark:border-gray-700 cursor-pointer transition-all hover:bg-gray-50 dark:hover:bg-gray-750 ${
+              className={`px-3 sm:px-4 py-3 sm:py-4 border-b border-gray-100 dark:border-gray-700 cursor-pointer transition-all hover:bg-gray-50 dark:hover:bg-gray-750 ${
                 !notification.isRead ? 'bg-blue-50 dark:bg-blue-900/10 border-l-4 border-l-blue-500' : ''
               }`}
             >
-              <div className="flex items-start space-x-3">
+              <div className="flex items-start space-x-2 sm:space-x-3">
                 {/* Icon */}
-                <div className={`text-2xl flex-shrink-0 mt-1 w-10 h-10 rounded-full flex items-center justify-center ${
+                <div className={`text-xl sm:text-2xl flex-shrink-0 mt-0.5 sm:mt-1 w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center ${
                   !notification.isRead
                     ? 'bg-blue-100 dark:bg-blue-800/50'
                     : 'bg-gray-100 dark:bg-gray-700'
@@ -250,36 +270,34 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ loca
 
                 {/* Content */}
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between mb-2">
-                    <h4 className={`text-sm font-semibold flex-1 pr-2 ${
+                  <div className="flex items-start justify-between mb-1 sm:mb-2">
+                    <h4 className={`text-xs sm:text-sm font-semibold flex-1 pr-2 break-words ${
                       !notification.isRead
                         ? 'text-gray-900 dark:text-white'
                         : 'text-gray-700 dark:text-gray-300'
                     }`}>
-                      {notification.title}
+                      {translateNotificationText(notification.title, notification.metadata)}
                     </h4>
                     <div className="flex items-center gap-1 flex-shrink-0">
                       {!notification.isRead && (
-                        <Tag color="blue" className="!text-xs !py-0.5 !px-2 !m-0">
+                        <Tag color="blue" className="!text-[10px] sm:!text-xs !py-0.5 !px-1.5 sm:!px-2 !m-0">
                           {t('notifications.new')}
                         </Tag>
                       )}
                     </div>
                   </div>
 
-                  <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2 mb-2 leading-relaxed">
-                    {notification.message}
+                  <p className="text-[11px] sm:text-xs text-gray-800 dark:text-gray-400 line-clamp-2 mb-1 sm:mb-2 leading-relaxed break-words">
+                    {translateNotificationText(notification.message, notification.metadata)}
                   </p>
 
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <Tag color={getNotificationColor(notification.type)} className="!text-xs !py-0.5 !px-2">
-                        {getNotificationTypeLabel(notification.type)}
-                      </Tag>
-                      <span className="text-xs text-gray-500 dark:text-gray-500 font-medium">
-                        {getRelativeTime(notification.createdAt)}
-                      </span>
-                    </div>
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-1 sm:gap-3">
+                    <Tag color={getNotificationColor(notification.type)} className="!text-[10px] sm:!text-xs !py-0.5 !px-1.5 sm:!px-2">
+                      {getNotificationTypeLabel(notification.type)}
+                    </Tag>
+                    <span className="text-[10px] sm:text-xs text-gray-700 dark:text-gray-500 font-medium">
+                      {getRelativeTime(notification.createdAt)}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -292,13 +310,13 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ loca
       {recentNotifications.length > 0 && (
         <>
           <Divider className="!my-0" />
-          <div className="px-4 py-3 bg-gray-50 dark:bg-gray-800">
+          <div className="px-3 sm:px-4 py-2 sm:py-3 bg-gray-50 dark:bg-gray-800">
             <Button
               type="primary"
               block
               icon={<EyeOutlined />}
               onClick={handleViewAll}
-              className="!bg-blue-500 hover:!bg-blue-600 !border-blue-500"
+              className="!bg-blue-500 hover:!bg-blue-600 !border-blue-500 !text-xs sm:!text-sm"
             >
               {t('notifications.viewAll')}
             </Button>
@@ -316,14 +334,14 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ loca
       onOpenChange={setOpen}
       placement="bottomRight"
     >
-      <button className="relative flex items-center gap-2 px-3 py-2 rounded-lg bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md group">
-        <BellOutlined className="text-lg text-purple-600 dark:text-purple-400 group-hover:scale-110 transition-transform" />
+      <button className="relative flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md group">
+        <BellOutlined className="text-base sm:text-lg text-purple-600 dark:text-purple-400 group-hover:scale-110 transition-transform" />
         {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-[20px] h-5 px-1.5 text-xs font-bold text-white bg-gradient-to-br from-red-500 to-pink-600 rounded-full shadow-lg animate-pulse">
+          <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-[18px] sm:min-w-[20px] h-4 sm:h-5 px-1 sm:px-1.5 text-[10px] sm:text-xs font-bold text-white bg-gradient-to-br from-red-500 to-pink-600 rounded-full shadow-lg animate-pulse">
             {unreadCount > 99 ? '99+' : unreadCount}
           </span>
         )}
-        <span className="text-sm font-semibold text-gray-900 dark:text-white hidden md:inline">
+        <span className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-white hidden md:inline">
           {unreadCount > 0 ? `${unreadCount} ${t('notifications.new')}` : t('notifications.title')}
         </span>
       </button>

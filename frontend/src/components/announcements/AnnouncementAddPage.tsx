@@ -42,6 +42,7 @@ export function AnnouncementAddPage({ role, title, description }: AnnouncementAd
   const [form] = Form.useForm()
   const [selectedDepartment, setSelectedDepartment] = useState<number | null>(null)
   const [isCompanyWide, setIsCompanyWide] = useState(false)
+  const isRTL = locale === 'ar' || locale === 'ku'
 
   const basePath = role === 'admin' ? '/admin/announcements' : '/manager/announcements'
 
@@ -159,7 +160,7 @@ export function AnnouncementAddPage({ role, title, description }: AnnouncementAd
                 label={t('announcements.scope')}
                 tooltip={t('announcements.scopeTooltip')}
               >
-                <Space>
+                <Space direction={isRTL ? 'horizontal' : 'horizontal'}>
                   <span>{t('announcements.departmentSpecific')}</span>
                   <Switch 
                     checked={isCompanyWide}

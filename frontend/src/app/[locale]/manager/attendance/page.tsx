@@ -8,7 +8,8 @@ import {
   CheckCircleOutlined, 
   CloseCircleOutlined,
   WarningOutlined,
-  UserOutlined
+  UserOutlined,
+  CalendarOutlined
 } from '@ant-design/icons'
 import { DashboardLayout } from '@/components/layout/DashboardLayout'
 import { useAuth } from '@/hooks/useAuth'
@@ -28,6 +29,7 @@ interface TeamAttendance {
   status: string
   isLate: boolean
   lateMinutes: number
+  holidayName?: string
   user: {
     id: number
     fullName: string
@@ -42,6 +44,9 @@ interface TodayStats {
   absent: number
   late: number
   checkedOut: number
+  onHoliday?: number
+  isHoliday?: boolean
+  holidayName?: string
 }
 
 export default function ManagerTeamAttendancePage() {
@@ -51,6 +56,8 @@ export default function ManagerTeamAttendancePage() {
   const [teamAttendance, setTeamAttendance] = useState<TeamAttendance[]>([])
   const [todayAttendance, setTodayAttendance] = useState<TeamAttendance[]>([])
   const [todayStats, setTodayStats] = useState<TodayStats | null>(null)
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([])
+  const [selectedTodayRowKeys, setSelectedTodayRowKeys] = useState<React.Key[]>([])
   const [dateRange, setDateRange] = useState<[Dayjs, Dayjs]>([
     dayjs().startOf('month'),
     dayjs().endOf('month')
@@ -93,7 +100,10 @@ export default function ManagerTeamAttendancePage() {
     fetchTeamAttendance()
   }, [dateRange, fetchTeamAttendance])
 
-  const getStatusTag = (status: string, isLate: boolean, lateMinutes: number) => {
+  const getStatusTag = (status: string, isLate: boolean, lateMinutes: number, holidayName?: string) => {
+    if (status === 'holiday') {
+      return <Tag color="purple" icon={<CalendarOutlined />}>Holiday{holidayName ? ` - ${holidayName}` : ''}</Tag>
+    }
     if (isLate) {
       return <Tag color="warning" icon={<WarningOutlined />}>Late ({lateMinutes}m)</Tag>
     }
@@ -109,6 +119,46 @@ export default function ManagerTeamAttendancePage() {
       default:
         return <Tag>{status}</Tag>
     }
+  }
+
+  // Row selection for today's attendance
+  const todayRowSelection = {
+    selectedRowKeys: selectedTodayRowKeys,
+    onChange: (selectedKeys: React.Key[]) => {
+      setSelectedTodayRowKeys(selectedKeys)
+    },
+    selections: [
+      Table.SELECTION_ALL,
+      Table.SELECTION_INVERT,
+      Table.SELECTION_NONE,
+    ],
+  }
+
+  // Row selection for attendance history
+  const rowSelection = {
+    selectedRowKeys,
+    onChange: (selectedKeys: React.Key[]) => {
+      setSelectedRowKeys(selectedKeys)
+    },
+    selections: [
+      Table.SELECTION_ALL,
+      Table.SELECTION_INVERT,
+      Table.SELECTION_NONE,
+    ],
+  }
+
+  const handleBulkAction = () => {
+    if (selectedRowKeys.length === 0 && selectedTodayRowKeys.length === 0) {
+      message.warning('Please select at least one record')
+      return
+    }
+    message.info(`Selected ${selectedRowKeys.length || selectedTodayRowKeys.length} record(s)`)
+  }
+
+  const clearSelection = () => {
+    setSelectedRowKeys([])
+    setSelectedTodayRowKeys([])
+    message.success('Selection cleared')
   }
 
   const todayColumns: ColumnsType<TeamAttendance> = [
@@ -131,18 +181,24 @@ export default function ManagerTeamAttendancePage() {
       title: 'Check In',
       dataIndex: 'checkIn',
       key: 'checkIn',
-      render: (checkIn) => checkIn ? dayjs(checkIn).format('hh:mm A') : '-'
+      render: (checkIn, record) => {
+        if (record.status === 'holiday') return <Tag color="purple">Holiday</Tag>
+        return checkIn ? dayjs(checkIn).format('hh:mm A') : '-'
+      }
     },
     {
       title: 'Check Out',
       dataIndex: 'checkOut',
       key: 'checkOut',
-      render: (checkOut) => checkOut ? dayjs(checkOut).format('hh:mm A') : '-'
+      render: (checkOut, record) => {
+        if (record.status === 'holiday') return <Tag color="purple">Holiday</Tag>
+        return checkOut ? dayjs(checkOut).format('hh:mm A') : '-'
+      }
     },
     {
       title: 'Status',
       key: 'status',
-      render: (_, record) => getStatusTag(record.status, record.isLate, record.lateMinutes)
+      render: (_, record) => getStatusTag(record.status, record.isLate, record.lateMinutes, record.holidayName)
     }
   ]
 
@@ -167,19 +223,26 @@ export default function ManagerTeamAttendancePage() {
       title: 'Check In',
       dataIndex: 'checkIn',
       key: 'checkIn',
-      render: (checkIn) => checkIn ? dayjs(checkIn).format('hh:mm A') : '-'
+      render: (checkIn, record) => {
+        if (record.status === 'holiday') return <Tag color="purple">Holiday</Tag>
+        return checkIn ? dayjs(checkIn).format('hh:mm A') : '-'
+      }
     },
     {
       title: 'Check Out',
       dataIndex: 'checkOut',
       key: 'checkOut',
-      render: (checkOut) => checkOut ? dayjs(checkOut).format('hh:mm A') : '-'
+      render: (checkOut, record) => {
+        if (record.status === 'holiday') return <Tag color="purple">Holiday</Tag>
+        return checkOut ? dayjs(checkOut).format('hh:mm A') : '-'
+      }
     },
     {
       title: 'Working Hours',
       dataIndex: 'workingHours',
       key: 'workingHours',
-      render: (minutes) => {
+      render: (minutes, record) => {
+        if (record.status === 'holiday') return '-'
         if (!minutes) return '-'
         const hours = Math.floor(minutes / 60)
         const mins = minutes % 60
@@ -189,7 +252,7 @@ export default function ManagerTeamAttendancePage() {
     {
       title: 'Status',
       key: 'status',
-      render: (_, record) => getStatusTag(record.status, record.isLate, record.lateMinutes)
+      render: (_, record) => getStatusTag(record.status, record.isLate, record.lateMinutes, record.holidayName)
     }
   ]
 
@@ -199,6 +262,12 @@ export default function ManagerTeamAttendancePage() {
         <h1 className="text-2xl font-bold mb-6">
           <TeamOutlined /> Team Attendance
         </h1>
+        
+        <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded">
+          <p className="text-sm text-blue-800">
+            <strong>Note:</strong> Managers can view team attendance records. All attendance actions (check-in, check-out, edits, and approvals) are handled by administrators only.
+          </p>
+        </div>
 
       <Tabs 
         defaultActiveKey="today"
@@ -210,6 +279,18 @@ export default function ManagerTeamAttendancePage() {
               <>
           {/* Today's Statistics */}
           {todayStats && (
+            <>
+              {todayStats.isHoliday && (
+                <div className="mb-4 p-4 bg-purple-50 border border-purple-300 rounded">
+                  <p className="text-lg font-semibold text-purple-800">
+                    <CalendarOutlined className="mr-2" />
+                    Today is a Public Holiday: {todayStats.holidayName}
+                  </p>
+                  <p className="text-sm text-purple-700 mt-1">
+                    All {todayStats.totalTeamMembers} team members are marked as on holiday.
+                  </p>
+                </div>
+              )}
             <Row gutter={16} className="mb-6">
               <Col span={6}>
                 <Card>
@@ -223,10 +304,10 @@ export default function ManagerTeamAttendancePage() {
               <Col span={6}>
                 <Card>
                   <Statistic
-                    title="Present"
-                    value={todayStats.present}
-                    valueStyle={{ color: '#3f8600' }}
-                    prefix={<CheckCircleOutlined />}
+                    title={todayStats.isHoliday ? "On Holiday" : "Present"}
+                    value={todayStats.isHoliday ? todayStats.onHoliday : todayStats.present}
+                    valueStyle={{ color: todayStats.isHoliday ? '#722ed1' : '#3f8600' }}
+                    prefix={todayStats.isHoliday ? <CalendarOutlined /> : <CheckCircleOutlined />}
                     suffix={`/ ${todayStats.totalTeamMembers}`}
                   />
                 </Card>
@@ -252,16 +333,32 @@ export default function ManagerTeamAttendancePage() {
                 </Card>
               </Col>
             </Row>
+            </>
           )}
 
           {/* Today's Attendance Table */}
-          <Card title={`Today - ${dayjs().format('MMMM DD, YYYY')}`}>
+          <Card 
+            title={`Today - ${dayjs().format('MMMM DD, YYYY')}`}
+            extra={
+              selectedTodayRowKeys.length > 0 && (
+                <Space>
+                  <Button onClick={clearSelection} size="small">
+                    Clear Selection
+                  </Button>
+                  <span className="text-sm text-gray-600">
+                    {selectedTodayRowKeys.length} selected
+                  </span>
+                </Space>
+              )
+            }
+          >
             <Table
               columns={todayColumns}
               dataSource={todayAttendance}
               rowKey="id"
               loading={todayLoading}
               pagination={false}
+              rowSelection={todayRowSelection}
             />
           </Card>
               </>
@@ -275,11 +372,23 @@ export default function ManagerTeamAttendancePage() {
           <Card
             title="Team Attendance Records"
             extra={
-              <RangePicker
-                value={dateRange}
-                onChange={(dates) => dates && setDateRange(dates as [Dayjs, Dayjs])}
-                format="YYYY-MM-DD"
-              />
+              <Space>
+                <RangePicker
+                  value={dateRange}
+                  onChange={(dates) => dates && setDateRange(dates as [Dayjs, Dayjs])}
+                  format="YYYY-MM-DD"
+                />
+                {selectedRowKeys.length > 0 && (
+                  <>
+                    <Button onClick={clearSelection} size="small">
+                      Clear Selection
+                    </Button>
+                    <span className="text-sm text-gray-600">
+                      {selectedRowKeys.length} selected
+                    </span>
+                  </>
+                )}
+              </Space>
             }
           >
             <Table
@@ -287,6 +396,7 @@ export default function ManagerTeamAttendancePage() {
               dataSource={teamAttendance}
               rowKey={(record) => `${record.id}-${record.userId}`}
               loading={loading}
+              rowSelection={rowSelection}
               pagination={{
                 pageSize: 15,
                 showSizeChanger: true,

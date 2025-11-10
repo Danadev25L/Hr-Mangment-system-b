@@ -30,6 +30,9 @@ import {
 } from 'chart.js'
 import apiClient from '@/lib/api'
 import dayjs from 'dayjs'
+import 'dayjs/locale/ar'
+import 'dayjs/locale/ku'
+import 'dayjs/locale/en'
 import { useRouter } from 'next/navigation'
 import { StatCard, LineChartCard, PieChartCard, DoughnutChartCard, CalendarEventCard } from '@/components/charts'
 
@@ -46,7 +49,7 @@ ChartJS.register(
   Filler
 )
 
-export default function EmployeeDashboard() {
+const EmployeeDashboard = React.memo(function EmployeeDashboard() {
   const t = useTranslations()
   const locale = useLocale()
   const router = useRouter()
@@ -98,7 +101,7 @@ export default function EmployeeDashboard() {
     labels: last7Days.map(d => d.date),
     datasets: [
       {
-        label: 'Attendance',
+        label: t('attendance.title'),
         data: last7Days.map(d => d.present),
         borderColor: '#10b981',
         backgroundColor: 'rgba(16, 185, 129, 0.1)',
@@ -109,7 +112,7 @@ export default function EmployeeDashboard() {
   }
 
   const attendanceDistributionData = {
-    labels: ['Present', 'Late', 'Absent'],
+    labels: [t('dashboard.present'), t('dashboard.late'), t('dashboard.absent')],
     datasets: [
       {
         data: [presentDays, lateDays, absentDays],
@@ -120,7 +123,7 @@ export default function EmployeeDashboard() {
   }
 
   const applicationsStatusData = {
-    labels: ['Pending', 'Approved', 'Rejected'],
+    labels: [t('applications.pending'), t('applications.approved'), t('applications.rejected')],
     datasets: [
       {
         data: [pendingApps, approvedApps, rejectedApps],
@@ -131,10 +134,10 @@ export default function EmployeeDashboard() {
   }
 
   const performanceData = {
-    labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
+    labels: [t('dashboard.week1'), t('dashboard.week2'), t('dashboard.week3'), t('dashboard.week4')],
     datasets: [
       {
-        label: 'Performance',
+        label: t('dashboard.performance'),
         data: [85, 88, 92, 90],
         backgroundColor: 'rgba(139, 92, 246, 0.8)',
       }
@@ -203,7 +206,7 @@ export default function EmployeeDashboard() {
       value: pendingApps,
       icon: <FileTextOutlined />,
       color: 'blue' as const,
-      trend: 'Pending',
+      trend: t('applications.pending'),
       isUp: false,
       onClick: () => router.push(`/${locale}/employee/applications`)
     },
@@ -212,7 +215,7 @@ export default function EmployeeDashboard() {
       value: announcements.length,
       icon: <BellOutlined />,
       color: 'purple' as const,
-      trend: 'New updates',
+      trend: t('dashboard.viewAll'),
       isUp: true,
       onClick: () => router.push(`/${locale}/employee/announcements`)
     },
@@ -228,18 +231,18 @@ export default function EmployeeDashboard() {
             {t('dashboard.welcome')}
           </h1>
           <p className="text-gray-500 dark:text-gray-400 mt-2 text-lg">
-            Here&apos;s what&apos;s happening with your work today
+            {t('dashboard.whatsHappeningTodayEmployee')}
           </p>
         </div>
         <div className="text-right">
           <div className="text-sm text-gray-500 dark:text-gray-400">
-            {dayjs().format('dddd')}
+            {dayjs().locale(locale).format('dddd')}
           </div>
           <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-            {dayjs().format('MMM DD, YYYY')}
+            {dayjs().locale(locale).format('MMM DD, YYYY')}
           </div>
           <div className="text-lg text-gray-600 dark:text-gray-300">
-            {dayjs().format('HH:mm A')}
+            {dayjs().locale(locale).format('HH:mm A')}
           </div>
         </div>
       </div>
@@ -277,9 +280,10 @@ export default function EmployeeDashboard() {
               type="primary"
               icon={<PlusOutlined />}
               onClick={() => router.push(`/${locale}/employee/applications/new`)}
-              className="h-24 bg-blue-500 hover:bg-blue-600 flex flex-col items-center justify-center"
+              className="h-28 bg-blue-500 hover:bg-blue-600 flex flex-col items-center justify-center text-white dark:text-white"
+              style={{ minHeight: '112px', maxWidth: '160px' }}
             >
-              <div className="text-sm mt-1">{t('applications.apply')}</div>
+              <div className="text-xs font-medium text-center">{t('applications.apply')}</div>
             </Button>
           </Col>
           <Col xs={12} sm={8} md={6} lg={4}>
@@ -288,9 +292,10 @@ export default function EmployeeDashboard() {
               size="large"
               icon={<ClockCircleOutlined />}
               onClick={() => router.push(`/${locale}/employee/attendance`)}
-              className="h-24 hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-200 flex flex-col items-center justify-center"
+              className="h-28 hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-200 flex flex-col items-center justify-center border border-gray-300 dark:border-gray-600"
+              style={{ minHeight: '112px', maxWidth: '160px' }}
             >
-              <div className="text-sm mt-1">{t('attendance.myAttendance')}</div>
+              <div className="text-xs font-medium text-center">{t('attendance.myAttendance')}</div>
             </Button>
           </Col>
           <Col xs={12} sm={8} md={6} lg={4}>
@@ -299,9 +304,10 @@ export default function EmployeeDashboard() {
               size="large"
               icon={<DollarCircleOutlined />}
               onClick={() => router.push(`/${locale}/employee/expenses/new`)}
-              className="h-24 hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-200 flex flex-col items-center justify-center"
+              className="h-28 hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-200 flex flex-col items-center justify-center border border-gray-300 dark:border-gray-600"
+              style={{ minHeight: '112px', maxWidth: '160px' }}
             >
-              <div className="text-sm mt-1">{t('expenses.submit')}</div>
+              <div className="text-xs font-medium text-center">{t('expenses.submit')}</div>
             </Button>
           </Col>
           <Col xs={12} sm={8} md={6} lg={4}>
@@ -310,9 +316,10 @@ export default function EmployeeDashboard() {
               size="large"
               icon={<UserOutlined />}
               onClick={() => router.push(`/${locale}/employee/profile`)}
-              className="h-24 hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-200 flex flex-col items-center justify-center"
+              className="h-28 hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-200 flex flex-col items-center justify-center border border-gray-300 dark:border-gray-600"
+              style={{ minHeight: '112px', maxWidth: '160px' }}
             >
-              <div className="text-sm mt-1">{t('profile.title')}</div>
+              <div className="text-xs font-medium text-center">{t('profile.title')}</div>
             </Button>
           </Col>
           <Col xs={12} sm={8} md={6} lg={4}>
@@ -321,9 +328,10 @@ export default function EmployeeDashboard() {
               size="large"
               icon={<BellOutlined />}
               onClick={() => router.push(`/${locale}/employee/announcements`)}
-              className="h-24 hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-200 flex flex-col items-center justify-center"
+              className="h-28 hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-200 flex flex-col items-center justify-center border border-gray-300 dark:border-gray-600"
+              style={{ minHeight: '112px', maxWidth: '160px' }}
             >
-              <div className="text-sm mt-1">{t('announcements.title')}</div>
+              <div className="text-xs font-medium text-center">{t('announcements.title')}</div>
             </Button>
           </Col>
           <Col xs={12} sm={8} md={6} lg={4}>
@@ -332,9 +340,10 @@ export default function EmployeeDashboard() {
               size="large"
               icon={<EyeOutlined />}
               onClick={() => router.push(`/${locale}/employee/applications`)}
-              className="h-24 hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-200 flex flex-col items-center justify-center"
+              className="h-28 hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-200 flex flex-col items-center justify-center border border-gray-300 dark:border-gray-600"
+              style={{ minHeight: '112px', maxWidth: '160px' }}
             >
-              <div className="text-sm mt-1">{t('applications.viewAll')}</div>
+              <div className="text-xs font-medium text-center">{t('applications.viewAll')}</div>
             </Button>
           </Col>
         </Row>
@@ -476,5 +485,9 @@ export default function EmployeeDashboard() {
       </Card>
     </div>
   )
-}
+})
+
+EmployeeDashboard.displayName = 'EmployeeDashboard'
+
+export default EmployeeDashboard
 

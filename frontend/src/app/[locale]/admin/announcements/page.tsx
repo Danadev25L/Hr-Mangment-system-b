@@ -1,10 +1,10 @@
 import { DashboardLayout } from '@/components/layout/DashboardLayout'
 import { ProtectedRoute } from '@/components/layout/ProtectedRoute'
 import { AnnouncementListPage } from '@/components/announcements/AnnouncementListPage'
-import { useTranslations } from 'next-intl'
+import { getTranslations } from 'next-intl/server'
 
-export default function AdminAnnouncementsPage() {
-  const t = useTranslations()
+export default async function AdminAnnouncementsPage() {
+  const t = await getTranslations()
   
   return (
     <ProtectedRoute requiredRole="ROLE_ADMIN">

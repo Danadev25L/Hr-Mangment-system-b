@@ -13,7 +13,7 @@ import {
   ClearOutlined,
   PrinterOutlined,
 } from '@ant-design/icons'
-import { useSearchParams, usePathname } from 'next/navigation'
+import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import dayjs from 'dayjs'
 import * as XLSX from 'xlsx'
 import jsPDF from 'jspdf'
@@ -38,6 +38,7 @@ interface ApplicationListPageProps {
 }
 
 export default function ApplicationListPage({ role, title, description }: ApplicationListPageProps) {
+  const router = useRouter()
   const t = useTranslations()
   const locale = useLocale()
   const queryClient = useQueryClient()
@@ -63,7 +64,7 @@ export default function ApplicationListPage({ role, title, description }: Applic
 
   const handleNavigation = (path: string) => {
     if (typeof window !== 'undefined') {
-      window.location.href = path
+      router.push(path)
     }
   }
 

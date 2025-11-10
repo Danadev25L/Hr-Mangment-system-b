@@ -1,4 +1,5 @@
-import { eq, and, gte, lte, desc, sql, or } from 'drizzle-orm';
+import { eq, and, gte, lte, desc, sql, or, inArray } from 'drizzle-orm';
+
 import { db } from '../../../db/index.js';
 import { 
   attendanceRecords, 
@@ -6,12 +7,14 @@ import {
   attendanceSummary,
   users,
   daysWorking,
-  notifications
+  notifications,
+  daysHoliday
 } from '../../../db/schema.js';
 
 /**
  * Manager Attendance Controller
- * Handles manager attendance operations: view team attendance, approve corrections, reports
+ * VIEW-ONLY: Managers can only view team attendance and pending corrections
+ * All attendance actions and approvals are handled by admins only
  */
 
 // Get team attendance records
@@ -41,11 +44,21 @@ export const getTeamAttendance = async (req, res) => {
 
     const teamIds = teamMembers.map(u => u.id);
 
+    // If no team members, return empty result
+    if (teamIds.length === 0) {
+      return res.json({
+        message: "Team attendance records retrieved successfully",
+        attendance: [],
+        count: 0,
+        teamSize: 0
+      });
+    }
+
     // Build date filter
     let dateFilter;
     if (startDate && endDate) {
       dateFilter = and(
-        sql`${attendanceRecords.userId} = ANY(${teamIds})`,
+        inArray(attendanceRecords.userId, teamIds),
         gte(attendanceRecords.date, new Date(startDate)),
         lte(attendanceRecords.date, new Date(endDate))
       );
@@ -53,7 +66,7 @@ export const getTeamAttendance = async (req, res) => {
       const start = new Date(year, month - 1, 1);
       const end = new Date(year, month, 0, 23, 59, 59);
       dateFilter = and(
-        sql`${attendanceRecords.userId} = ANY(${teamIds})`,
+        inArray(attendanceRecords.userId, teamIds),
         gte(attendanceRecords.date, start),
         lte(attendanceRecords.date, end)
       );
@@ -63,7 +76,7 @@ export const getTeamAttendance = async (req, res) => {
       const start = new Date(now.getFullYear(), now.getMonth(), 1);
       const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
       dateFilter = and(
-        sql`${attendanceRecords.userId} = ANY(${teamIds})`,
+        inArray(attendanceRecords.userId, teamIds),
         gte(attendanceRecords.date, start),
         lte(attendanceRecords.date, end)
       );
@@ -104,10 +117,69 @@ export const getTeamAttendance = async (req, res) => {
     .where(dateFilter)
     .orderBy(desc(attendanceRecords.date), users.fullName);
 
+    // Get holidays in the date range to mark them
+    let holidayFilter;
+    if (startDate && endDate) {
+      holidayFilter = and(
+        gte(daysHoliday.date, new Date(startDate)),
+        lte(daysHoliday.date, new Date(endDate))
+      );
+    } else if (month && year) {
+      const start = new Date(year, month - 1, 1);
+      const end = new Date(year, month, 0, 23, 59, 59);
+      holidayFilter = and(
+        gte(daysHoliday.date, start),
+        lte(daysHoliday.date, end)
+      );
+    } else {
+      const now = new Date();
+      const start = new Date(now.getFullYear(), now.getMonth(), 1);
+      const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+      holidayFilter = and(
+        gte(daysHoliday.date, start),
+        lte(daysHoliday.date, end)
+      );
+    }
+
+    const holidays = await db.select()
+      .from(daysHoliday)
+      .where(holidayFilter);
+
+    // Create a map of holiday dates
+    const holidayMap = new Map();
+    holidays.forEach(holiday => {
+      const dateKey = new Date(holiday.date).toDateString();
+      holidayMap.set(dateKey, {
+        name: holiday.name,
+        description: holiday.description
+      });
+    });
+
+    // Mark records that fall on holidays
+    const recordsWithHolidays = records.map(record => {
+      const recordDate = new Date(record.date).toDateString();
+      const holiday = holidayMap.get(recordDate);
+      
+      if (holiday) {
+        return {
+          ...record,
+          status: 'holiday',
+          holidayName: holiday.name,
+          notes: holiday.description || record.notes,
+          checkIn: null,  // Clear check-in for holidays
+          checkOut: null,  // Clear check-out for holidays
+          workingHours: 0,
+          isLate: false,
+          lateMinutes: 0
+        };
+      }
+      return record;
+    });
+
     res.json({
       message: "Team attendance records retrieved successfully",
-      attendance: records,
-      count: records.length,
+      attendance: recordsWithHolidays,
+      count: recordsWithHolidays.length,
       teamSize: teamMembers.length
     });
 
@@ -232,6 +304,15 @@ export const getPendingCorrections = async (req, res) => {
 
     const teamIds = teamMembers.map(u => u.id);
 
+    // If no team members, return empty result
+    if (teamIds.length === 0) {
+      return res.json({
+        message: "Pending correction requests retrieved successfully",
+        corrections: [],
+        count: 0
+      });
+    }
+
     // Get pending corrections for team members
     const corrections = await db.select({
       id: attendanceCorrections.id,
@@ -256,7 +337,7 @@ export const getPendingCorrections = async (req, res) => {
     .from(attendanceCorrections)
     .leftJoin(users, eq(attendanceCorrections.userId, users.id))
     .where(and(
-      sql`${attendanceCorrections.userId} = ANY(${teamIds})`,
+      inArray(attendanceCorrections.userId, teamIds),
       eq(attendanceCorrections.status, 'pending')
     ))
     .orderBy(desc(attendanceCorrections.createdAt));
@@ -462,6 +543,23 @@ export const getTodayTeamAttendance = async (req, res) => {
 
     const teamIds = teamMembers.map(u => u.id);
 
+    // If no team members, return empty result
+    if (teamIds.length === 0) {
+      const stats = {
+        totalTeamMembers: 0,
+        present: 0,
+        absent: 0,
+        late: 0,
+        checkedOut: 0
+      };
+      
+      return res.json({
+        message: "Today's team attendance retrieved successfully",
+        attendance: [],
+        stats
+      });
+    }
+
     const records = await db.select({
       id: attendanceRecords.id,
       userId: attendanceRecords.userId,
@@ -480,23 +578,62 @@ export const getTodayTeamAttendance = async (req, res) => {
     .from(attendanceRecords)
     .leftJoin(users, eq(attendanceRecords.userId, users.id))
     .where(and(
-      sql`${attendanceRecords.userId} = ANY(${teamIds})`,
+      inArray(attendanceRecords.userId, teamIds),
       gte(attendanceRecords.date, today),
       lte(attendanceRecords.date, tomorrow)
     ));
 
+    // Check if today is a holiday
+    const todayHoliday = await db.select()
+      .from(daysHoliday)
+      .where(and(
+        gte(daysHoliday.date, today),
+        lte(daysHoliday.date, tomorrow)
+      ))
+      .limit(1);
+
+    const isHoliday = todayHoliday.length > 0;
+
+    // If today is a holiday, mark all team members as on holiday
+    let attendanceData = records;
+    if (isHoliday) {
+      // Create holiday records for all team members
+      attendanceData = teamMembers.map(member => {
+        const existingRecord = records.find(r => r.userId === member.id);
+        return {
+          id: existingRecord?.id || null,
+          userId: member.id,
+          checkIn: null,
+          checkOut: null,
+          status: 'holiday',
+          isLate: false,
+          lateMinutes: 0,
+          holidayName: todayHoliday[0].name,
+          user: {
+            id: member.id,
+            fullName: member.fullName,
+            employeeCode: member.employeeCode,
+            jobTitle: member.jobTitle
+          }
+        };
+      });
+    }
+
     // Calculate statistics
     const stats = {
       totalTeamMembers: teamMembers.length,
-      present: records.filter(r => r.checkIn).length,
-      absent: teamMembers.length - records.filter(r => r.checkIn).length,
-      late: records.filter(r => r.isLate).length,
-      checkedOut: records.filter(r => r.checkOut).length
+      present: isHoliday ? 0 : records.filter(r => r.checkIn).length,
+      absent: isHoliday ? 0 : teamMembers.length - records.filter(r => r.checkIn).length,
+      late: isHoliday ? 0 : records.filter(r => r.isLate).length,
+      checkedOut: isHoliday ? 0 : records.filter(r => r.checkOut).length,
+      onHoliday: isHoliday ? teamMembers.length : 0,
+      isHoliday: isHoliday,
+      holidayName: isHoliday ? todayHoliday[0].name : null
     };
 
     res.json({
       message: "Today's team attendance retrieved successfully",
-      attendance: records,
+      attendance: attendanceData,
       stats
     });
 
@@ -511,7 +648,5 @@ export default {
   getTeamAttendance,
   getTeamAttendanceSummary,
   getPendingCorrections,
-  approveCorrection,
-  rejectCorrection,
   getTodayTeamAttendance
 };

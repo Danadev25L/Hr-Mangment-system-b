@@ -1,10 +1,14 @@
 'use client';
 
-import React, { useState } from 'react';
-import { ConfigProvider } from 'antd';
+import { useTheme } from '@/contexts/ThemeContext';
+
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
-import { useTheme } from '@/contexts/ThemeContext';
+
+import React, { useState } from 'react';
+
+import { ConfigProvider } from 'antd';
+
 import { lightTheme, darkTheme } from './theme';
 
 export default function RootProviderClient({
@@ -14,19 +18,27 @@ export default function RootProviderClient({
 }) {
   const { theme } = useTheme();
   
-  // Create a client instance for React Query with aggressive caching
+  // Create a client instance for React Query with aggressive caching - OPTIMIZED
   const [queryClient] = useState(
     () =>
       new QueryClient({
         defaultOptions: {
           queries: {
-            staleTime: 10 * 60 * 1000, // 10 minutes - aggressive caching for speed
-            gcTime: 30 * 60 * 1000, // 30 minutes - keep in memory longer
+            staleTime: 2 * 60 * 1000, // 2 minutes - balance between freshness and speed
+            gcTime: 10 * 60 * 1000, // 10 minutes - keep in memory
             refetchOnWindowFocus: false,
-            refetchOnMount: false, // Don't refetch on mount if data is fresh
+            refetchOnMount: 'always', // Always fetch on mount for immediate data display
             refetchOnReconnect: false,
-            retry: 1,
-            retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+            retry: 1, // Only retry once to avoid delays
+            retryDelay: 300, // Fast retry (300ms)
+            // Use cache while fetching fresh data
+            placeholderData: (previousData: any) => previousData,
+            // Network mode for better offline handling
+            networkMode: 'online',
+          },
+          mutations: {
+            retry: 0, // Don't retry mutations to avoid delays on errors
+            networkMode: 'online',
           },
         },
       })

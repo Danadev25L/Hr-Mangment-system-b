@@ -97,9 +97,12 @@ export const autoMarkAttendance = async (targetDate = null) => {
       targetDate.getDate()
     );
 
+    console.log(`[Auto-Attendance] Processing date: ${dateOnly.toISOString().split('T')[0]}`);
+
     // Check if it's a working day
     const isWorking = await isWorkingDay(dateOnly);
     if (!isWorking) {
+      console.log(`[Auto-Attendance] ${dateOnly.toISOString().split('T')[0]} is not a working day. Skipping.`);
       return {
         success: true,
         message: 'Not a working day',
@@ -122,6 +125,8 @@ export const autoMarkAttendance = async (targetDate = null) => {
       inArray(users.role, ['ROLE_EMPLOYEE', 'ROLE_MANAGER'])
     );
 
+    console.log(`[Auto-Attendance] Found ${employees.length} employees to process`);
+
     // Get default working hours for this day
     const { startTime, endTime, workingMinutes } = getDefaultWorkingHours(dateOnly);
     
@@ -136,6 +141,7 @@ export const autoMarkAttendance = async (targetDate = null) => {
         employeeCreatedDate.setHours(0, 0, 0, 0);
         
         if (dateOnly < employeeCreatedDate) {
+          console.log(`[Auto-Attendance] Employee ${employee.fullName} didn't exist on ${dateOnly.toISOString().split('T')[0]}. Skipping.`);
           skipped++;
           continue;
         }
@@ -151,6 +157,7 @@ export const autoMarkAttendance = async (targetDate = null) => {
           );
 
         if (existing.length > 0) {
+          console.log(`[Auto-Attendance] Employee ${employee.fullName} already has attendance for ${dateOnly.toISOString().split('T')[0]}`);
           alreadyExists++;
           continue;
         }
@@ -158,6 +165,7 @@ export const autoMarkAttendance = async (targetDate = null) => {
         // Check if employee is on leave
         const onLeave = await isOnLeave(employee.id, dateOnly);
         if (onLeave) {
+          console.log(`[Auto-Attendance] Employee ${employee.fullName} is on approved leave. Skipping.`);
           skipped++;
           continue;
         }
@@ -194,8 +202,10 @@ export const autoMarkAttendance = async (targetDate = null) => {
         });
 
         processed++;
+        console.log(`[Auto-Attendance] ✓ Auto-marked ${employee.fullName} as present on time`);
 
       } catch (error) {
+        console.error(`[Auto-Attendance] Error processing employee ${employee.fullName}:`, error);
         skipped++;
       }
     }
@@ -210,9 +220,11 @@ export const autoMarkAttendance = async (targetDate = null) => {
       totalEmployees: employees.length
     };
 
+    console.log('[Auto-Attendance] Summary:', summary);
     return summary;
 
   } catch (error) {
+    console.error('[Auto-Attendance] Error in autoMarkAttendance:', error);
     throw error;
   }
 };
@@ -243,6 +255,8 @@ export const autoMarkAttendanceRange = async (startDate, endDate) => {
  */
 export const backfillAllMissingAttendance = async () => {
   try {
+    console.log('[Auto-Attendance] Starting FULL BACKFILL of all missing attendance records...');
+    
     // Get all employees with their creation dates
     const employees = await db.select({
       id: users.id,
@@ -254,6 +268,8 @@ export const backfillAllMissingAttendance = async () => {
     .where(
       inArray(users.role, ['ROLE_EMPLOYEE', 'ROLE_MANAGER'])
     );
+
+    console.log(`[Auto-Attendance] Found ${employees.length} employees for backfill`);
 
     let totalProcessed = 0;
     let totalSkipped = 0;
@@ -268,9 +284,14 @@ export const backfillAllMissingAttendance = async () => {
     yesterday.setDate(yesterday.getDate() - 1);
 
     for (const employee of employees) {
+      console.log(`\n[Auto-Attendance] Processing employee: ${employee.fullName}`);
+      
       // Start from employee creation date
       const employeeStartDate = new Date(employee.createdAt);
       employeeStartDate.setHours(0, 0, 0, 0);
+      
+      console.log(`[Auto-Attendance] Employee created on: ${employeeStartDate.toISOString().split('T')[0]}`);
+      console.log(`[Auto-Attendance] Backfilling from ${employeeStartDate.toISOString().split('T')[0]} to ${yesterday.toISOString().split('T')[0]}`);
 
       let employeeProcessed = 0;
       let employeeSkipped = 0;
@@ -352,6 +373,7 @@ export const backfillAllMissingAttendance = async () => {
           employeeProcessed++;
           
         } catch (error) {
+          console.error(`[Auto-Attendance] Error processing date ${dateOnly.toISOString().split('T')[0]} for ${employee.fullName}:`, error);
           employeeSkipped++;
         }
 
@@ -372,6 +394,11 @@ export const backfillAllMissingAttendance = async () => {
       totalProcessed += employeeProcessed;
       totalSkipped += employeeSkipped;
       totalAlreadyExists += employeeExists;
+
+      console.log(`[Auto-Attendance] Employee ${employee.fullName} summary:`);
+      console.log(`  - Processed: ${employeeProcessed}`);
+      console.log(`  - Skipped: ${employeeSkipped}`);
+      console.log(`  - Already exists: ${employeeExists}`);
     }
 
     const summary = {
@@ -384,9 +411,16 @@ export const backfillAllMissingAttendance = async () => {
       employeeSummaries
     };
 
+    console.log('\n[Auto-Attendance] BACKFILL COMPLETE:');
+    console.log(`  Total employees processed: ${employees.length}`);
+    console.log(`  Total records created: ${totalProcessed}`);
+    console.log(`  Total skipped (weekends/holidays/leave): ${totalSkipped}`);
+    console.log(`  Total already existed: ${totalAlreadyExists}`);
+
     return summary;
 
   } catch (error) {
+    console.error('[Auto-Attendance] Error in backfillAllMissingAttendance:', error);
     throw error;
   }
 };

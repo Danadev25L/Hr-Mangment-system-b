@@ -154,7 +154,7 @@ export default function ComprehensiveAttendancePage({ role }: AttendanceProps) {
   const checkInMutation = useMutation({
     mutationFn: (data: any) => {
       // Add flag to skip global error handling since we handle errors locally
-      return apiClient.httpClient.post('/api/admin/attendance/checkin', data, { skipGlobalError: true });
+      return apiClient.markEmployeeCheckIn(data);
     },
     onSuccess: (response) => {
       if (response.data.success !== false) {
@@ -188,7 +188,7 @@ export default function ComprehensiveAttendancePage({ role }: AttendanceProps) {
   const checkOutMutation = useMutation({
     mutationFn: (data: any) => {
       // Add flag to skip global error handling since we handle errors locally
-      return apiClient.httpClient.post('/api/admin/attendance/checkout', data, { skipGlobalError: true });
+      return apiClient.markEmployeeCheckOut(data);
     },
     onSuccess: (response) => {
       if (response.data.success !== false) {
@@ -222,7 +222,7 @@ export default function ComprehensiveAttendancePage({ role }: AttendanceProps) {
   const markAbsentMutation = useMutation({
     mutationFn: (data: any) => {
       // Add flag to skip global error handling since we handle errors locally
-      return apiClient.httpClient.post('/api/admin/attendance/absent', data, { skipGlobalError: true });
+      return apiClient.markEmployeeAbsent(data);
     },
     onSuccess: (response) => {
       if (response.data.success !== false) {
@@ -256,7 +256,7 @@ export default function ComprehensiveAttendancePage({ role }: AttendanceProps) {
   const addLatencyMutation = useMutation({
     mutationFn: (data: any) => {
       // Add flag to skip global error handling since we handle errors locally
-      return apiClient.httpClient.post('/api/admin/attendance/latency', data, { skipGlobalError: true });
+      return apiClient.addLatency(data);
     },
     onSuccess: (response) => {
       if (response.data.success !== false) {
@@ -290,7 +290,7 @@ export default function ComprehensiveAttendancePage({ role }: AttendanceProps) {
   const addEarlyDepartureMutation = useMutation({
     mutationFn: (data: any) => {
       // Add flag to skip global error handling since we handle errors locally
-      return apiClient.httpClient.post('/api/admin/attendance/early-departure', data, { skipGlobalError: true });
+      return apiClient.addEarlyDeparture(data);
     },
     onSuccess: (response) => {
       if (response.data.success !== false) {
@@ -854,7 +854,7 @@ export default function ComprehensiveAttendancePage({ role }: AttendanceProps) {
               const minutesLate = actualCheckIn.diff(expectedCheckIn, 'minute');
               
               checkInMutation.mutate({
-                employeeId: parseInt(selectedEmployee!.id), // Ensure employeeId is a number
+                employeeId: selectedEmployee!.id, // employeeId is already a number
                 date: selectedDate,
                 checkInTime: checkInDateTime.format('YYYY-MM-DD HH:mm:ss'),
                 expectedCheckInTime: expectedCheckIn.format('YYYY-MM-DD HH:mm:ss'),

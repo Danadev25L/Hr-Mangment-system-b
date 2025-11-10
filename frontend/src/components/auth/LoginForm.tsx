@@ -153,19 +153,6 @@ export const LoginForm: React.FC = () => {
               </Button>
             </Form.Item>
           </Form>
-
-          {/* Help Text */}
-          <div className="mt-6 text-center">
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              {t('auth.needHelp')}{' '}
-              <Link
-                href={createLocalizedPath(locale, '/support')}
-                className="font-medium text-purple-600 hover:text-purple-500 dark:text-purple-400"
-              >
-                {t('auth.contactSupport')}
-              </Link>
-            </p>
-          </div>
         </div>
 
         {/* Footer */}
@@ -173,21 +160,6 @@ export const LoginForm: React.FC = () => {
           <p className="text-xs text-gray-500 dark:text-gray-400">
             © 2025 HR Management System. {t('auth.allRightsReserved')}
           </p>
-          <div className="flex justify-center gap-4 text-xs">
-            <Link
-              href={createLocalizedPath(locale, '/terms')}
-              className="text-gray-500 hover:text-purple-600 dark:text-gray-400 dark:hover:text-purple-400"
-            >
-              {t('auth.terms')}
-            </Link>
-            <span className="text-gray-300 dark:text-gray-600">•</span>
-            <Link
-              href={createLocalizedPath(locale, '/privacy')}
-              className="text-gray-500 hover:text-purple-600 dark:text-gray-400 dark:hover:text-purple-400"
-            >
-              {t('auth.privacy')}
-            </Link>
-          </div>
         </div>
       </div>
     </div>

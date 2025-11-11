@@ -1,28 +1,16 @@
 import { eq, and, gte, lte, desc, sql, inArray, or } from 'drizzle-orm';
 
 import { db } from '../../../db/index.js';
-import { 
-  attendanceRecords, 
-  attendanceCorrections, 
-  attendanceSummary,
+import {
+  attendanceRecords,
+  attendanceCorrections,
+  attendanceSummaries,
   users,
   departments,
-  workShifts,
-  employeeShifts,
   daysHoliday,
-  attendancePolicies,
   departmentPolicies,
-  breakTypes,
-  attendanceBreaks,
-  geofenceLocations,
-  deviceWhitelist,
-  attendanceLocationLogs,
-  biometricLogs,
-  overtimeRequests,
   overtimeTracking,
   attendanceAlerts,
-  leaveBalances,
-  dailyAttendanceReports,
   departmentAttendanceReports,
   attendanceAuditLog
 } from '../../../db/schema.js';
@@ -111,29 +99,9 @@ export const getAllEmployeesWithAttendance = async (req, res) => {
     //   // This was creating false "present" records for all employees
     // }
 
-    // Get current shifts for users - Simplified to avoid SQL errors
+    // Get current shifts for users - Table not available in schema
     let shiftsData = [];
-    try {
-      const today = new Date().toISOString().split('T')[0];
-      shiftsData = await db.select({
-        userId: employeeShifts.userId,
-        shiftName: workShifts.shiftName,
-        shiftCode: workShifts.shiftCode,
-        startTime: workShifts.startTime,
-        endTime: workShifts.endTime
-      })
-      .from(employeeShifts)
-      .leftJoin(workShifts, eq(employeeShifts.shiftId, workShifts.id))
-      .where(and(
-        inArray(employeeShifts.userId, userIds),
-        eq(employeeShifts.isActive, true),
-        lte(employeeShifts.effectiveFrom, today)
-      ));
-    } catch (shiftError) {
-      // If shift tables don't exist or query fails, continue without shift data
-      console.log('Shift data not available:', shiftError.message);
-      shiftsData = [];
-    }
+    // TODO: Implement shift functionality when workShifts and employeeShifts tables are added to schema
 
     // Combine data
     const employeesWithAttendance = filteredUsers.map(user => {
@@ -212,24 +180,14 @@ export const getEmployeeAttendanceDetails = async (req, res) => {
       .where(and(...filters))
       .orderBy(desc(attendanceRecords.date));
 
-    // Get break details for these records
+    // Get break details for these records - Tables not available in schema
     const recordIds = records.map(r => r.id);
-    const breaks = recordIds.length > 0 ? await db.select({
-      attendanceId: attendanceBreaks.attendanceId,
-      breakStart: attendanceBreaks.breakStart,
-      breakEnd: attendanceBreaks.breakEnd,
-      durationMinutes: attendanceBreaks.durationMinutes,
-      breakTypeName: breakTypes.breakName,
-      breakReason: attendanceBreaks.breakReason
-    })
-    .from(attendanceBreaks)
-    .leftJoin(breakTypes, eq(attendanceBreaks.breakTypeId, breakTypes.id))
-    .where(inArray(attendanceBreaks.attendanceId, recordIds)) : [];
+    const breaks = [];
+    // TODO: Implement break functionality when attendanceBreaks and breakTypes tables are added to schema
 
-    // Get overtime records
-    const overtime = recordIds.length > 0 ? await db.select()
-      .from(overtimeTracking)
-      .where(inArray(overtimeTracking.attendanceId, recordIds)) : [];
+    // Get overtime records - attendanceId field not available in schema
+    const overtime = [];
+    // TODO: Implement overtime tracking with attendanceId when field is added to schema
 
     // Combine data
     const detailedRecords = records.map(record => ({
@@ -242,11 +200,11 @@ export const getEmployeeAttendanceDetails = async (req, res) => {
     let summary = null;
     if (month && year) {
       const [monthlySummary] = await db.select()
-        .from(attendanceSummary)
+        .from(attendanceSummaries)
         .where(and(
-          eq(attendanceSummary.userId, parseInt(employeeId)),
-          eq(attendanceSummary.month, parseInt(month)),
-          eq(attendanceSummary.year, parseInt(year))
+          eq(attendanceSummaries.userId, parseInt(employeeId)),
+          eq(attendanceSummaries.month, parseInt(month)),
+          eq(attendanceSummaries.year, parseInt(year))
         ));
       
       // If no summary exists in the table, calculate it from attendance records
@@ -432,36 +390,9 @@ export const markEmployeeCheckIn = async (req, res) => {
         lateMinutes = diffMinutes;
       }
     } else {
-      // Fallback: Get employee's shift
-      const todayStr = today.toISOString().split('T')[0];
-      const [shiftAssignment] = await db.select({
-        shiftId: employeeShifts.shiftId,
-        startTime: workShifts.startTime,
-        endTime: workShifts.endTime,
-        gracePeriodMinutes: workShifts.gracePeriodMinutes
-      })
-      .from(employeeShifts)
-      .leftJoin(workShifts, eq(employeeShifts.shiftId, workShifts.id))
-      .where(and(
-        eq(employeeShifts.userId, userId),
-        eq(employeeShifts.isActive, true),
-        lte(employeeShifts.effectiveFrom, todayStr)
-      ))
-      .limit(1);
-      
-      if (shiftAssignment && shiftAssignment.startTime) {
-        const [hours, minutes] = shiftAssignment.startTime.split(':');
-        const shiftStart = new Date(checkIn);
-        shiftStart.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-        
-        const gracePeriod = shiftAssignment.gracePeriodMinutes || 15;
-        const graceTime = new Date(shiftStart.getTime() + gracePeriod * 60000);
-        
-        if (checkIn > graceTime) {
-          isLate = true;
-          lateMinutes = Math.floor((checkIn - shiftStart) / 60000);
-        }
-      }
+      // Fallback: Shift tables not available in schema
+      // TODO: Implement shift calculation when workShifts and employeeShifts tables are added
+      console.log('Shift data not available - using default check-in time calculation');
     }
 
     const attendanceData = {
@@ -478,35 +409,12 @@ export const markEmployeeCheckIn = async (req, res) => {
       approvedAt: new Date()
     };
 
-    // Save location log if provided
+    // Save location log if provided - Geofence table not available in schema
     let locationLog = null;
     if (latitude && longitude) {
-      // Check geofence
-      const geofences = await db.select()
-        .from(geofenceLocations)
-        .where(eq(geofenceLocations.isActive, true));
-
-      let isWithinGeofence = false;
-      let geofenceId = null;
-
-      for (const fence of geofences) {
-        const distance = calculateDistance(
-          parseFloat(latitude), 
-          parseFloat(longitude),
-          parseFloat(fence.latitude),
-          parseFloat(fence.longitude)
-        );
-        
-        if (distance <= fence.radiusMeters) {
-          isWithinGeofence = true;
-          geofenceId = fence.id;
-          break;
-        }
-      }
-
-      if (!isWithinGeofence) {
-        attendanceData.notes = (attendanceData.notes || '') + ' [Outside geofence]';
-      }
+      // TODO: Implement geofence functionality when geofenceLocations table is added to schema
+      console.log('Geofence data not available - logging location without geofence check');
+      attendanceData.notes = (attendanceData.notes || '') + ' [Location logged]';
     }
 
     const [record] = existing 
@@ -518,62 +426,31 @@ export const markEmployeeCheckIn = async (req, res) => {
           .values(attendanceData)
           .returning();
 
-    // Log location if provided
+    // Log location if provided - attendanceLocationLogs table not available in schema
     if (latitude && longitude && record) {
-      const geofences = await db.select()
-        .from(geofenceLocations)
-        .where(eq(geofenceLocations.isActive, true));
-
-      let isWithinGeofence = false;
-      let geofenceId = null;
-
-      for (const fence of geofences) {
-        const distance = calculateDistance(
-          parseFloat(latitude), 
-          parseFloat(longitude),
-          parseFloat(fence.latitude),
-          parseFloat(fence.longitude)
-        );
-        
-        if (distance <= fence.radiusMeters) {
-          isWithinGeofence = true;
-          geofenceId = fence.id;
-          break;
-        }
-      }
-
-      await db.insert(attendanceLocationLogs).values({
-        attendanceId: record.id,
-        logType: 'checkin',
-        latitude: latitude.toString(),
-        longitude: longitude.toString(),
-        geofenceId,
-        isWithinGeofence,
-        ipAddress: req.ip || null,
-        timestamp: checkIn
-      });
+      // TODO: Implement location logging when attendanceLocationLogs table is added to schema
+      console.log('Location logging not available - location data:', { latitude, longitude });
     }
 
     // Create audit log
     await db.insert(attendanceAuditLog).values({
       attendanceId: record.id,
-      userId,
-      actionType: existing ? 'update' : 'create',
-      actionBy: req.authData.id,
-      newValues: attendanceData,
+      employeeId: userId,
+      action: existing ? 'update' : 'create',
+      oldValues: existing ? JSON.stringify(existing) : null,
+      newValues: JSON.stringify(attendanceData),
       reason: 'Admin marked check-in',
-      ipAddress: req.ip || null,
-      userAgent: req.headers['user-agent'] || null
+      performedBy: req.authData.id
     });
 
     // Create alert if late
     if (isLate) {
       await db.insert(attendanceAlerts).values({
-        userId,
+        employeeId: userId,
         alertType: 'late_arrival',
-        alertDate: today,
+        date: today,
         severity: lateMinutes > 30 ? 'high' : 'medium',
-        message: `Employee checked in ${lateMinutes} minutes late`
+        description: `Employee checked in ${lateMinutes} minutes late`
       });
     }
 
@@ -748,50 +625,9 @@ export const markEmployeeCheckOut = async (req, res) => {
         overtimeMinutes = Math.abs(diffMinutes);
       }
     } else {
-      // Fallback: Get employee's shift for overtime calculation
-      const todayStr = today.toISOString().split('T')[0];
-      let shiftAssignment = null;
-      try {
-        const [assignment] = await db.select({
-          endTime: workShifts.endTime,
-          earlyDepartureThreshold: workShifts.earlyDepartureThreshold,
-          minimumWorkHours: workShifts.minimumWorkHours
-        })
-        .from(employeeShifts)
-        .leftJoin(workShifts, eq(employeeShifts.shiftId, workShifts.id))
-        .where(and(
-          eq(employeeShifts.userId, userId),
-          eq(employeeShifts.isActive, true),
-          lte(employeeShifts.effectiveFrom, todayStr)
-        ))
-        .limit(1);
-        
-        shiftAssignment = assignment;
-      } catch (shiftError) {
-        console.log('Could not fetch shift data for check-out:', shiftError.message);
-        shiftAssignment = null;
-      }
-      
-      if (shiftAssignment && shiftAssignment.endTime) {
-        const [hours, minutes] = shiftAssignment.endTime.split(':');
-        const shiftEnd = new Date(checkOut);
-        shiftEnd.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-        
-        const threshold = shiftAssignment.earlyDepartureThreshold || 15;
-        const earlyThreshold = new Date(shiftEnd.getTime() - threshold * 60000);
-        
-        if (checkOut < earlyThreshold) {
-          isEarlyDeparture = true;
-          earlyDepartureMinutes = Math.floor((shiftEnd - checkOut) / 60000);
-        } else if (checkOut > shiftEnd) {
-          const overtimeThreshold = shiftAssignment.overtimeStartAfterMinutes || 30;
-          const minutesAfterShift = Math.floor((checkOut - shiftEnd) / 60000);
-          
-          if (minutesAfterShift > overtimeThreshold) {
-            overtimeMinutes = minutesAfterShift;
-          }
-        }
-      }
+      // Fallback: Shift tables not available in schema
+      // TODO: Implement shift calculation when workShifts and employeeShifts tables are added
+      console.log('Shift data not available - using default check-out time calculation');
     }
 
     // Determine status
@@ -817,75 +653,45 @@ export const markEmployeeCheckOut = async (req, res) => {
       .where(eq(attendanceRecords.id, record.id))
       .returning();
 
-    // Log location if provided
+    // Log location if provided - attendanceLocationLogs table not available in schema
     if (latitude && longitude) {
-      const geofences = await db.select()
-        .from(geofenceLocations)
-        .where(eq(geofenceLocations.isActive, true));
-
-      let isWithinGeofence = false;
-      let geofenceId = null;
-
-      for (const fence of geofences) {
-        const distance = calculateDistance(
-          parseFloat(latitude), 
-          parseFloat(longitude),
-          parseFloat(fence.latitude),
-          parseFloat(fence.longitude)
-        );
-        
-        if (distance <= fence.radiusMeters) {
-          isWithinGeofence = true;
-          geofenceId = fence.id;
-          break;
-        }
-      }
-
-      await db.insert(attendanceLocationLogs).values({
-        attendanceId: record.id,
-        logType: 'checkout',
-        latitude: latitude.toString(),
-        longitude: longitude.toString(),
-        geofenceId,
-        isWithinGeofence,
-        ipAddress: req.ip || null,
-        timestamp: checkOut
-      });
+      // TODO: Implement location logging when attendanceLocationLogs table is added to schema
+      console.log('Location logging not available - location data:', { latitude, longitude });
     }
 
     // Create overtime tracking if applicable
     if (overtimeMinutes > 0) {
       await db.insert(overtimeTracking).values({
-        userId,
-        attendanceId: record.id,
+        employeeId: userId,
         date: today,
-        overtimeMinutes,
+        regularHours: workingMinutes / 60, // Convert minutes to hours
+        overtimeHours: overtimeMinutes / 60, // Convert minutes to hours
         overtimeRate: '1.5',
-        isApproved: false
+        amount: (overtimeMinutes / 60) * 1.5, // Calculate overtime amount
+        reason: 'Overtime from check-out',
+        status: 'pending'
       });
     }
 
     // Create audit log
     await db.insert(attendanceAuditLog).values({
       attendanceId: record.id,
-      userId,
-      actionType: 'update',
-      actionBy: req.authData.id,
-      oldValues: record,
-      newValues: updateData,
+      employeeId: userId,
+      action: 'update',
+      oldValues: JSON.stringify(record),
+      newValues: JSON.stringify(updateData),
       reason: 'Admin marked check-out',
-      ipAddress: req.ip || null,
-      userAgent: req.headers['user-agent'] || null
+      performedBy: req.authData.id
     });
 
     // Create alerts
     if (isEarlyDeparture) {
       await db.insert(attendanceAlerts).values({
-        userId,
+        employeeId: userId,
         alertType: 'early_departure',
-        alertDate: today,
+        date: today,
         severity: earlyDepartureMinutes > 30 ? 'high' : 'medium',
-        message: `Employee checked out ${earlyDepartureMinutes} minutes early`
+        description: `Employee checked out ${earlyDepartureMinutes} minutes early`
       });
     }
 
@@ -968,13 +774,12 @@ export const markEmployeeAbsent = async (req, res) => {
     // Create audit log
     await db.insert(attendanceAuditLog).values({
       attendanceId: record.id,
-      userId,
-      actionType: existing ? 'update' : 'create',
-      actionBy: req.authData.id,
-      newValues: attendanceData,
+      employeeId: userId,
+      action: existing ? 'update' : 'create',
+      oldValues: existing ? JSON.stringify(existing) : null,
+      newValues: JSON.stringify(attendanceData),
       reason: 'Admin marked as absent',
-      ipAddress: req.ip || null,
-      userAgent: req.headers['user-agent'] || null
+      performedBy: req.authData.id
     });
 
     // Check for continuous absent days
@@ -993,11 +798,11 @@ export const markEmployeeAbsent = async (req, res) => {
 
     if (recentAbsences.length >= 3) {
       await db.insert(attendanceAlerts).values({
-        userId,
+        employeeId: userId,
         alertType: 'continuous_absent',
-        alertDate: absentDate,
+        date: absentDate,
         severity: 'high',
-        message: `Employee has been absent for ${recentAbsences.length} days in the last week`
+        description: `Employee has been absent for ${recentAbsences.length} days in the last week`
       });
     }
 
@@ -1194,14 +999,12 @@ export const editCheckInTime = async (req, res) => {
     // Create audit log
     await db.insert(attendanceAuditLog).values({
       attendanceId: record.id,
-      userId: record.userId,
-      actionType: 'update',
-      actionBy: req.authData.id,
-      oldValues,
-      newValues: updateData,
+      employeeId: record.userId,
+      action: 'update',
+      oldValues: JSON.stringify(oldValues),
+      newValues: JSON.stringify(updateData),
       reason: reason || 'Admin edited check-in time',
-      ipAddress: req.ip || null,
-      userAgent: req.headers['user-agent'] || null
+      performedBy: req.authData.id
     });
 
     res.json({ 
@@ -1355,50 +1158,21 @@ export const editCheckOutTime = async (req, res) => {
       .where(eq(attendanceRecords.id, record.id))
       .returning();
 
-    // Update overtime tracking if applicable
+    // Update overtime tracking if applicable - attendanceId field not available in schema
+    // TODO: Implement overtime tracking with attendanceId when field is added to schema
     if (overtimeMinutes > 0) {
-      // Check if overtime record exists
-      const [existingOT] = await db.select()
-        .from(overtimeTracking)
-        .where(eq(overtimeTracking.attendanceId, record.id));
-
-      if (existingOT) {
-        await db.update(overtimeTracking)
-          .set({
-            overtimeMinutes,
-            updatedAt: new Date()
-          })
-          .where(eq(overtimeTracking.id, existingOT.id));
-      } else {
-        const recordDate = new Date(record.date);
-        recordDate.setHours(0, 0, 0, 0);
-        
-        await db.insert(overtimeTracking).values({
-          userId: record.userId,
-          attendanceId: record.id,
-          date: recordDate,
-          overtimeMinutes,
-          overtimeRate: '1.5',
-          isApproved: false
-        });
-      }
-    } else if (overtimeMinutes === 0) {
-      // Remove overtime tracking if no longer overtime
-      await db.delete(overtimeTracking)
-        .where(eq(overtimeTracking.attendanceId, record.id));
+      console.log('Overtime tracking update not available - attendanceId field missing in overtimeTracking table');
     }
 
     // Create audit log
     await db.insert(attendanceAuditLog).values({
       attendanceId: record.id,
-      userId: record.userId,
-      actionType: 'update',
-      actionBy: req.authData.id,
-      oldValues,
-      newValues: updateData,
+      employeeId: record.userId,
+      action: 'update',
+      oldValues: JSON.stringify(oldValues),
+      newValues: JSON.stringify(updateData),
       reason: reason || 'Admin edited check-out time',
-      ipAddress: req.ip || null,
-      userAgent: req.headers['user-agent'] || null
+      performedBy: req.authData.id
     });
 
     res.json({ 
@@ -1505,14 +1279,12 @@ export const editBreakDuration = async (req, res) => {
     // Create audit log
     await db.insert(attendanceAuditLog).values({
       attendanceId: record.id,
-      userId: record.userId,
-      actionType: 'update',
-      actionBy: req.authData.id,
-      oldValues,
-      newValues: updateData,
+      employeeId: record.userId,
+      action: 'update',
+      oldValues: JSON.stringify(oldValues),
+      newValues: JSON.stringify(updateData),
       reason: reason || 'Admin edited break duration',
-      ipAddress: req.ip || null,
-      userAgent: req.headers['user-agent'] || null
+      performedBy: req.authData.id
     });
 
     // Format break duration nicely
@@ -1628,14 +1400,12 @@ export const addOvertimeHours = async (req, res) => {
     // Create audit log
     await db.insert(attendanceAuditLog).values({
       attendanceId: record.id,
-      userId: record.userId,
-      actionType: 'update',
-      actionBy: req.authData.id,
-      oldValues,
-      newValues: updateData,
+      employeeId: record.userId,
+      action: 'update',
+      oldValues: JSON.stringify(oldValues),
+      newValues: JSON.stringify(updateData),
       reason: reason || 'Admin added/edited overtime hours',
-      ipAddress: req.ip || null,
-      userAgent: req.headers['user-agent'] || null
+      performedBy: req.authData.id
     });
 
     // Format overtime nicely
@@ -1801,14 +1571,12 @@ export const updateAttendanceRecord = async (req, res) => {
     // Create audit log
     await db.insert(attendanceAuditLog).values({
       attendanceId: record.id,
-      userId: record.userId,
-      actionType: 'update',
-      actionBy: req.authData.id,
-      oldValues,
-      newValues: updateData,
+      employeeId: record.userId,
+      action: 'update',
+      oldValues: JSON.stringify(oldValues),
+      newValues: JSON.stringify(updateData),
       reason: reason || 'Admin updated attendance record',
-      ipAddress: req.ip || null,
-      userAgent: req.headers['user-agent'] || null
+      performedBy: req.authData.id
     });
 
     res.json({ 
@@ -1883,25 +1651,21 @@ export const deleteAttendanceRecord = async (req, res) => {
     // Create audit log before deletion
     await db.insert(attendanceAuditLog).values({
       attendanceId: record.id,
-      userId: record.userId,
-      actionType: 'delete',
-      actionBy: req.authData.id,
-      oldValues: record,
+      employeeId: record.userId,
+      action: 'delete',
+      oldValues: JSON.stringify(record),
       newValues: null,
       reason: reason || 'Admin deleted attendance record',
-      ipAddress: req.ip || null,
-      userAgent: req.headers['user-agent'] || null
+      performedBy: req.authData.id
     });
 
     // Delete related records first (foreign key constraints)
-    await db.delete(attendanceBreaks)
-      .where(eq(attendanceBreaks.attendanceId, record.id));
-    
-    await db.delete(attendanceLocationLogs)
-      .where(eq(attendanceLocationLogs.attendanceId, record.id));
-    
-    await db.delete(overtimeTracking)
-      .where(eq(overtimeTracking.attendanceId, record.id));
+    // TODO: Delete attendanceBreaks when table is added to schema
+    // TODO: Delete attendanceLocationLogs when table is added to schema
+
+    // TODO: Delete overtime tracking when attendanceId field is added to overtimeTracking table
+    // await db.delete(overtimeTracking)
+    //   .where(eq(overtimeTracking.attendanceId, record.id));
 
     // Delete the attendance record
     await db.delete(attendanceRecords)
@@ -2044,14 +1808,12 @@ export const addBreakDuration = async (req, res) => {
     // Create audit log
     await db.insert(attendanceAuditLog).values({
       attendanceId: record.id,
-      userId,
-      actionType: 'update',
-      actionBy: req.authData.id,
-      oldValues: { breakDuration: currentBreakDuration, notes: record.notes },
-      newValues: updateData,
+      employeeId: userId,
+      action: 'update',
+      oldValues: JSON.stringify({ breakDuration: currentBreakDuration, notes: record.notes }),
+      newValues: JSON.stringify(updateData),
       reason: `Admin added break: ${breakType} - ${durationText}`,
-      ipAddress: req.ip || null,
-      userAgent: req.headers['user-agent'] || null
+      performedBy: req.authData.id
     });
 
     console.log('=== BREAK ADDED SUCCESSFULLY ===');
@@ -2127,12 +1889,12 @@ export const bulkMarkAttendance = async (req, res) => {
         // Create audit log
         await db.insert(attendanceAuditLog).values({
           attendanceId: record.id,
-          userId: parseInt(empId),
-          actionType: existing ? 'update' : 'create',
-          actionBy: req.authData.id,
-          newValues: attendanceData,
+          employeeId: parseInt(empId),
+          action: existing ? 'update' : 'create',
+          oldValues: existing ? JSON.stringify(existing) : null,
+          newValues: JSON.stringify(attendanceData),
           reason: 'Bulk attendance marking',
-          ipAddress: req.ip || null
+          performedBy: req.authData.id
         });
 
       } catch (error) {

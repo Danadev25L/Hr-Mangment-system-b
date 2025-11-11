@@ -27,7 +27,9 @@
       "Bash(rm:*)",
       "Bash(npm audit:*)",
       "Bash(git rm:*)",
-      "Bash(npm uninstall:*)"
+      "Bash(npm uninstall:*)",
+      "Bash(git push:*)",
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "ask": []

@@ -87,16 +87,18 @@ class ApiClient {
   private setToken(token: string) {
     if (typeof window !== 'undefined') {
       localStorage.setItem('token', token)
-      // Also set token as cookie for middleware to read
-      document.cookie = `token=${token}; path=/; max-age=86400; sameSite=strict`
+      // Also set token as secure cookie for middleware to read
+      const isSecure = window.location.protocol === 'https:'
+      document.cookie = `token=${token}; path=/; max-age=86400; sameSite=strict${isSecure ? '; secure' : ''}`
     }
   }
 
   private setRole(role: string) {
     if (typeof window !== 'undefined') {
       localStorage.setItem('userRole', role)
-      // Also set role as cookie for middleware to read
-      document.cookie = `userRole=${role}; path=/; max-age=86400; sameSite=strict`
+      // Also set role as secure cookie for middleware to read
+      const isSecure = window.location.protocol === 'https:'
+      document.cookie = `userRole=${role}; path=/; max-age=86400; sameSite=strict${isSecure ? '; secure' : ''}`
     }
   }
 
@@ -112,9 +114,11 @@ class ApiClient {
       localStorage.removeItem('token')
       localStorage.removeItem('refreshToken')
       localStorage.removeItem('userRole')
-      // Also remove the cookies
-      document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
-      document.cookie = 'userRole=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
+      // Also remove the cookies with all security attributes
+      const isSecure = window.location.protocol === 'https:'
+      const secureAttr = isSecure ? '; secure' : ''
+      document.cookie = `token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; sameSite=strict${secureAttr}`
+      document.cookie = `userRole=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; sameSite=strict${secureAttr}`
     }
   }
 

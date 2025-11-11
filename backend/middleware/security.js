@@ -107,7 +107,8 @@ export const corsOptions = {
       'http://localhost:3001',
       'http://127.0.0.1:3000',
       'http://127.0.0.1:3001',
-      'https://hr-mangment-system-f.vercel.app'
+      'https://hr-mangment-system-f.vercel.app',
+      'https://hr-mangment-system-6y8l5sy3y-bhjs-projects-7bb0cdc1.vercel.app'
     ].filter(Boolean);
 
     // Allow requests with no origin (mobile apps, Postman, etc.)

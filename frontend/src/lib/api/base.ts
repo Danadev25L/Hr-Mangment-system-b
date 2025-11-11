@@ -115,21 +115,24 @@ export class BaseApiClient {
   protected setToken(token: string) {
     if (typeof window !== 'undefined') {
       localStorage.setItem('token', token)
-      document.cookie = `token=${token}; path=/; max-age=86400; sameSite=strict`
+      const isSecure = window.location.protocol === 'https:'
+      document.cookie = `token=${token}; path=/; max-age=86400; sameSite=strict${isSecure ? '; secure' : ''}`
     }
   }
 
   protected removeToken() {
     if (typeof window !== 'undefined') {
       localStorage.removeItem('token')
-      document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT'
+      const isSecure = window.location.protocol === 'https:'
+      document.cookie = `token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; sameSite=strict${isSecure ? '; secure' : ''}`
     }
   }
 
   protected setRole(role: string) {
     if (typeof window !== 'undefined') {
       localStorage.setItem('userRole', role)
-      document.cookie = `userRole=${role}; path=/; max-age=86400; sameSite=strict`
+      const isSecure = window.location.protocol === 'https:'
+      document.cookie = `userRole=${role}; path=/; max-age=86400; sameSite=strict${isSecure ? '; secure' : ''}`
     }
   }
 

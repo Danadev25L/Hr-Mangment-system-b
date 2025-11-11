@@ -1,4 +1,4 @@
-import * as XLSX from 'xlsx'
+import ExcelJS from 'exceljs'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { Document, Packer, Paragraph, Table, TableCell, TableRow, TextRun, AlignmentType, WidthType, BorderStyle } from 'docx'
@@ -33,9 +33,20 @@ export const exportToCSV = (data: User[], filename: string = 'employees') => {
       'Created At': emp.createdAt ? new Date(emp.createdAt).toLocaleDateString() : '',
     }))
 
-    // Convert to worksheet
-    const worksheet = XLSX.utils.json_to_sheet(csvData)
-    const csv = XLSX.utils.sheet_to_csv(worksheet)
+    // Convert to CSV manually
+    const headers = Object.keys(csvData[0] || {})
+    const csvHeaders = headers.join(',')
+    const csvRows = csvData.map(row =>
+      headers.map(header => {
+        const value = row[header] || ''
+        // Escape quotes and wrap in quotes if contains comma or quote
+        if (value.includes(',') || value.includes('"') || value.includes('\n')) {
+          return `"${value.replace(/"/g, '""')}"`
+        }
+        return value
+      }).join(',')
+    )
+    const csv = [csvHeaders, ...csvRows].join('\n')
     
     // Create blob and download
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
@@ -57,7 +68,7 @@ export const exportToCSV = (data: User[], filename: string = 'employees') => {
 }
 
 // Export to Excel
-export const exportToExcel = (data: User[], filename: string = 'employees') => {
+export const exportToExcel = async (data: User[], filename: string = 'employees') => {
   try {
     // Prepare data for Excel - display "null" for empty fields
     const excelData = data.map(emp => ({
@@ -86,22 +97,49 @@ export const exportToExcel = (data: User[], filename: string = 'employees') => {
       'Created At': emp.createdAt ? new Date(emp.createdAt).toLocaleDateString() : 'null',
     }))
 
-    // Create workbook and worksheet
-    const worksheet = XLSX.utils.json_to_sheet(excelData)
-    const workbook = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Employees')
+    // Create workbook and worksheet using ExcelJS
+    const workbook = new ExcelJS.Workbook()
+    const worksheet = workbook.addWorksheet('Employees')
+
+    // Add headers
+    const headers = Object.keys(excelData[0] || {})
+    worksheet.addRow(headers)
+
+    // Add data rows
+    excelData.forEach(row => {
+      worksheet.addRow(Object.values(row))
+    })
 
     // Set column widths
-    const maxWidth = excelData.reduce((w: any, r: any) => {
-      return Object.keys(r).map((key, idx) => {
-        const cellValue = r[key] ? r[key].toString() : ''
-        return Math.max(w[idx] || 10, cellValue.length + 2)
-      })
-    }, [])
-    worksheet['!cols'] = maxWidth.map((w: number) => ({ wch: Math.min(w, 50) }))
+    worksheet.columns.forEach((column, index) => {
+      const header = headers[index]
+      const maxLength = Math.max(
+        header.length,
+        ...excelData.map(row => (row[header] || '').toString().length)
+      )
+      column.width = Math.min(maxLength + 2, 50)
+    })
 
-    // Write file
-    XLSX.writeFile(workbook, `${filename}_${new Date().toISOString().split('T')[0]}.xlsx`)
+    // Style the header row
+    worksheet.getRow(1).font = { bold: true }
+    worksheet.getRow(1).fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFE6E6FA' }
+    }
+
+    // Generate buffer
+    const buffer = await workbook.xlsx.writeBuffer()
+    const blob = new Blob([buffer], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    })
+
+    // Download file
+    const link = document.createElement('a')
+    link.href = URL.createObjectURL(blob)
+    link.download = `${filename}_${new Date().toISOString().split('T')[0]}.xlsx`
+    link.click()
+    URL.revokeObjectURL(link.href)
     
     return true
   } catch (error) {

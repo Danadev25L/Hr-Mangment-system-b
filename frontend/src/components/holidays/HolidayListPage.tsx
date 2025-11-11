@@ -23,7 +23,7 @@ import {
 } from '@ant-design/icons'
 import { useSearchParams } from 'next/navigation'
 import dayjs from 'dayjs'
-import * as XLSX from 'xlsx'
+import { exportToExcel } from '@/lib/exportUtils'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import apiClient from '@/lib/api'

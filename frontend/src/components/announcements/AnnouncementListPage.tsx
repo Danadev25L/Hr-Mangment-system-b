@@ -25,7 +25,7 @@ import {
 } from '@ant-design/icons'
 import { useSearchParams } from 'next/navigation'
 import dayjs from 'dayjs'
-import * as XLSX from 'xlsx'
+import { exportToExcel } from '@/lib/exportUtils'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import apiClient from '@/lib/api'
@@ -192,7 +192,7 @@ export const AnnouncementListPage = React.memo(function AnnouncementListPage({ r
   }), [filteredAnnouncements, role])
 
   // Memoized export functions
-  const exportToExcel = useCallback(() => {
+  const handleExportToExcel = useCallback(async () => {
     if (filteredAnnouncements.length === 0) {
       message.warning(t('common.noDataToExport'))
       return
@@ -207,11 +207,16 @@ export const AnnouncementListPage = React.memo(function AnnouncementListPage({ r
       [t('announcements.createdBy')]: announcement.creator?.fullName || t('announcements.unknown'),
     }))
 
-    const ws = XLSX.utils.json_to_sheet(exportData)
-    const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, ws, 'Announcements')
-    XLSX.writeFile(wb, `announcements-${dayjs().format('YYYY-MM-DD')}.xlsx`)
-    message.success(t('common.exportSuccess'))
+    exportToExcel(exportData.map(item => ({
+      ...item,
+      // Flatten nested objects for Excel export
+      department: typeof item.department === 'object' ? item.department?.departmentName : item.department,
+      creator: item.creator?.fullName || item.creator
+    })), 'announcements').then(() => {
+      message.success(t('common.exportSuccess'))
+    }).catch(() => {
+      message.error(t('common.exportError'))
+    })
   }, [filteredAnnouncements, t])
 
   const exportToPDF = useCallback(() => {
@@ -263,7 +268,7 @@ export const AnnouncementListPage = React.memo(function AnnouncementListPage({ r
       key: 'excel',
       icon: <FileExcelOutlined />,
       label: t('applications.exportToExcel'),
-      onClick: exportToExcel,
+      onClick: handleExportToExcel,
     },
     {
       key: 'pdf',

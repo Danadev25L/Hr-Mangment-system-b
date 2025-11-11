@@ -1,0 +1,56 @@
+{
+  "name": "thesis_fullstack",
+  "version": "1.0.0",
+  "description": "",
+  "main": "app.js",
+  "type": "module",
+  "scripts": {
+    "client-install": "npm install --prefix ../frontend",
+    "start": "node ./bin/www",
+    "server": "nodemon ./bin/www",
+    "client": "npm run dev --prefix ../frontend",
+    "dev": "npm run server",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:seed": "node db/index.js",
+    "db:reset": "drizzle-kit drop && npm run db:generate && npm run db:migrate",
+    "db:setup": "npm run db:reset && npm run db:seed",
+    "db:drop": "drizzle-kit drop",
+    "db:check": "drizzle-kit check",
+    "heroku-postbuild": "NPM_CONFIG_PRODUCTION=false npm install --prefix ../frontend && npm run build --prefix ../frontend"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "@types/pg": "^8.11.10",
+    "bcrypt": "^5.1.1",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "debug": "^4.3.7",
+    "dotenv": "^16.4.7",
+    "drizzle-orm": "^0.44.6",
+    "ejs": "^3.1.10",
+    "express": "^4.21.2",
+    "express-mongo-sanitize": "^2.2.0",
+    "express-rate-limit": "^8.1.0",
+    "express-slow-down": "^3.0.0",
+    "express-validator": "^7.3.0",
+    "helmet": "^8.1.0",
+    "hpp": "^0.2.3",
+    "http-errors": "^2.0.0",
+    "jsonwebtoken": "^9.0.2",
+    "moment": "^2.30.1",
+    "morgan": "^1.10.0",
+    "node-cron": "^4.2.1",
+    "pg": "^8.13.1",
+    "uuid": "^13.0.0"
+  },
+  "devDependencies": {
+    "drizzle-kit": "^0.18.1",
+    "nodemon": "^3.1.9"
+  }
+}

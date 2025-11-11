@@ -29,7 +29,9 @@
       "Bash(git rm:*)",
       "Bash(npm uninstall:*)",
       "Bash(git push:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(npm run client:*)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []
